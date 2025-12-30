@@ -47,7 +47,7 @@ const ColorCombos = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="px-4">
         <div className="flex items-center justify-end">
           <button 
           className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
@@ -66,12 +66,12 @@ const ColorCombos = () => {
       </div>
 
       {/* Combos Grid Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {combos.map((combo) => (
           <div
             key={combo.id}
-            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
+            className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
             onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
           >
@@ -116,7 +116,7 @@ const ColorCombos = () => {
         </div>
 
         {combos.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
           <div className="text-6xl mb-4">🎨</div>
           <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Color Combos Yet</h3>
           <p className="text-slate-600 mb-4">Create your first color combination to get started</p>

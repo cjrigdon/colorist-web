@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import DropdownMenu from './DropdownMenu';
 
 // Color distance calculation using Euclidean distance in RGB space
 const colorDistance = (color1, color2) => {
@@ -64,6 +65,13 @@ const ColorAlong = () => {
         { id: 5, name: 'Canary Yellow', hex: '#FFEF00', inStock: true },
         { id: 6, name: 'Forest Green', hex: '#228B22', inStock: true },
         { id: 7, name: 'Orange', hex: '#FFA500', inStock: true },
+        { id: 8, name: 'Crimson Red', hex: '#DC143C', inStock: true },
+        { id: 9, name: 'True Blue', hex: '#0073CF', inStock: true },
+        { id: 10, name: 'Lime Peel', hex: '#D0E429', inStock: false },
+        { id: 11, name: 'Violet', hex: '#8B00FF', inStock: true },
+        { id: 12, name: 'Canary Yellow', hex: '#FFEF00', inStock: true },
+        { id: 13, name: 'Forest Green', hex: '#228B22', inStock: true },
+        { id: 14, name: 'Orange', hex: '#FFA500', inStock: true },
       ]
     },
     {
@@ -140,64 +148,57 @@ const ColorAlong = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Pencil Set Selection and Video Selection Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" style={{ height: '100%' }}>
         {/* Left Column: Pencil Sets and Color Matches */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Pencil Set Selection Section */}
-          {(!videoSetId || !userSetId) && (
-            <div className="bg-slate-50 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4 font-venti">Pencil Sets</h3>
-              <div className="space-y-4">
-                {/* Video Set Selection */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-3 font-venti">Video Set</h4>
-                  <select
-                    value={videoSetId || ''}
-                    onChange={(e) => setVideoSetId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select the set used in the video...</option>
-                    {pencilSets.map((set) => (
-                      <option key={set.id} value={set.id}>
-                        {set.name} ({set.brand}) - {set.count} colors
-                      </option>
-                    ))}
-                  </select>
-                </div>
+        <div className="lg:col-span-1 lg:sticky lg:top-0 lg:left-0" style={{ minHeight: '600px', maxHeight: 'calc(100vh - 120px)' }}>
+          <div className="space-y-3 h-full flex flex-col">
+            {/* Pencil Set Selection Section */}
+            {(!videoSetId || !userSetId) && (
+              <div className="bg-white p-3">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2 font-venti">Pencil Sets</h3>
+                <div className="space-y-2">
+                  {/* Video Set Selection */}
+                  <div className="bg-slate-50 shadow-sm border border-slate-200 p-2">
+                    <h4 className="text-xs font-semibold text-slate-800 mb-2 font-venti">Video Set</h4>
+                    <DropdownMenu
+                      options={pencilSets.map(set => ({
+                        value: set.id,
+                        label: `${set.name} (${set.brand}) - ${set.count} colors`
+                      }))}
+                      value={videoSetId || ''}
+                      onChange={(value) => setVideoSetId(value ? parseInt(value) : null)}
+                      placeholder="Select the set used in the video..."
+                    />
+                  </div>
 
-                {/* User Set Selection */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-3 font-venti">Your Set</h4>
-                  <select
-                    value={userSetId || ''}
-                    onChange={(e) => setUserSetId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select your pencil set...</option>
-                    {pencilSets.map((set) => (
-                      <option key={set.id} value={set.id}>
-                        {set.name} ({set.brand}) - {set.count} colors
-                      </option>
-                    ))}
-                  </select>
+                  {/* User Set Selection */}
+                  <div className="bg-slate-50 shadow-sm border border-slate-200 p-2">
+                    <h4 className="text-xs font-semibold text-slate-800 mb-2 font-venti">Your Set</h4>
+                    <DropdownMenu
+                      options={pencilSets.map(set => ({
+                        value: set.id,
+                        label: `${set.name} (${set.brand}) - ${set.count} colors`
+                      }))}
+                      value={userSetId || ''}
+                      onChange={(value) => setUserSetId(value ? parseInt(value) : null)}
+                      placeholder="Select your pencil set..."
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Color Matches Section */}
           {matches.length > 0 && (
-            <div className="bg-slate-50 rounded-2xl p-6">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-4 border-b border-slate-200">
+            <div className="bg-white p-3 flex-1 flex flex-col min-h-0" style={{ minHeight: '600px' }}>
+              <div className="bg-slate-50 shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full rounded-none">
+                <div className="p-2 border-b border-slate-200 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
-                      <p className="text-xs text-slate-600 mt-1">
+                      <h3 className="text-sm font-semibold text-slate-800 font-venti">Color Matches</h3>
+                      <p className="text-xs text-slate-600 mt-0.5">
                         Matches from {userSet.name}
                       </p>
                     </div>
@@ -208,27 +209,27 @@ const ColorAlong = () => {
                       }}
                       className="text-xs text-slate-600 hover:text-slate-800 transition-colors underline"
                     >
-                      Change pencil sets
+                      Change
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 max-h-[600px] overflow-y-auto">
-                  <div className="space-y-3">
+                <div className="p-2 flex-1 overflow-y-auto" style={{ backgroundColor: '#000000' }}>
+                  <div className="space-y-2">
                     {matches.map(({ videoColor, match }) => (
                       <div
                         key={videoColor.id}
-                        className="bg-slate-50 rounded-lg p-3 border border-slate-200 hover:shadow-md transition-all"
+                        className="bg-white p-2 border border-slate-200 hover:shadow-md transition-all"
                         onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
                         onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                       >
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2">
                           {/* Video Color */}
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-600 mb-1">Video</p>
-                            <div className="flex items-center space-x-2">
+                            <p className="text-xs font-medium text-slate-600 mb-0.5">Video</p>
+                            <div className="flex items-center space-x-1.5">
                               <div
-                                className="w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                                className="w-6 h-6 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                 style={{ backgroundColor: videoColor.hex }}
                               ></div>
                               <div className="flex-1 min-w-0">
@@ -240,17 +241,17 @@ const ColorAlong = () => {
 
                           {/* Arrow */}
                           <div className="text-slate-400 flex-shrink-0">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </div>
 
                           {/* Match Color */}
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-600 mb-1">Your Match</p>
-                            <div className="flex items-center space-x-2">
+                            <p className="text-xs font-medium text-slate-600 mb-0.5">Your Match</p>
+                            <div className="flex items-center space-x-1.5">
                               <div
-                                className="w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                                className="w-6 h-6 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                 style={{ backgroundColor: match.hex }}
                               ></div>
                               <div className="flex-1 min-w-0">
@@ -260,7 +261,7 @@ const ColorAlong = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="text-xs text-slate-400 text-center mt-2">
+                        <div className="text-xs text-slate-400 text-center mt-1">
                           Distance: {Math.round(match.distance)}
                         </div>
                       </div>
@@ -270,129 +271,112 @@ const ColorAlong = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Right Column: Video Selection */}
-        <div className="lg:col-span-2 bg-slate-50 rounded-2xl p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 font-venti">Video Selection</h3>
+        <div className="lg:col-span-3 bg-white p-4" style={{ minHeight: '600px', maxHeight: 'calc(100vh - 120px)' }}>
           
           {!selectedVideo ? (
-          <div className="space-y-4">
-            {/* Video ID Input */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Enter YouTube Video ID
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={videoId}
-                  onChange={(e) => setVideoId(e.target.value)}
-                  placeholder="e.g., dQw4w9WgXcQ"
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                />
+            <div className="space-y-4">
+              {/* Video ID Input */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Enter YouTube Video ID
+                </label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={videoId}
+                    onChange={(e) => setVideoId(e.target.value)}
+                    placeholder="e.g., dQw4w9WgXcQ"
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{ focusRingColor: '#ea3663' }}
+                  />
+                  <button
+                    onClick={handleLoadVideo}
+                    disabled={!videoId}
+                    className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: '#ea3663'
+                    }}
+                    onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}
+                    onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#ea3663')}
+                  >
+                    Load Video
+                  </button>
+                </div>
+              </div>
+
+              {/* Inspiration Videos */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Or choose from your inspiration videos
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {inspirationVideos.map((video) => (
+                    <button
+                      key={video.id}
+                      onClick={() => handleVideoSelect(video)}
+                      className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left"
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                    >
+                      <div className="relative aspect-video bg-slate-100">
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                          <div className="w-10 h-10 rounded-full bg-white bg-opacity-90 flex items-center justify-center">
+                            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#49817b' }}>
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-medium text-slate-800 line-clamp-2">{video.title}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={`https://www.youtube.com/embed/${selectedVideo.id}`}
+                  title={selectedVideo.title}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                ></iframe>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-800">{selectedVideo.title}</h4>
+                  <p className="text-sm text-slate-600">Video ID: {selectedVideo.id}</p>
+                </div>
                 <button
-                  onClick={handleLoadVideo}
-                  disabled={!videoId}
-                  className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: '#ea3663'
+                  onClick={() => {
+                    setSelectedVideo(null);
+                    setVideoId('');
                   }}
-                  onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}
-                  onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#ea3663')}
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  Load Video
+                  Change Video
                 </button>
               </div>
             </div>
-
-            {/* Inspiration Videos */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Or choose from your inspiration videos
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {inspirationVideos.map((video) => (
-                  <button
-                    key={video.id}
-                    onClick={() => handleVideoSelect(video)}
-                    className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left"
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                  >
-                    <div className="relative aspect-video bg-slate-100">
-                      <img
-                        src={video.thumbnail}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                        <div className="w-10 h-10 rounded-full bg-white bg-opacity-90 flex items-center justify-center">
-                          <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#49817b' }}>
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-sm font-medium text-slate-800 line-clamp-2">{video.title}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-semibold text-slate-800">{selectedVideo.title}</h4>
-                <p className="text-sm text-slate-600">Video ID: {selectedVideo.id}</p>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedVideo(null);
-                  setVideoId('');
-                }}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Change Video
-              </button>
-            </div>
-            <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden">
-              <iframe
-                width="100%"
-                height="100%"
-                src={`https://www.youtube.com/embed/${selectedVideo.id}`}
-                title={selectedVideo.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              ></iframe>
-            </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
-
-      {/* Empty States */}
-      {selectedVideo && !videoSetId && !userSetId && (
-        <div className="bg-slate-50 rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-4">✏️</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Select Pencil Sets</h3>
-          <p className="text-slate-600">Choose the video set and your set to see color matches</p>
-        </div>
-      )}
-
-      {!selectedVideo && (
-        <div className="bg-slate-50 rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-4">🎬</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Select a Video</h3>
-          <p className="text-slate-600">Enter a video ID or choose from your inspiration videos to get started</p>
-        </div>
-      )}
     </div>
   );
 };

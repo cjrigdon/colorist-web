@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import DropdownMenu from './DropdownMenu';
 
 const ColoristLog = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -257,12 +260,12 @@ const ColoristLog = () => {
   return (
     <div className="space-y-6">
       {/* Date Navigation Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="px-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigateDate(-1)}
-              className="p-2 rounded-lg hover:bg-white transition-colors"
+              className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -273,7 +276,7 @@ const ColoristLog = () => {
             </div>
             <button
               onClick={() => navigateDate(1)}
-              className="p-2 rounded-lg hover:bg-white transition-colors"
+              className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -283,7 +286,7 @@ const ColoristLog = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setSelectedDate(new Date())}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-white rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
             >
               Today
             </button>
@@ -301,7 +304,7 @@ const ColoristLog = () => {
 
         {/* Calendar */}
         {showCalendar && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-slate-800 font-venti">
                 {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -351,8 +354,8 @@ const ColoristLog = () => {
                       : isToday(date)
                       ? 'bg-slate-100 font-medium'
                       : hasEntry(date)
-                      ? 'bg-slate-50 hover:bg-slate-100 border-2 border-slate-300'
-                      : 'hover:bg-slate-50'
+                      ? 'bg-white hover:bg-slate-100 border-2 border-slate-300'
+                      : 'hover:bg-white'
                   }`}
                 >
                   {date ? (
@@ -371,7 +374,7 @@ const ColoristLog = () => {
       </div>
 
       {/* Entries Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 font-venti">Journal Entries</h3>
           <button
@@ -389,7 +392,7 @@ const ColoristLog = () => {
         </div>
 
         {entries.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📔</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Entries Yet</h3>
             <p className="text-slate-600 mb-4">Create your first journal entry for this date</p>
@@ -408,7 +411,7 @@ const ColoristLog = () => {
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
+                className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
                 onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
                 onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               >
@@ -449,7 +452,7 @@ const ColoristLog = () => {
                         {entry.tags.map((tag, index) => (
                           <span
                             key={index}
-                            className="px-2 py-1 bg-slate-50 text-slate-600 rounded text-xs border border-slate-200"
+                            className="px-2 py-1 bg-white text-slate-600 rounded text-xs border border-slate-200"
                           >
                             #{tag}
                           </span>
@@ -513,7 +516,7 @@ const ColoristLog = () => {
       {/* Entry Form Modal */}
       {showEntryForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-50 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-slate-800 font-venti">
@@ -547,77 +550,72 @@ const ColoristLog = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Inspiration</label>
-                  <select
+                  <DropdownMenu
+                    label="Inspiration"
+                    options={inspirations.map(item => ({
+                      value: item.id.toString(),
+                      label: item.title
+                    }))}
                     value={formData.inspiration}
-                    onChange={(e) => setFormData({ ...formData, inspiration: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select inspiration...</option>
-                    {inspirations.map((item) => (
-                      <option key={item.id} value={item.id}>{item.title}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, inspiration: value })}
+                    placeholder="Select inspiration..."
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Book</label>
-                  <select
+                  <DropdownMenu
+                    label="Book"
+                    options={books.map(book => ({
+                      value: book.id.toString(),
+                      label: book.title
+                    }))}
                     value={formData.book}
-                    onChange={(e) => setFormData({ ...formData, book: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select book...</option>
-                    {books.map((book) => (
-                      <option key={book.id} value={book.id}>{book.title}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, book: value })}
+                    placeholder="Select book..."
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Pencil Set</label>
-                  <select
+                  <DropdownMenu
+                    label="Pencil Set"
+                    options={pencilSets.map(set => ({
+                      value: set.id.toString(),
+                      label: set.name
+                    }))}
                     value={formData.pencilSet}
-                    onChange={(e) => setFormData({ ...formData, pencilSet: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select pencil set...</option>
-                    {pencilSets.map((set) => (
-                      <option key={set.id} value={set.id}>{set.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, pencilSet: value })}
+                    placeholder="Select pencil set..."
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Color Palette</label>
-                  <select
+                  <DropdownMenu
+                    label="Color Palette"
+                    options={palettes.map(palette => ({
+                      value: palette.id.toString(),
+                      label: palette.name
+                    }))}
                     value={formData.palette}
-                    onChange={(e) => setFormData({ ...formData, palette: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select palette...</option>
-                    {palettes.map((palette) => (
-                      <option key={palette.id} value={palette.id}>{palette.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, palette: value })}
+                    placeholder="Select palette..."
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Color Combo</label>
-                  <select
+                  <DropdownMenu
+                    label="Color Combo"
+                    options={combos.map(combo => ({
+                      value: combo.id.toString(),
+                      label: combo.name
+                    }))}
                     value={formData.combo}
-                    onChange={(e) => setFormData({ ...formData, combo: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
-                  >
-                    <option value="">Select combo...</option>
-                    {combos.map((combo) => (
-                      <option key={combo.id} value={combo.id}>{combo.name}</option>
-                    ))}
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, combo: value })}
+                    placeholder="Select combo..."
+                  />
                 </div>
               </div>
 

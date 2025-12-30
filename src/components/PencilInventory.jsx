@@ -47,11 +47,11 @@ const PencilInventory = () => {
   return (
     <div className="space-y-6">
       {/* Main Content Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Sets List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-800 font-venti">Your Sets</h3>
               <button 
@@ -97,7 +97,7 @@ const PencilInventory = () => {
         {/* Colors Grid */}
         <div className="lg:col-span-2">
           {selectedSetData ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-semibold text-slate-800 font-venti">{selectedSetData.name}</h3>
@@ -120,7 +120,7 @@ const PencilInventory = () => {
                     key={color.id}
                     className={`p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md ${
                       color.inStock
-                        ? 'border-slate-200 bg-white'
+                        ? 'border-slate-200 bg-slate-50'
                         : 'border-red-200 bg-red-50 opacity-60'
                     }`}
                     onMouseEnter={(e) => {
@@ -166,7 +166,7 @@ const PencilInventory = () => {
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
               <div className="text-6xl mb-4">✏️</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Select a Pencil Set</h3>
               <p className="text-slate-600">Choose a set from the left to view its colors</p>

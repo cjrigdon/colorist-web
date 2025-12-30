@@ -50,7 +50,7 @@ const ColoringBooks = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="px-4">
         <div className="flex items-center justify-end">
           <button 
           className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
@@ -69,12 +69,12 @@ const ColoringBooks = () => {
       </div>
 
       {/* Books Grid Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {books.map((book) => (
           <div
             key={book.id}
-            className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
+            className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
             onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
           >
@@ -172,7 +172,7 @@ const ColoringBooks = () => {
         </div>
 
         {books.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
           <div className="text-6xl mb-4">📖</div>
           <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Coloring Books Yet</h3>
           <p className="text-slate-600 mb-4">Add your first coloring book to start tracking your progress</p>

@@ -21,7 +21,7 @@ const Library = () => {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="px-4">
         <div className="flex items-center justify-end space-x-2">
             <button
               onClick={() => setFilter('all')}
@@ -96,20 +96,19 @@ const Library = () => {
       </div>
 
       {/* Grid Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredInspirations.map((item) => (
           <div
             key={item.id}
-            className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
+            className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
             onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
             onClick={() => {
               if (item.type === 'video' && item.videoId) {
-                navigate('/dashboard', { 
+                navigate('/dashboard/color-along', { 
                   state: { 
-                    video: { id: item.videoId, title: item.title },
-                    activeTab: 'coloralong'
+                    video: { id: item.videoId, title: item.title }
                   } 
                 });
               }

@@ -81,7 +81,7 @@ const StudioOverview = () => {
   return (
     <div className="space-y-6">
       {/* Inspiration Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspiration</h3>
           <div className="flex items-center space-x-4">
@@ -90,7 +90,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('prev', inspirationIndex, inspirations.length, setInspirationIndex)}
                   disabled={inspirationIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -99,7 +99,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('next', inspirationIndex, inspirations.length, setInspirationIndex)}
                   disabled={inspirationIndex >= inspirations.length - 5}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -119,7 +119,7 @@ const StudioOverview = () => {
           {getVisibleItems(inspirations, inspirationIndex).map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => {
@@ -169,7 +169,7 @@ const StudioOverview = () => {
       </div>
 
       {/* Pencil Sets Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Pencil Sets</h3>
           <div className="flex items-center space-x-4">
@@ -178,7 +178,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('prev', pencilSetIndex, pencilSets.length, setPencilSetIndex)}
                   disabled={pencilSetIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -187,7 +187,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('next', pencilSetIndex, pencilSets.length, setPencilSetIndex)}
                   disabled={pencilSetIndex >= pencilSets.length - 5}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -207,7 +207,7 @@ const StudioOverview = () => {
           {getVisibleItems(pencilSets, pencilSetIndex).map((set) => (
             <div
               key={set.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => navigate('/dashboard', { state: { activeTab: 'studio', activeSection: 'pencils' } })}
@@ -222,7 +222,7 @@ const StudioOverview = () => {
       </div>
 
       {/* Color Combos Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
           <div className="flex items-center space-x-4">
@@ -231,7 +231,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('prev', comboIndex, combos.length, setComboIndex)}
                   disabled={comboIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -240,7 +240,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('next', comboIndex, combos.length, setComboIndex)}
                   disabled={comboIndex >= combos.length - 5}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -260,7 +260,7 @@ const StudioOverview = () => {
           {getVisibleItems(combos, comboIndex).map((combo) => (
             <div
               key={combo.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => navigate('/dashboard', { state: { activeTab: 'studio', activeSection: 'combos' } })}
@@ -282,7 +282,7 @@ const StudioOverview = () => {
       </div>
 
       {/* Color Palettes Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
           <div className="flex items-center space-x-4">
@@ -291,7 +291,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('prev', paletteIndex, palettes.length, setPaletteIndex)}
                   disabled={paletteIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -300,7 +300,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('next', paletteIndex, palettes.length, setPaletteIndex)}
                   disabled={paletteIndex >= palettes.length - 5}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -320,7 +320,7 @@ const StudioOverview = () => {
           {getVisibleItems(palettes, paletteIndex).map((palette) => (
             <div
               key={palette.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => navigate('/dashboard', { state: { activeTab: 'studio', activeSection: 'palettes' } })}
@@ -342,7 +342,7 @@ const StudioOverview = () => {
       </div>
 
       {/* Coloring Books Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
           <div className="flex items-center space-x-4">
@@ -351,7 +351,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('prev', bookIndex, books.length, setBookIndex)}
                   disabled={bookIndex === 0}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -360,7 +360,7 @@ const StudioOverview = () => {
                 <button
                   onClick={() => navigateCarousel('next', bookIndex, books.length, setBookIndex)}
                   disabled={bookIndex >= books.length - 5}
-                  className="p-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -380,7 +380,7 @@ const StudioOverview = () => {
           {getVisibleItems(books, bookIndex).map((book) => (
             <div
               key={book.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => navigate('/dashboard', { state: { activeTab: 'studio', activeSection: 'books' } })}

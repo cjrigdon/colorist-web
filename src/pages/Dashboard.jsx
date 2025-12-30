@@ -1,23 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Studio from '../components/Studio';
 import StudioOverview from '../components/StudioOverview';
 import ColorConversion from '../components/ColorConversion';
 import ColorAlong from '../components/ColorAlong';
 import ColoristLog from '../components/ColoristLog';
+import ProfileDropdown from '../components/ProfileDropdown';
+import Profile from './Profile';
+import PrivacyPolicy from './PrivacyPolicy';
 
 const Dashboard = () => {
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState('studio');
-  const [activeStudioSection, setActiveStudioSection] = useState('overview');
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Handle navigation from Library to Color Along
+  // Parse URL to determine active tab and section
+  const pathname = location.pathname;
+  let activeTab = 'studio';
+  let activeStudioSection = 'overview';
+
+  // Redirect /dashboard to /dashboard/studio/overview
   useEffect(() => {
-    if (location.state?.activeTab) {
-      setActiveTab(location.state.activeTab);
+    if (pathname === '/dashboard' || pathname === '/dashboard/') {
+      navigate('/dashboard/studio/overview', { replace: true });
     }
-  }, [location.state]);
+  }, [pathname, navigate]);
+
+  if (pathname.includes('/studio/')) {
+    activeTab = 'studio';
+    if (pathname.includes('/overview')) activeStudioSection = 'overview';
+    else if (pathname.includes('/inspiration')) activeStudioSection = 'library';
+    else if (pathname.includes('/media')) activeStudioSection = 'pencils';
+    else if (pathname.includes('/combos')) activeStudioSection = 'combos';
+    else if (pathname.includes('/palettes')) activeStudioSection = 'palettes';
+    else if (pathname.includes('/books')) activeStudioSection = 'books';
+  } else if (pathname.includes('/conversion')) {
+    activeTab = 'conversion';
+  } else if (pathname.includes('/color-along')) {
+    activeTab = 'coloralong';
+  } else if (pathname.includes('/log')) {
+    activeTab = 'log';
+  }
 
   const tabs = [
     { id: 'studio', label: 'Studio', icon: '🎨' },
@@ -29,13 +52,21 @@ const Dashboard = () => {
   const studioSections = [
     { id: 'overview', label: 'Overview', icon: '🏠' },
     { id: 'library', label: 'Inspiration', icon: '📚' },
-    { id: 'pencils', label: 'Pencils', icon: '✏️' },
+    { id: 'pencils', label: 'Media', icon: '✏️' },
     { id: 'combos', label: 'Combos', icon: '🎨' },
     { id: 'palettes', label: 'Palettes', icon: '🌈' },
     { id: 'books', label: 'Books', icon: '📖' },
   ];
 
   const renderContent = () => {
+    // Check if we're on profile or privacy policy pages
+    if (pathname.includes('/profile')) {
+      return <Profile />;
+    }
+    if (pathname.includes('/privacy-policy')) {
+      return <PrivacyPolicy />;
+    }
+
     switch (activeTab) {
       case 'studio':
         if (activeStudioSection === 'overview') {
@@ -113,7 +144,15 @@ const Dashboard = () => {
             {tabs.map((tab) => (
               <div key={tab.id}>
                 <button
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    if (tab.id === 'studio') {
+                      navigate('/dashboard/studio/overview');
+                    } else if (tab.id === 'coloralong') {
+                      navigate('/dashboard/color-along');
+                    } else {
+                      navigate(`/dashboard/${tab.id}`);
+                    }
+                  }}
                   className={`w-full flex items-center rounded-lg transition-all duration-200 ${
                     sidebarCollapsed ? 'justify-center px-3 py-3' : 'px-3 py-3 space-x-3'
                   } ${
@@ -142,7 +181,17 @@ const Dashboard = () => {
                     {studioSections.map((section) => (
                       <button
                         key={section.id}
-                        onClick={() => setActiveStudioSection(section.id)}
+                        onClick={() => {
+                          const routeMap = {
+                            'overview': '/dashboard/studio/overview',
+                            'library': '/dashboard/studio/inspiration',
+                            'pencils': '/dashboard/studio/media',
+                            'combos': '/dashboard/studio/combos',
+                            'palettes': '/dashboard/studio/palettes',
+                            'books': '/dashboard/studio/books'
+                          };
+                          navigate(routeMap[section.id] || '/dashboard/studio/overview');
+                        }}
                         className={`w-full flex items-center rounded-lg transition-all duration-200 px-3 py-2 text-sm ${
                           activeStudioSection === section.id
                             ? 'font-medium'
@@ -166,27 +215,7 @@ const Dashboard = () => {
 
         {/* User Section */}
         <div className="border-t border-slate-200 p-4">
-          <a
-            href="/profile"
-            className={`flex items-center transition-all duration-300 rounded-lg p-2 hover:bg-white hover:bg-opacity-50 ${
-              sidebarCollapsed ? 'justify-center' : 'space-x-3'
-            }`}
-          >
-            <div 
-              className="h-10 w-10 rounded-full cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-              style={{
-                background: 'linear-gradient(to bottom right, #ea3663, #ff8e7e)'
-              }}
-            ></div>
-            <div className={`transition-all duration-300 ${
-              sidebarCollapsed 
-                ? 'opacity-0 w-0 overflow-hidden' 
-                : 'opacity-100 w-auto flex-1 min-w-0'
-            }`}>
-              <p className="text-sm font-medium text-slate-800 truncate">User Name</p>
-              <p className="text-xs text-slate-500 truncate">user@example.com</p>
-            </div>
-          </a>
+          <ProfileDropdown sidebarCollapsed={sidebarCollapsed} />
         </div>
       </aside>
 
@@ -208,10 +237,24 @@ const Dashboard = () => {
         >
           <div>
             <h2 className="text-lg font-semibold text-slate-800 font-venti">
-              {tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
+              {pathname.includes('/profile') ? 'Profile' :
+               pathname.includes('/privacy-policy') ? 'Privacy Policy' :
+               activeTab === 'studio' 
+                ? studioSections.find(section => section.id === activeStudioSection)?.label || 'Studio'
+                : tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              {activeTab === 'studio' && 'Your creative workspace for inspiration, colors, and projects'}
+              {pathname.includes('/profile') ? 'Manage your account settings and preferences' :
+               pathname.includes('/privacy-policy') ? 'Learn how we protect and handle your data' :
+               activeTab === 'studio' && (
+                activeStudioSection === 'overview' && 'A quick glance at your creative studio' ||
+                activeStudioSection === 'library' && 'Browse your collection of inspirations' ||
+                activeStudioSection === 'pencils' && 'Track your colored pencil sets and colors' ||
+                activeStudioSection === 'combos' && 'Save and organize your favorite color combinations' ||
+                activeStudioSection === 'palettes' && 'Your favorite color palette collections' ||
+                activeStudioSection === 'books' && 'Track your favorite coloring book collection' ||
+                'Your creative workspace for inspiration, colors, and projects'
+              )}
               {activeTab === 'conversion' && 'Find the closest matching colors between your pencil sets'}
               {activeTab === 'coloralong' && 'Match colors from video tutorials with your own pencil sets'}
               {activeTab === 'log' && 'Track your coloring journey and creative process'}
@@ -228,12 +271,12 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <main 
-          className="flex-1 overflow-y-auto bg-white px-8"
+          className={`flex-1 overflow-y-auto bg-slate-50 ${activeTab === 'coloralong' ? 'px-0' : 'px-8'}`}
           style={{
             paddingTop: '88px'
           }}
         >
-          <div className="max-w-full mx-auto py-8">
+          <div className={`max-w-full mx-auto ${activeTab === 'coloralong' ? 'py-0' : 'py-8'}`}>
             {renderContent()}
           </div>
         </main>

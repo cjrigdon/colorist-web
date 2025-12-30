@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DropdownMenu from './DropdownMenu';
 
 // Color distance calculation using Euclidean distance in RGB space
 const colorDistance = (color1, color2) => {
@@ -157,45 +158,41 @@ const ColorConversion = () => {
   return (
     <div className="space-y-6">
       {/* Selection Section */}
-      <div className="bg-slate-50 rounded-2xl p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-white p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Source Set Selection */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 font-venti">Source Set</h3>
-          <select
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
+          <h3 className="text-lg font-semibold text-slate-800 mb-3 font-venti">Source Set</h3>
+          <DropdownMenu
+            options={pencilSets.map(set => ({
+              value: set.id,
+              label: `${set.name} (${set.brand}) - ${set.count} colors`
+            }))}
             value={sourceSet?.id || ''}
-            onChange={(e) => {
-              const setId = parseInt(e.target.value);
+            onChange={(value) => {
+              const setId = parseInt(value);
               const set = pencilSets.find(s => s.id === setId);
               setSourceSet(set || null);
               // Remove source set from target sets if it was selected
               setTargetSets(targetSets.filter(ts => ts.id !== setId));
             }}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-            style={{ focusRingColor: '#ea3663' }}
-          >
-            <option value="">Select a source set...</option>
-            {pencilSets.map((set) => (
-              <option key={set.id} value={set.id}>
-                {set.name} ({set.brand}) - {set.count} colors
-              </option>
-            ))}
-          </select>
+            placeholder="Select a source set..."
+          />
         </div>
 
         {/* Target Sets Selection */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-slate-800 font-venti">Target Sets</h3>
             <span className="text-sm text-slate-500">{targetSets.length}/5 selected</span>
           </div>
           
           {targetSets.length > 0 && (
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-3">
               {targetSets.map((set) => (
                 <div
                   key={set.id}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-white rounded-lg"
                 >
                   <div>
                     <p className="text-sm font-medium text-slate-800">{set.name}</p>
@@ -215,109 +212,113 @@ const ColorConversion = () => {
           )}
 
           {targetSets.length < 5 && (
-            <select
+            <DropdownMenu
+              options={availableTargetSets.map(set => ({
+                value: set.id,
+                label: `${set.name} (${set.brand}) - ${set.count} colors`
+              }))}
               value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleAddTargetSet(parseInt(e.target.value));
-                  e.target.value = '';
+              onChange={(value) => {
+                if (value) {
+                  handleAddTargetSet(parseInt(value));
                 }
               }}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{ focusRingColor: '#ea3663' }}
-            >
-              <option value="">Add a target set...</option>
-              {availableTargetSets.map((set) => (
-                <option key={set.id} value={set.id}>
-                  {set.name} ({set.brand}) - {set.count} colors
-                </option>
-              ))}
-            </select>
+              placeholder="Add a target set..."
+            />
           )}
         </div>
         </div>
-      </div>
+        {/* Results Section */}
+        {matches.length > 0 && (
+            <div className="mt-6 bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between no-print">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
+                </div>
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-100 hover:shadow-md transition-all duration-200 flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  <span>Print</span>
+                </button>
+              </div>
 
-      {/* Results Section */}
-      {matches.length > 0 && (
-        <div className="bg-slate-50 rounded-2xl p-6">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
-              <p className="text-sm text-slate-600 mt-1">
-                Showing closest matches for {sourceSet.name} colors
-              </p>
-            </div>
+              <div className="p-6 print-only hidden print:block">
+                <h3 className="text-xl font-semibold text-slate-800 font-venti mb-2">Color Matches</h3>
+              </div>
 
-            <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">Source Color</th>
-                  {targetSets.map((set) => (
-                    <th key={set.id} className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">
-                      {set.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {matches.map(({ sourceColor, matches: colorMatches }, index) => (
-                  <tr key={sourceColor.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                          style={{ backgroundColor: sourceColor.hex }}
-                        ></div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">{sourceColor.name}</p>
-                          <p className="text-xs text-slate-500 font-mono">{sourceColor.hex}</p>
-                        </div>
-                      </div>
-                    </td>
-                    {colorMatches.map(({ set, match }) => (
-                      <td key={set.id} className="px-6 py-4">
+              <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-white">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">Source Color</th>
+                    {targetSets.map((set) => (
+                      <th key={set.id} className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">
+                        {set.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {matches.map(({ sourceColor, matches: colorMatches }, index) => (
+                    <tr key={sourceColor.id} className="hover:bg-white transition-colors">
+                      <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
                           <div
                             className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                            style={{ backgroundColor: match.hex }}
+                            style={{ backgroundColor: sourceColor.hex }}
                           ></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800">{match.name}</p>
-                            <p className="text-xs text-slate-500 font-mono">{match.hex}</p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Distance: {Math.round(match.distance)}
-                            </p>
+                          <div>
+                            <p className="text-sm font-medium text-slate-800">{sourceColor.name}</p>
+                            <p className="text-xs text-slate-500 font-mono">{sourceColor.hex}</p>
                           </div>
                         </div>
                       </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </div>
-      )}
+                      {colorMatches.map(({ set, match }) => (
+                        <td key={set.id} className="px-6 py-4">
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                              style={{ backgroundColor: match.hex }}
+                            ></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800">{match.name}</p>
+                              <p className="text-xs text-slate-500 font-mono">{match.hex}</p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                Distance: {Math.round(match.distance)}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            </div>
+        )}
 
-      {/* Empty State */}
-      {!sourceSet && (
-        <div className="bg-slate-50 rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-4">🎨</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Source Set Selected</h3>
-          <p className="text-slate-600">Select a source set to begin comparing colors</p>
-        </div>
-      )}
+        {/* Empty State */}
+        {!sourceSet && (
+          <div className="bg-white p-12 text-center">
+            <div className="text-6xl mb-4">🎨</div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Source Set Selected</h3>
+            <p className="text-slate-600">Select a source set to begin comparing colors</p>
+          </div>
+        )}
 
-      {sourceSet && targetSets.length === 0 && (
-        <div className="bg-slate-50 rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Target Sets Selected</h3>
-          <p className="text-slate-600">Add up to 5 target sets to compare colors</p>
-        </div>
-      )}
+        {sourceSet && targetSets.length === 0 && (
+          <div className="bg-white p-12 text-center">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Target Sets Selected</h3>
+            <p className="text-slate-600">Add up to 5 target sets to compare colors</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
