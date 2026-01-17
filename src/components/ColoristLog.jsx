@@ -2,99 +2,200 @@ import React, { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
+import AddPencilSetModal from './AddPencilSetModal';
+import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
 
 const ColoristLog = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [entries, setEntries] = useState([]);
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [loadingEntries, setLoadingEntries] = useState(true);
+  const [loadingDates, setLoadingDates] = useState(false);
+  const [datesWithEntries, setDatesWithEntries] = useState([]);
   const [formData, setFormData] = useState({
     date: '',
     inspiration: '',
     book: '',
     pencilSet: '',
     palette: '',
-    combo: '',
-    notes: '',
-    tags: '',
-    images: [],
-    videos: []
+    combos: [],
+    notes: ''
   });
 
-  // Mock data
-  const inspirations = [
-    { id: 1, title: 'Watercolor Pencil Techniques' },
-    { id: 2, title: 'Nature Color Palette' },
-    { id: 3, title: 'Blending Techniques' },
-  ];
-
-  const books = [
-    { id: 1, title: 'Floral Dreams Coloring Book' },
-    { id: 2, title: 'Nature Scenes' },
-    { id: 3, title: 'Mandala Patterns' },
-  ];
-
-  const pencilSets = [
-    { id: 1, name: 'Prismacolor Premier', brand: 'Prismacolor' },
-    { id: 2, name: 'Faber-Castell Polychromos', brand: 'Faber-Castell' },
-    { id: 3, name: 'Derwent Coloursoft', brand: 'Derwent' },
-  ];
-
-  const palettes = [
-    { id: 1, name: 'Sunset Vibes' },
-    { id: 2, name: 'Ocean Blues' },
-    { id: 3, name: 'Forest Greens' },
-  ];
-
-  const combos = [
-    { id: 1, name: 'Red & Orange Combo' },
-    { id: 2, name: 'Blue & Purple Combo' },
-    { id: 3, name: 'Green & Yellow Combo' },
-  ];
+  // API data states
+  const [inspirations, setInspirations] = useState([]);
+  const [books, setBooks] = useState([]);
+  const [pencilSets, setPencilSets] = useState([]);
+  const [palettes, setPalettes] = useState([]);
+  const [combos, setCombos] = useState([]);
+  const [loadingFormData, setLoadingFormData] = useState(false);
+  const [showAddSetModal, setShowAddSetModal] = useState(false);
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
   };
 
-  // Get entries for selected date
+  // Fetch related data for displaying entries (loads on mount)
   useEffect(() => {
-    const dateStr = formatDate(selectedDate);
-    // Mock entries - in real app, fetch from API
-    const mockEntries = [
-      {
-        id: 1,
-        date: dateStr,
-        inspiration: inspirations[0],
-        book: books[0],
-        pencilSet: pencilSets[0],
-        palette: palettes[0],
-        combo: null,
-        notes: 'Great session today! Really enjoyed working with the watercolor techniques.',
-        tags: ['watercolor', 'floral', 'relaxing'],
-        images: [],
-        videos: []
+    const fetchRelatedData = async () => {
+      try {
+        // Fetch inspirations
+        const inspirationsResponse = await inspirationAPI.getAll(1, 1000);
+        let inspirationsData = [];
+        if (Array.isArray(inspirationsResponse)) {
+          inspirationsData = inspirationsResponse;
+        } else if (inspirationsResponse.data && Array.isArray(inspirationsResponse.data)) {
+          inspirationsData = inspirationsResponse.data;
+        }
+        // Extract data property if present (inspiration API returns {type, data, created_at})
+        const extractedInspirations = inspirationsData.map(item => {
+          if (item.data) {
+            return { ...item.data, type: item.type };
+          }
+          return item;
+        });
+        setInspirations(extractedInspirations);
+
+        // Fetch books
+        const booksResponse = await booksAPI.getAll(1, 1000);
+        let booksData = [];
+        if (Array.isArray(booksResponse)) {
+          booksData = booksResponse;
+        } else if (booksResponse.data && Array.isArray(booksResponse.data)) {
+          booksData = booksResponse.data;
+        }
+        setBooks(booksData);
+
+        // Fetch pencil sets
+        const pencilSetsResponse = await coloredPencilSetsAPI.getAll(1, 1000);
+        let pencilSetsData = [];
+        if (Array.isArray(pencilSetsResponse)) {
+          pencilSetsData = pencilSetsResponse;
+        } else if (pencilSetsResponse.data && Array.isArray(pencilSetsResponse.data)) {
+          pencilSetsData = pencilSetsResponse.data;
+        }
+        // Transform for dropdown
+        const transformedSets = pencilSetsData.map(setSize => ({
+          id: setSize.set?.id || setSize.id,
+          name: setSize.set?.name || 'Unknown',
+          brand: setSize.set?.brand || 'Unknown'
+        }));
+        setPencilSets(transformedSets);
+
+        // Fetch palettes
+        const palettesResponse = await colorPalettesAPI.getAll(1, 1000);
+        let palettesData = [];
+        if (Array.isArray(palettesResponse)) {
+          palettesData = palettesResponse;
+        } else if (palettesResponse.data && Array.isArray(palettesResponse.data)) {
+          palettesData = palettesResponse.data;
+        }
+        setPalettes(palettesData);
+
+        // Fetch combos
+        const combosResponse = await colorCombosAPI.getAll(1, 1000);
+        let combosData = [];
+        if (Array.isArray(combosResponse)) {
+          combosData = combosResponse;
+        } else if (combosResponse.data && Array.isArray(combosResponse.data)) {
+          combosData = combosResponse.data;
+        }
+        setCombos(combosData);
+      } catch (error) {
+        console.error('Error fetching related data:', error);
       }
-    ];
-    setEntries(mockEntries.filter(e => e.date === dateStr));
-  }, [selectedDate]);
+    };
+
+    fetchRelatedData();
+  }, []);
+
+  // Fetch form data when form opens (for form dropdowns)
+  // Note: Data is already loaded on mount, this just ensures it's available for the form
+  useEffect(() => {
+    if (!showEntryForm) return;
+    
+    // Data should already be loaded from the mount effect, so just set loading to false
+    // If data isn't loaded yet, it will be available soon from the mount effect
+    setLoadingFormData(false);
+  }, [showEntryForm]);
+
+  // Get entries for selected date (or all most recent if no date selected)
+  useEffect(() => {
+    const fetchEntries = async () => {
+      try {
+        setLoadingEntries(true);
+        // If no date is selected, fetch all entries (most recent first)
+        // If date is selected, filter by that date
+        const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
+        const response = await journalEntriesAPI.getAll(filters);
+        
+        let entriesData = [];
+        if (Array.isArray(response)) {
+          entriesData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          entriesData = response.data;
+        }
+        
+        // Transform API response to match component format
+        const transformedEntries = entriesData.map(entry => ({
+          id: entry.id,
+          date: entry.date,
+          inspiration_id: entry.inspiration_id,
+          book_id: entry.book_id,
+          pencilSet_id: entry.colored_pencil_set_id,
+          palette_id: entry.color_palette_id,
+          combos: entry.combos || [],
+          notes: entry.notes || '',
+          // Find related objects
+          inspiration: inspirations.find(i => i.id === entry.inspiration_id),
+          book: books.find(b => b.id === entry.book_id),
+          pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
+          palette: palettes.find(p => p.id === entry.color_palette_id),
+        }));
+        
+        setEntries(transformedEntries);
+      } catch (error) {
+        console.error('Error fetching entries:', error);
+        setEntries([]);
+      } finally {
+        setLoadingEntries(false);
+      }
+    };
+
+    fetchEntries();
+  }, [selectedDate, inspirations, books, pencilSets, palettes]);
 
   // Get all dates with entries (for calendar indicators)
-  const getDatesWithEntries = () => {
-    // Mock - in real app, fetch from API
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return [formatDate(today), formatDate(yesterday)];
-  };
+  useEffect(() => {
+    const fetchDatesWithEntries = async () => {
+      try {
+        setLoadingDates(true);
+        const response = await journalEntriesAPI.getDatesWithEntries();
+        setDatesWithEntries(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error('Error fetching dates with entries:', error);
+        setDatesWithEntries([]);
+      } finally {
+        setLoadingDates(false);
+      }
+    };
 
-  const datesWithEntries = getDatesWithEntries();
+    fetchDatesWithEntries();
+  }, []);
 
   const formatDisplayDate = (date) => {
+    if (!date) return 'All Entries';
     return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const navigateDate = (direction) => {
+    if (!selectedDate) {
+      // If no date selected, start from today
+      setSelectedDate(new Date());
+      return;
+    }
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + direction);
     setSelectedDate(newDate);
@@ -108,16 +209,13 @@ const ColoristLog = () => {
   const handleCreateEntry = () => {
     setEditingEntry(null);
     setFormData({
-      date: formatDate(selectedDate),
+      date: selectedDate ? formatDate(selectedDate) : formatDate(new Date()),
       inspiration: '',
       book: '',
       pencilSet: '',
       palette: '',
-      combo: '',
-      notes: '',
-      tags: '',
-      images: [],
-      videos: []
+      combos: [],
+      notes: ''
     });
     setShowEntryForm(true);
   };
@@ -126,100 +224,134 @@ const ColoristLog = () => {
     setEditingEntry(entry);
     setFormData({
       date: entry.date,
-      inspiration: entry.inspiration?.id || '',
-      book: entry.book?.id || '',
-      pencilSet: entry.pencilSet?.id || '',
-      palette: entry.palette?.id || '',
-      combo: entry.combo?.id || '',
-      notes: entry.notes || '',
-      tags: entry.tags.join(', ') || '',
-      images: entry.images || [],
-      videos: entry.videos || []
+      inspiration: entry.inspiration_id ? entry.inspiration_id.toString() : '',
+      book: entry.book_id ? entry.book_id.toString() : '',
+      pencilSet: entry.pencilSet_id ? entry.pencilSet_id.toString() : '',
+      palette: entry.palette_id ? entry.palette_id.toString() : '',
+      combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
+      notes: entry.notes || ''
     });
     setShowEntryForm(true);
   };
 
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const imageFiles = files.map(file => ({
-      id: Date.now() + Math.random(),
-      file: file,
-      preview: URL.createObjectURL(file),
-      name: file.name
-    }));
-    setFormData({
-      ...formData,
-      images: [...formData.images, ...imageFiles]
-    });
-  };
 
-  const handleVideoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const videoFiles = files.map(file => ({
-      id: Date.now() + Math.random(),
-      file: file,
-      preview: URL.createObjectURL(file),
-      name: file.name
-    }));
-    setFormData({
-      ...formData,
-      videos: [...formData.videos, ...videoFiles]
-    });
-  };
+  const handleSaveEntry = async () => {
+    try {
+      // Prepare data for API
+      const entryData = {
+        date: formData.date,
+        inspiration: formData.inspiration || null,
+        pencilSet: formData.pencilSet || null,
+        book: formData.book || null,
+        palette: formData.palette || null,
+        combos: formData.combos.map(id => parseInt(id)),
+        notes: formData.notes || null
+      };
 
-  const handleRemoveImage = (imageId) => {
-    const image = formData.images.find(img => img.id === imageId);
-    if (image && image.preview) {
-      URL.revokeObjectURL(image.preview);
+      // Remove null/empty string values (but keep empty arrays for combos)
+      Object.keys(entryData).forEach(key => {
+        if (key !== 'combos' && (entryData[key] === null || entryData[key] === '')) {
+          delete entryData[key];
+        }
+      });
+
+      let savedEntry;
+      if (editingEntry) {
+        savedEntry = await journalEntriesAPI.update(editingEntry.id, entryData);
+      } else {
+        savedEntry = await journalEntriesAPI.create(entryData);
+      }
+
+      // Refresh entries for the selected date (or all if no date selected)
+      const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
+      const response = await journalEntriesAPI.getAll(filters);
+      
+      let entriesData = [];
+      if (Array.isArray(response)) {
+        entriesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        entriesData = response.data;
+      }
+      
+      // Transform API response
+      const transformedEntries = entriesData.map(entry => ({
+        id: entry.id,
+        date: entry.date,
+        inspiration_id: entry.inspiration_id,
+        book_id: entry.book_id,
+        pencilSet_id: entry.colored_pencil_set_id,
+        palette_id: entry.color_palette_id,
+        combos: entry.combos || [],
+        notes: entry.notes || '',
+        inspiration: inspirations.find(i => i.id === entry.inspiration_id),
+        book: books.find(b => b.id === entry.book_id),
+        pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
+        palette: palettes.find(p => p.id === entry.color_palette_id),
+      }));
+      
+      setEntries(transformedEntries);
+      
+      // Refresh dates with entries
+      const datesResponse = await journalEntriesAPI.getDatesWithEntries();
+      setDatesWithEntries(Array.isArray(datesResponse) ? datesResponse : []);
+
+      setShowEntryForm(false);
+      setEditingEntry(null);
+    } catch (error) {
+      console.error('Error saving entry:', error);
+      alert('Failed to save entry. Please try again.');
     }
-    setFormData({
-      ...formData,
-      images: formData.images.filter(img => img.id !== imageId)
-    });
   };
 
-  const handleRemoveVideo = (videoId) => {
-    const video = formData.videos.find(vid => vid.id === videoId);
-    if (video && video.preview) {
-      URL.revokeObjectURL(video.preview);
+  const handleDeleteEntry = async (entryId) => {
+    if (!window.confirm('Are you sure you want to delete this entry?')) {
+      return;
     }
-    setFormData({
-      ...formData,
-      videos: formData.videos.filter(vid => vid.id !== videoId)
-    });
-  };
 
-  const handleSaveEntry = () => {
-    const entry = {
-      id: editingEntry?.id || Date.now(),
-      date: formData.date,
-      inspiration: inspirations.find(i => i.id === parseInt(formData.inspiration)),
-      book: books.find(b => b.id === parseInt(formData.book)),
-      pencilSet: pencilSets.find(p => p.id === parseInt(formData.pencilSet)),
-      palette: palettes.find(p => p.id === parseInt(formData.palette)),
-      combo: combos.find(c => c.id === parseInt(formData.combo)),
-      notes: formData.notes,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      images: formData.images,
-      videos: formData.videos
-    };
-
-    if (editingEntry) {
-      setEntries(entries.map(e => e.id === entry.id ? entry : e));
-    } else {
-      setEntries([...entries, entry]);
+    try {
+      await journalEntriesAPI.delete(entryId);
+      
+      // Refresh entries for the selected date (or all if no date selected)
+      const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
+      const response = await journalEntriesAPI.getAll(filters);
+      
+      let entriesData = [];
+      if (Array.isArray(response)) {
+        entriesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        entriesData = response.data;
+      }
+      
+      const transformedEntries = entriesData.map(entry => ({
+        id: entry.id,
+        date: entry.date,
+        inspiration_id: entry.inspiration_id,
+        book_id: entry.book_id,
+        pencilSet_id: entry.colored_pencil_set_id,
+        palette_id: entry.color_palette_id,
+        combos: entry.combos || [],
+        notes: entry.notes || '',
+        inspiration: inspirations.find(i => i.id === entry.inspiration_id),
+        book: books.find(b => b.id === entry.book_id),
+        pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
+        palette: palettes.find(p => p.id === entry.color_palette_id),
+      }));
+      
+      setEntries(transformedEntries);
+      
+      // Refresh dates with entries
+      const datesResponse = await journalEntriesAPI.getDatesWithEntries();
+      setDatesWithEntries(Array.isArray(datesResponse) ? datesResponse : []);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('Failed to delete entry. Please try again.');
     }
-    setShowEntryForm(false);
-    setEditingEntry(null);
-  };
-
-  const handleDeleteEntry = (entryId) => {
-    setEntries(entries.filter(e => e.id !== entryId));
   };
 
   const getCalendarDays = () => {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
+    const displayDate = selectedDate || new Date();
+    const year = displayDate.getFullYear();
+    const month = displayDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
@@ -254,7 +386,8 @@ const ColoristLog = () => {
   };
 
   const hasEntry = (date) => {
-    return datesWithEntries.includes(formatDate(date));
+    const dateStr = formatDate(date);
+    return datesWithEntries.includes(dateStr);
   };
 
   return (
@@ -263,33 +396,60 @@ const ColoristLog = () => {
       <div className="px-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigateDate(-1)}
-              className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-800 font-venti">{formatDisplayDate(selectedDate)}</h3>
-            </div>
-            <button
-              onClick={() => navigateDate(1)}
-              className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+            {selectedDate && (
+              <>
+                <button
+                  onClick={() => navigateDate(-1)}
+                  className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 font-venti">{formatDisplayDate(selectedDate)}</h3>
+                </div>
+                <button
+                  onClick={() => navigateDate(1)}
+                  className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+            {!selectedDate && (
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 font-venti">Most Recent Entries</h3>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-            >
-              Today
-            </button>
+            {selectedDate && (
+              <>
+                <button
+                  onClick={() => setSelectedDate(new Date())}
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  Clear Date
+                </button>
+              </>
+            )}
+            {!selectedDate && (
+              <button
+                onClick={() => setSelectedDate(new Date())}
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+              >
+                Today
+              </button>
+            )}
             <button
               onClick={() => setShowCalendar(!showCalendar)}
               className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
@@ -307,12 +467,13 @@ const ColoristLog = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-slate-800 font-venti">
-                {selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {(selectedDate || new Date()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h4>
               <div className="flex space-x-2">
                 <button
                   onClick={() => {
-                    const newDate = new Date(selectedDate);
+                    const currentDate = selectedDate || new Date();
+                    const newDate = new Date(currentDate);
                     newDate.setMonth(newDate.getMonth() - 1);
                     setSelectedDate(newDate);
                   }}
@@ -324,7 +485,8 @@ const ColoristLog = () => {
                 </button>
                 <button
                   onClick={() => {
-                    const newDate = new Date(selectedDate);
+                    const currentDate = selectedDate || new Date();
+                    const newDate = new Date(currentDate);
                     newDate.setMonth(newDate.getMonth() + 1);
                     setSelectedDate(newDate);
                   }}
@@ -349,7 +511,7 @@ const ColoristLog = () => {
                   className={`p-2 rounded text-sm transition-all ${
                     !date
                       ? 'cursor-default'
-                      : isSameDate(date, selectedDate)
+                      : selectedDate && isSameDate(date, selectedDate)
                       ? 'bg-slate-800 text-white font-semibold'
                       : isToday(date)
                       ? 'bg-slate-100 font-medium'
@@ -391,11 +553,19 @@ const ColoristLog = () => {
           </button>
         </div>
 
-        {entries.length === 0 ? (
+        {loadingEntries ? (
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <p className="text-slate-600">Loading entries...</p>
+          </div>
+        ) : entries.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📔</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Entries Yet</h3>
-            <p className="text-slate-600 mb-4">Create your first journal entry for this date</p>
+            <p className="text-slate-600 mb-4">
+              {selectedDate 
+                ? `Create your first journal entry for ${formatDisplayDate(selectedDate)}`
+                : 'Create your first journal entry'}
+            </p>
             <button
               onClick={handleCreateEntry}
               className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
@@ -420,72 +590,39 @@ const ColoristLog = () => {
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       {entry.inspiration && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📚 {entry.inspiration.title}
+                          📚 {entry.inspiration.title || entry.inspiration.name || `Inspiration ${entry.inspiration_id}`}
                         </span>
                       )}
                       {entry.book && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📖 {entry.book.title}
+                          📖 {entry.book.title || entry.book.name || `Book ${entry.book_id}`}
                         </span>
                       )}
                       {entry.pencilSet && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          ✏️ {entry.pencilSet.name}
+                          ✏️ {entry.pencilSet.name} {entry.pencilSet.brand ? `(${entry.pencilSet.brand})` : ''}
                         </span>
                       )}
                       {entry.palette && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          🌈 {entry.palette.name}
+                          🌈 {entry.palette.name || entry.palette.title || `Palette ${entry.palette_id}`}
                         </span>
                       )}
-                      {entry.combo && (
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          🎨 {entry.combo.name}
-                        </span>
+                      {entry.combos && entry.combos.length > 0 && (
+                        <>
+                          {entry.combos.map((comboId, idx) => {
+                            const combo = combos.find(c => c.id === comboId);
+                            return combo ? (
+                              <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                                🎨 {combo.name || combo.title || `Combo ${comboId}`}
+                              </span>
+                            ) : null;
+                          })}
+                        </>
                       )}
                     </div>
                     {entry.notes && (
                       <p className="text-slate-700 mb-3">{entry.notes}</p>
-                    )}
-                    {entry.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {entry.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-white text-slate-600 rounded text-xs border border-slate-200"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Images */}
-                    {entry.images && entry.images.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                        {entry.images.map((image, index) => (
-                          <div key={index} className="relative">
-                            <img
-                              src={image.preview || image.url}
-                              alt={image.name || `Image ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border border-slate-200"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* Videos */}
-                    {entry.videos && entry.videos.length > 0 && (
-                      <div className="space-y-3">
-                        {entry.videos.map((video, index) => (
-                          <div key={index} className="relative">
-                            <video
-                              src={video.preview || video.url}
-                              controls
-                              className="w-full rounded-lg border border-slate-200"
-                            />
-                          </div>
-                        ))}
-                      </div>
                     )}
                   </div>
                   <div className="flex space-x-2 ml-4">
@@ -536,180 +673,141 @@ const ColoristLog = () => {
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Inspiration</label>
-                  <DropdownMenu
-                    label="Inspiration"
-                    options={inspirations.map(item => ({
-                      value: item.id.toString(),
-                      label: item.title
-                    }))}
-                    value={formData.inspiration}
-                    onChange={(value) => setFormData({ ...formData, inspiration: value })}
-                    placeholder="Select inspiration..."
-                  />
+              {loadingFormData ? (
+                <div className="text-center py-8">
+                  <p className="text-slate-500">Loading form data...</p>
                 </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{ focusRingColor: '#ea3663' }}
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Book</label>
-                  <DropdownMenu
-                    label="Book"
-                    options={books.map(book => ({
-                      value: book.id.toString(),
-                      label: book.title
-                    }))}
-                    value={formData.book}
-                    onChange={(value) => setFormData({ ...formData, book: value })}
-                    placeholder="Select book..."
-                  />
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Inspiration</label>
+                      <DropdownMenu
+                        options={inspirations.map(item => {
+                          const id = item.id;
+                          const title = item.title || item.name || `Inspiration ${id}`;
+                          const type = item.type;
+                          return {
+                            value: id.toString(),
+                            label: `${type === 'video' ? '📺' : '🖼️'} ${title}`
+                          };
+                        })}
+                        value={formData.inspiration}
+                        onChange={(value) => setFormData({ ...formData, inspiration: value })}
+                        placeholder="Select inspiration..."
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Pencil Set</label>
-                  <DropdownMenu
-                    label="Pencil Set"
-                    options={pencilSets.map(set => ({
-                      value: set.id.toString(),
-                      label: set.name
-                    }))}
-                    value={formData.pencilSet}
-                    onChange={(value) => setFormData({ ...formData, pencilSet: value })}
-                    placeholder="Select pencil set..."
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Book</label>
+                      <DropdownMenu
+                        options={books.map(book => ({
+                          value: book.id.toString(),
+                          label: book.title || book.name || `Book ${book.id}`
+                        }))}
+                        value={formData.book}
+                        onChange={(value) => setFormData({ ...formData, book: value })}
+                        placeholder="Select book..."
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Color Palette</label>
-                  <DropdownMenu
-                    label="Color Palette"
-                    options={palettes.map(palette => ({
-                      value: palette.id.toString(),
-                      label: palette.name
-                    }))}
-                    value={formData.palette}
-                    onChange={(value) => setFormData({ ...formData, palette: value })}
-                    placeholder="Select palette..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Color Combo</label>
-                  <DropdownMenu
-                    label="Color Combo"
-                    options={combos.map(combo => ({
-                      value: combo.id.toString(),
-                      label: combo.name
-                    }))}
-                    value={formData.combo}
-                    onChange={(value) => setFormData({ ...formData, combo: value })}
-                    placeholder="Select combo..."
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                  placeholder="Write your notes here..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                  placeholder="e.g., relaxing, floral, watercolor"
-                />
-              </div>
-
-              {/* Images Upload */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Images</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                />
-                {formData.images.length > 0 && (
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {formData.images.map((image) => (
-                      <div key={image.id} className="relative group">
-                        <img
-                          src={image.preview}
-                          alt={image.name}
-                          className="w-full h-32 object-cover rounded-lg border border-slate-200"
-                        />
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-slate-700">Pencil Set</label>
                         <button
-                          onClick={() => handleRemoveImage(image.id)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          type="button"
+                          onClick={() => setShowAddSetModal(true)}
+                          className="text-xs text-slate-600 hover:text-slate-800 underline"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          Add New Set
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <DropdownMenu
+                        options={pencilSets.map(set => ({
+                          value: set.id.toString(),
+                          label: `${set.name} ${set.brand ? `(${set.brand})` : ''}`
+                        }))}
+                        value={formData.pencilSet}
+                        onChange={(value) => setFormData({ ...formData, pencilSet: value })}
+                        placeholder="Select pencil set..."
+                      />
+                    </div>
 
-              {/* Videos Upload */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Videos</label>
-                <input
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  onChange={handleVideoUpload}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ focusRingColor: '#ea3663' }}
-                />
-                {formData.videos.length > 0 && (
-                  <div className="mt-3 space-y-3">
-                    {formData.videos.map((video) => (
-                      <div key={video.id} className="relative group">
-                        <video
-                          src={video.preview}
-                          controls
-                          className="w-full rounded-lg border border-slate-200"
-                        />
-                        <button
-                          onClick={() => handleRemoveVideo(video.id)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Color Palette</label>
+                      <DropdownMenu
+                        options={palettes.map(palette => ({
+                          value: palette.id.toString(),
+                          label: palette.name || palette.title || `Palette ${palette.id}`
+                        }))}
+                        value={formData.palette}
+                        onChange={(value) => setFormData({ ...formData, palette: value })}
+                        placeholder="Select palette..."
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Color Combos</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2">
+                      {combos.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-2">No color combos available</p>
+                      ) : (
+                        combos.map(combo => (
+                          <label key={combo.id} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.combos.includes(combo.id.toString())}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({
+                                    ...formData,
+                                    combos: [...formData.combos, combo.id.toString()]
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    combos: formData.combos.filter(id => id !== combo.id.toString())
+                                  });
+                                }
+                              }}
+                              className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500"
+                            />
+                            <span className="text-sm text-slate-700">
+                              {combo.name || combo.title || `Combo ${combo.id}`}
+                            </span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {!loadingFormData && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{ focusRingColor: '#ea3663' }}
+                    placeholder="Write your notes here..."
+                  />
+                </div>
+              )}
 
               <div className="flex justify-end space-x-3 pt-4">
                 <button
@@ -735,6 +833,32 @@ const ColoristLog = () => {
           </div>
         </div>
       )}
+
+      {/* Add Pencil Set Modal */}
+      <AddPencilSetModal
+        isOpen={showAddSetModal}
+        onClose={() => setShowAddSetModal(false)}
+        onSuccess={async () => {
+          // Refresh pencil sets after adding
+          try {
+            const pencilSetsResponse = await coloredPencilSetsAPI.getAll(1, 1000);
+            let pencilSetsData = [];
+            if (Array.isArray(pencilSetsResponse)) {
+              pencilSetsData = pencilSetsResponse;
+            } else if (pencilSetsResponse.data && Array.isArray(pencilSetsResponse.data)) {
+              pencilSetsData = pencilSetsResponse.data;
+            }
+            const transformedSets = pencilSetsData.map(setSize => ({
+              id: setSize.set?.id || setSize.id,
+              name: setSize.set?.name || 'Unknown',
+              brand: setSize.set?.brand || 'Unknown'
+            }));
+            setPencilSets(transformedSets);
+          } catch (error) {
+            console.error('Error refreshing pencil sets:', error);
+          }
+        }}
+      />
     </div>
   );
 };

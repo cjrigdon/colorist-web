@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authAPI, setAuthToken } from '../services/api';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -7,32 +8,42 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [youtubeLoginUrl, setYoutubeLoginUrl] = useState(null);
   const [googleLoginUrl, setGoogleLoginUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch YouTube OAuth URL
-    fetch('http://localhost:8000/api/auth/youtube/redirect', {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    })
-      .then((response) => {
-        if (response.ok) {
-          return response.json();
-        }
-        throw new Error('Something went wrong!');
-      })
+    authAPI.getYoutubeRedirect()
       .then((data) => setYoutubeLoginUrl(data.url))
-      .catch((error) => console.error(error));
-
-
+      .catch((error) => console.error('Error fetching YouTube redirect:', error));
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log('Login:', { email, password, rememberMe });  };
+    setError(null);
+    setLoading(true);
+
+    try {
+      const data = await authAPI.login(email, password);
+
+      // Store token in localStorage
+      if (data.authToken || data.token) {
+        const token = data.authToken || data.token;
+        setAuthToken(token);
+        
+        // Navigate to studio overview on success
+        navigate('/studio/overview');
+      } else {
+        throw new Error('No authentication token received from server.');
+      }
+    } catch (err) {
+      setError(err.message || err.data?.message || 'An error occurred during login. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center px-4 py-8">
@@ -48,6 +59,11 @@ function Login() {
 
         {/* Login Form Card */}
         <div className="bg-white shadow-sm border border-slate-200 p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
@@ -114,12 +130,13 @@ function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full px-4 py-3 text-white rounded-lg text-sm font-medium transition-colors min-h-[48px]"
+              disabled={loading}
+              className="w-full px-4 py-3 text-white rounded-lg text-sm font-medium transition-colors min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: '#ea3663' }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = '#d12a4f')}
+              onMouseLeave={(e) => !loading && (e.target.style.backgroundColor = '#ea3663')}
             >
-              Sign In
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

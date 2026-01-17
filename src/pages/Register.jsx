@@ -152,7 +152,7 @@ export default function Register() {
                 <span className="ml-2 text-sm text-slate-600">
                   I agree to the{' '}
                   <Link
-                    to="/dashboard/privacy-policy"
+                    to="/privacy-policy"
                     className="font-medium transition-colors"
                     style={{ color: '#ea3663' }}
                     onMouseEnter={(e) => e.target.style.color = '#d12a4f'}
@@ -162,7 +162,7 @@ export default function Register() {
                   </Link>
                   {' '}and{' '}
                   <Link
-                    to="/dashboard/privacy-policy"
+                    to="/privacy-policy"
                     className="font-medium transition-colors"
                     style={{ color: '#ea3663' }}
                     onMouseEnter={(e) => e.target.style.color = '#d12a4f'}

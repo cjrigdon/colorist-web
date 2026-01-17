@@ -2,6 +2,7 @@
 
 import React, {useState, useEffect} from 'react';
 import {useLocation} from "react-router-dom";
+import { authAPI, setAuthToken } from './services/api';
 
 function YoutubeCallback() {
 
@@ -13,37 +14,31 @@ function YoutubeCallback() {
     // On page load, we take "search" parameters 
     // and proxy them to /api/auth/callback on our Laravel API
     useEffect(() => {
-
-        fetch(`http://localhost:8000/api/auth/youtube/callback${location.search}`, {
-            headers : {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        })
-            .then((response) => {
-                return response.json();
-            })
+        authAPI.getYoutubeCallback(location.search)
             .then((data) => {
                 setLoading(false);
                 setData(data);
+                // Store the access token if present
+                if (data.access_token) {
+                    setAuthToken(data.access_token);
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching YouTube callback:', error);
+                setLoading(false);
             });
-    }, []);
+    }, [location.search]);
 
     // Helper method to fetch User data for authenticated user
     // Watch out for "Authorization" header that is added to this call
     function fetchUserData() {
-        fetch(`http://localhost:8000/api/user`, {
-            headers : {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer ' + data.access_token,
-            }
-        })
-            .then((response) => {
-                return response.json();
+        // Use the access_token from the callback data
+        authAPI.getUser()
+            .then((userData) => {
+                setUser(userData);
             })
-            .then((data) => {
-                setUser(data);
+            .catch((error) => {
+                console.error('Error fetching user data:', error);
             });
     }
 

@@ -1,60 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { coloredPencilSetsAPI } from '../services/api';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import InfiniteScrollLoader from './InfiniteScrollLoader';
+import AddPencilSetModal from './AddPencilSetModal';
 
 const PencilInventory = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedSet, setSelectedSet] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const pencilSets = [
-    {
-      id: 1,
-      name: 'Prismacolor Premier',
-      brand: 'Prismacolor',
-      count: 150,
-      colors: [
-        { id: 1, name: 'Crimson Red', hex: '#DC143C', inStock: true },
-        { id: 2, name: 'True Blue', hex: '#0073CF', inStock: true },
-        { id: 3, name: 'Lime Peel', hex: '#D0E429', inStock: false },
-        { id: 4, name: 'Violet', hex: '#8B00FF', inStock: true },
-        { id: 5, name: 'Canary Yellow', hex: '#FFEF00', inStock: true },
-      ]
-    },
-    {
-      id: 2,
-      name: 'Faber-Castell Polychromos',
-      brand: 'Faber-Castell',
-      count: 120,
-      colors: [
-        { id: 1, name: 'Scarlet Red', hex: '#FF2400', inStock: true },
-        { id: 2, name: 'Cobalt Blue', hex: '#0047AB', inStock: true },
-        { id: 3, name: 'Lemon Yellow', hex: '#FFF700', inStock: true },
-        { id: 4, name: 'Purple Violet', hex: '#8A2BE2', inStock: false },
-      ]
-    },
-    {
-      id: 3,
-      name: 'Derwent Coloursoft',
-      brand: 'Derwent',
-      count: 72,
-      colors: [
-        { id: 1, name: 'Rose', hex: '#FF007F', inStock: true },
-        { id: 2, name: 'Sky Blue', hex: '#87CEEB', inStock: true },
-        { id: 3, name: 'Forest Green', hex: '#228B22', inStock: true },
-      ]
-    },
-  ];
+  // Transform function for pencil sets
+  const transformPencilSets = (data) => {
+    return data.map(set => ({
+      ...set,
+      colors: Array.isArray(set.colors) ? set.colors : [],
+      count: set.count || (set.colors ? set.colors.length : 0)
+    }));
+  };
+
+  // Use infinite scroll hook
+  const { items: pencilSets, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
+    coloredPencilSetsAPI.getAll,
+    transformPencilSets,
+    { perPage: 40 }
+  );
+
+  // Set selected set from location state or default to first set when sets are loaded
+  useEffect(() => {
+    if (pencilSets.length > 0 && selectedSet === null) {
+      const stateSetId = location.state?.selectedSetId;
+      if (stateSetId && pencilSets.find(set => set.id === stateSetId)) {
+        // If a set ID was passed from navigation, select it
+        setSelectedSet(stateSetId);
+      } else {
+        // Otherwise, default to the first set
+        setSelectedSet(pencilSets[0].id);
+      }
+    }
+  }, [pencilSets, selectedSet, location.state]);
 
   const selectedSetData = pencilSets.find(set => set.id === selectedSet);
 
   return (
-    <div className="space-y-6">
-      {/* Main Content Section */}
-      <div className="bg-white p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <>
+      <div className="space-y-6">
+        {/* Main Content Section */}
+        <div className="bg-white p-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-slate-500">Loading pencil sets...</div>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        ) : null}
+        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6">
           {/* Sets List */}
-          <div className="lg:col-span-1">
+          <div className="min-w-0">
             <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-800 font-venti">Your Sets</h3>
               <button 
+                onClick={() => setIsAddModalOpen(true)}
                 className="px-3 py-1.5 text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
                 style={{
                   backgroundColor: '#ea3663'
@@ -69,6 +79,11 @@ const PencilInventory = () => {
               </button>
             </div>
             <div className="space-y-2">
+              {pencilSets.length === 0 && !loading && (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                  No pencil sets found
+                </div>
+              )}
               {pencilSets.map((set) => (
                 <button
                   key={set.id}
@@ -84,86 +99,106 @@ const PencilInventory = () => {
                   } : {}}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-slate-800">{set.name}</h4>
-                    <span className="text-xs text-slate-500">{set.count}</span>
+                    <h4 className="font-medium text-slate-800">{set.set.brand}</h4>
+                    <span className="text-xs text-slate-500">Colors: {set.count}</span>
                   </div>
-                  <p className="text-sm text-slate-600">{set.brand}</p>
+                  <p className="text-sm text-slate-600">{set.set.name}</p>
                 </button>
               ))}
+              {/* Infinite scroll trigger */}
+              <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />
+            </div>
             </div>
           </div>
-        </div>
 
-        {/* Colors Grid */}
-        <div className="lg:col-span-2">
+          {/* Colors Grid */}
+          <div className="min-w-0">
           {selectedSetData ? (
-            <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-800 font-venti">{selectedSetData.name}</h3>
-                  <p className="text-sm text-slate-600">{selectedSetData.brand}</p>
+            <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
+              <div className="flex items-center justify-between mb-4 min-h-[60px]">
+                <div className="flex-1 min-w-0 pr-4">
+                  <h3 className="text-xl font-semibold text-slate-800 font-venti truncate">{selectedSetData.set?.name || selectedSetData.name}</h3>
+                  <p className="text-sm text-slate-600 truncate">{selectedSetData.set?.brand || selectedSetData.brand}</p>
                 </div>
-                <button 
-                  className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-                  style={{
-                    color: '#49817b'
-                  }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#c1fcf6'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                >
-                  Edit Set
-                </button>
+                {/* Only show Edit button for custom sets */}
+                <div className="flex-shrink-0">
+                  {selectedSetData.set?.is_custom === 1 && (
+                    <button 
+                      onClick={() => navigate(`/edit/pencil-set/${selectedSetData.set?.id || selectedSetData.id}`)}
+                      className="px-3 py-1.5 text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+                      style={{
+                        backgroundColor: '#ea3663'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Edit Set</span>
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {selectedSetData.colors.map((color) => (
+                {selectedSetData.pencils && selectedSetData.pencils.length > 0 ? (
+                  selectedSetData.pencils.map((pencil) => (
                   <div
-                    key={color.id}
+                    key={pencil.id}
                     className={`p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-md ${
-                      color.inStock
+                      pencil.inStock
                         ? 'border-slate-200 bg-slate-50'
                         : 'border-red-200 bg-red-50 opacity-60'
                     }`}
                     onMouseEnter={(e) => {
-                      if (color.inStock) {
+                      if (pencil.inStock) {
                         e.currentTarget.style.borderColor = '#ea3663';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (color.inStock) {
+                      if (pencil.inStock) {
                         e.currentTarget.style.borderColor = '#e2e8f0';
                       }
                     }}
                   >
                     <div
                       className="w-full h-16 rounded-lg mb-3 shadow-sm"
-                      style={{ backgroundColor: color.hex }}
+                      style={{ backgroundColor: pencil.color.hex }}
                     ></div>
-                    <h4 className="font-medium text-sm text-slate-800 mb-1">{color.name}</h4>
+                    <h4 className="font-medium text-sm text-slate-800 mb-1">{pencil.color_name} ({pencil.color_number})</h4>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500 font-mono">{color.hex}</span>
-                      {!color.inStock && (
+                      <span className="text-xs text-slate-500 font-mono">{pencil.color.hex}</span>
+                      {!pencil.inStock && (
                         <span className="text-xs text-red-600 font-medium">Out</span>
                       )}
                     </div>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-8 text-slate-500 text-sm">
+                    No colors in this set
+                  </div>
+                )}
               </div>
-              <button 
-                className="mt-6 w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 transition-colors flex items-center justify-center space-x-2"
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = '#49817b';
-                  e.target.style.color = '#49817b';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                  e.target.style.color = '#475569';
-                }}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Add Color</span>
-              </button>
+              {/* Only show Add Color button for custom sets */}
+              {selectedSetData.set?.is_custom === 1 && (
+                <button 
+                  className="mt-6 w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-600 transition-colors flex items-center justify-center space-x-2"
+                  onMouseEnter={(e) => {
+                    e.target.style.borderColor = '#49817b';
+                    e.target.style.color = '#49817b';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.borderColor = '#cbd5e1';
+                    e.target.style.color = '#475569';
+                  }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Add Color</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
@@ -172,10 +207,19 @@ const PencilInventory = () => {
               <p className="text-slate-600">Choose a set from the left to view its colors</p>
             </div>
           )}
-        </div>
+          </div>
         </div>
       </div>
-    </div>
+      </div>
+      <AddPencilSetModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          refetch();
+          setIsAddModalOpen(false);
+        }}
+      />
+    </>
   );
 };
 

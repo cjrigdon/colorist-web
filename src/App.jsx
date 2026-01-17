@@ -19,10 +19,8 @@ function App() {
               <Route path="/" element={<Login />}></Route>
               <Route path="/register" element={<Register />}></Route>
               <Route path="/forgot-password" element={<ForgotPassword />}></Route>
-              <Route path="/dashboard/*" element={<Dashboard />} />
-              <Route path="/dashboard/profile" element={<Profile />} />
-              <Route path="/dashboard/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
+              <Route path="/*" element={<Dashboard />} />
           </Routes>
       </BrowserRouter>
   );

@@ -81,7 +81,7 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
           <div className="py-2">
             <button
               onClick={() => {
-                navigate('/dashboard/profile');
+                navigate('/profile');
                 setIsOpen(false);
               }}
               className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-white transition-colors group"
@@ -94,7 +94,21 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
 
             <button
               onClick={() => {
-                navigate('/dashboard/privacy-policy');
+                window.dispatchEvent(new Event('restart-tour'));
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-white transition-colors group"
+            >
+              <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Take Tour</span>
+            </button>
+
+            <button
+              onClick={() => {
+                navigate('/privacy-policy');
                 setIsOpen(false);
               }}
               className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-white transition-colors group"

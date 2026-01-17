@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Studio from '../components/Studio';
 import StudioOverview from '../components/StudioOverview';
 import ColorConversion from '../components/ColorConversion';
@@ -8,23 +8,46 @@ import ColoristLog from '../components/ColoristLog';
 import ProfileDropdown from '../components/ProfileDropdown';
 import Profile from './Profile';
 import PrivacyPolicy from './PrivacyPolicy';
+import EditInspiration from './EditInspiration';
+import EditPencilSet from './EditPencilSet';
+import EditColorCombo from './EditColorCombo';
+import EditColorPalette from './EditColorPalette';
+import EditBook from './EditBook';
+import AdminPencilImport from './AdminPencilImport';
+import AdminPencilSets from './AdminPencilSets';
+import AdminPencils from './AdminPencils';
+import AdminUsers from './AdminUsers';
+import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
+import { authAPI } from '../services/api';
 
 const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // Fetch user data on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await authAPI.getUser();
+        setUser(userData);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // Parse URL to determine active tab and section
   const pathname = location.pathname;
   let activeTab = 'studio';
   let activeStudioSection = 'overview';
+  let activeAdminSection = null;
 
-  // Redirect /dashboard to /dashboard/studio/overview
-  useEffect(() => {
-    if (pathname === '/dashboard' || pathname === '/dashboard/') {
-      navigate('/dashboard/studio/overview', { replace: true });
-    }
-  }, [pathname, navigate]);
 
   if (pathname.includes('/studio/')) {
     activeTab = 'studio';
@@ -40,18 +63,34 @@ const Dashboard = () => {
     activeTab = 'coloralong';
   } else if (pathname.includes('/log')) {
     activeTab = 'log';
+  } else if (pathname.includes('/admin/')) {
+    activeTab = 'admin';
+    if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
+    else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
+    else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
+    else if (pathname.includes('/users')) activeAdminSection = 'users';
   }
+
+  const isAdmin = user?.admin === 1 || user?.admin === true;
 
   const tabs = [
     { id: 'studio', label: 'Studio', icon: '🎨' },
     { id: 'conversion', label: 'Conversion', icon: '🔄' },
     { id: 'coloralong', label: 'Color Along', icon: '📺' },
     { id: 'log', label: 'Log', icon: '📔' },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️' }] : []),
+  ];
+
+  const adminSections = [
+    { id: 'pencil-import', label: 'Pencil Import', icon: '📤' },
+    { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦' },
+    { id: 'pencils', label: 'Pencils', icon: '✏️' },
+    { id: 'users', label: 'Users', icon: '👥' },
   ];
 
   const studioSections = [
     { id: 'overview', label: 'Overview', icon: '🏠' },
-    { id: 'library', label: 'Inspiration', icon: '📚' },
+    { id: 'library', label: 'Inspo', icon: '📚' },
     { id: 'pencils', label: 'Media', icon: '✏️' },
     { id: 'combos', label: 'Combos', icon: '🎨' },
     { id: 'palettes', label: 'Palettes', icon: '🌈' },
@@ -67,6 +106,40 @@ const Dashboard = () => {
       return <PrivacyPolicy />;
     }
 
+    // Check for edit pages
+    if (pathname.includes('/edit/inspiration/')) {
+      return <EditInspiration />;
+    }
+    if (pathname.includes('/edit/pencil-set/')) {
+      return <EditPencilSet />;
+    }
+    if (pathname.includes('/edit/color-combo/')) {
+      return <EditColorCombo />;
+    }
+    if (pathname.includes('/edit/color-palette/')) {
+      return <EditColorPalette />;
+    }
+    if (pathname.includes('/edit/book/')) {
+      return <EditBook />;
+    }
+
+    // Check admin access
+    if (pathname.includes('/admin/')) {
+      if (!isAdmin) {
+        return (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-red-200 p-8 text-center">
+              <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Access Denied</h2>
+              <p className="text-slate-600">You do not have permission to access the admin section.</p>
+            </div>
+          </div>
+        );
+      }
+    }
+
     switch (activeTab) {
       case 'studio':
         if (activeStudioSection === 'overview') {
@@ -79,6 +152,25 @@ const Dashboard = () => {
         return <ColorAlong />;
       case 'log':
         return <ColoristLog />;
+      case 'admin':
+        if (activeAdminSection === 'pencil-import') {
+          return <AdminPencilImport />;
+        }
+        if (activeAdminSection === 'pencil-sets') {
+          return <AdminPencilSets />;
+        }
+        if (activeAdminSection === 'pencils') {
+          return <AdminPencils />;
+        }
+        if (activeAdminSection === 'users') {
+          return <AdminUsers />;
+        }
+        // Default admin page - redirect to first admin section
+        if (isAdmin && adminSections.length > 0) {
+          navigate(`/admin/${adminSections[0].id}`);
+          return null;
+        }
+        return <StudioOverview />;
       default:
         return <StudioOverview />;
     }
@@ -144,13 +236,24 @@ const Dashboard = () => {
             {tabs.map((tab) => (
               <div key={tab.id}>
                 <button
+                  data-joyride={
+                    tab.id === 'studio' ? 'studio-tab' :
+                    tab.id === 'conversion' ? 'conversion-tab' :
+                    tab.id === 'coloralong' ? 'color-along-tab' :
+                    tab.id === 'log' ? 'log-tab' : null
+                  }
                   onClick={() => {
                     if (tab.id === 'studio') {
-                      navigate('/dashboard/studio/overview');
+                      navigate('/studio/overview');
                     } else if (tab.id === 'coloralong') {
-                      navigate('/dashboard/color-along');
+                      navigate('/color-along');
+                    } else if (tab.id === 'admin') {
+                      // Navigate to first admin section
+                      if (adminSections.length > 0) {
+                        navigate(`/admin/${adminSections[0].id}`);
+                      }
                     } else {
-                      navigate(`/dashboard/${tab.id}`);
+                      navigate(`/${tab.id}`);
                     }
                   }}
                   className={`w-full flex items-center rounded-lg transition-all duration-200 ${
@@ -181,16 +284,24 @@ const Dashboard = () => {
                     {studioSections.map((section) => (
                       <button
                         key={section.id}
+                        data-joyride={
+                          section.id === 'overview' ? 'studio-overview' :
+                          section.id === 'library' ? 'studio-inspo' :
+                          section.id === 'pencils' ? 'studio-media' :
+                          section.id === 'combos' ? 'studio-combos' :
+                          section.id === 'palettes' ? 'studio-palettes' :
+                          section.id === 'books' ? 'studio-books' : null
+                        }
                         onClick={() => {
                           const routeMap = {
-                            'overview': '/dashboard/studio/overview',
-                            'library': '/dashboard/studio/inspiration',
-                            'pencils': '/dashboard/studio/media',
-                            'combos': '/dashboard/studio/combos',
-                            'palettes': '/dashboard/studio/palettes',
-                            'books': '/dashboard/studio/books'
+                            'overview': '/studio/overview',
+                            'library': '/studio/inspiration',
+                            'pencils': '/studio/media',
+                            'combos': '/studio/combos',
+                            'palettes': '/studio/palettes',
+                            'books': '/studio/books'
                           };
-                          navigate(routeMap[section.id] || '/dashboard/studio/overview');
+                          navigate(routeMap[section.id] || '/studio/overview');
                         }}
                         className={`w-full flex items-center rounded-lg transition-all duration-200 px-3 py-2 text-sm ${
                           activeStudioSection === section.id
@@ -198,6 +309,31 @@ const Dashboard = () => {
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                         }`}
                         style={activeStudioSection === section.id ? {
+                          backgroundColor: 'rgba(255, 142, 126, 0.15)',
+                          color: '#ea3663'
+                        } : {}}
+                      >
+                        <span className="text-lg flex-shrink-0 mr-2">{section.icon}</span>
+                        <span>{section.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Admin Sub-navigation */}
+                {tab.id === 'admin' && activeTab === 'admin' && !sidebarCollapsed && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {adminSections.map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => {
+                          navigate(`/admin/${section.id}`);
+                        }}
+                        className={`w-full flex items-center rounded-lg transition-all duration-200 px-3 py-2 text-sm ${
+                          activeAdminSection === section.id
+                            ? 'font-medium'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                        style={activeAdminSection === section.id ? {
                           backgroundColor: 'rgba(255, 142, 126, 0.15)',
                           color: '#ea3663'
                         } : {}}
@@ -241,6 +377,8 @@ const Dashboard = () => {
                pathname.includes('/privacy-policy') ? 'Privacy Policy' :
                activeTab === 'studio' 
                 ? studioSections.find(section => section.id === activeStudioSection)?.label || 'Studio'
+                : activeTab === 'admin'
+                ? adminSections.find(section => section.id === activeAdminSection)?.label || 'Admin'
                 : tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
@@ -258,6 +396,10 @@ const Dashboard = () => {
               {activeTab === 'conversion' && 'Find the closest matching colors between your pencil sets'}
               {activeTab === 'coloralong' && 'Match colors from video tutorials with your own pencil sets'}
               {activeTab === 'log' && 'Track your coloring journey and creative process'}
+              {activeTab === 'admin' && activeAdminSection === 'pencil-import' && 'Upload CSV files to import colored pencils, sets, and sizes'}
+              {activeTab === 'admin' && activeAdminSection === 'pencil-sets' && 'Manage colored pencil sets - add, edit, and delete sets'}
+              {activeTab === 'admin' && activeAdminSection === 'pencils' && 'Manage colored pencils within sets - add, edit, and delete pencils'}
+              {activeTab === 'admin' && activeAdminSection === 'users' && 'Manage users - add, edit, and delete user accounts'}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -271,16 +413,23 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <main 
-          className={`flex-1 overflow-y-auto bg-slate-50 ${activeTab === 'coloralong' ? 'px-0' : 'px-8'}`}
+          className={`flex-1 bg-slate-50 ${activeTab === 'coloralong' ? 'px-0 overflow-hidden' : 'px-8 overflow-y-auto'}`}
           style={{
-            paddingTop: '88px'
+            paddingTop: activeTab === 'coloralong' ? '0' : '88px',
+            marginTop: activeTab === 'coloralong' ? '72px' : '0',
+            height: activeTab === 'coloralong' ? 'calc(100vh - 72px)' : 'auto',
+            minHeight: activeTab === 'coloralong' ? '600px' : 'auto'
           }}
         >
-          <div className={`max-w-full mx-auto ${activeTab === 'coloralong' ? 'py-0' : 'py-8'}`}>
+          <div 
+            className={`max-w-full mx-auto ${activeTab === 'coloralong' ? 'py-0 h-full' : 'py-8'}`}
+            data-joyride="studio-overview"
+          >
             {renderContent()}
           </div>
         </main>
       </div>
+      <JoyrideWalkthrough user={user} loadingUser={loadingUser} />
     </div>
   );
 };
