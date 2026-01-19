@@ -113,10 +113,16 @@ const AdminPencils = () => {
     setError(null);
 
     try {
+      // Prepare data - convert empty color_number to null
+      const submitData = {
+        ...formData,
+        color_number: formData.color_number === '' ? null : formData.color_number
+      };
+
       if (editingPencil) {
-        await adminAPI.pencils.update(editingPencil.id, formData);
+        await adminAPI.pencils.update(editingPencil.id, submitData);
       } else {
-        await adminAPI.pencils.create(formData);
+        await adminAPI.pencils.create(submitData);
       }
       setShowModal(false);
       setEditingPencil(null);
@@ -252,7 +258,7 @@ const AdminPencils = () => {
                 ) : (
                   pencils.map((pencil) => (
                     <tr key={pencil.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-3 px-4 text-sm text-slate-800">{pencil.color_number}</td>
+                      <td className="py-3 px-4 text-sm text-slate-800">{pencil.color_number || '-'}</td>
                       <td className="py-3 px-4 text-sm text-slate-800">{pencil.color_name}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center space-x-2">
@@ -328,7 +334,7 @@ const AdminPencils = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Color Number *
+                    Color Number
                   </label>
                   <input
                     type="text"
@@ -336,7 +342,6 @@ const AdminPencils = () => {
                     value={formData.color_number}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-                    required
                   />
                 </div>
                 <div>
