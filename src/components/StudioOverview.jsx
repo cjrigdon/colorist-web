@@ -398,12 +398,26 @@ const StudioOverview = () => {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => navigate('/studio/inspiration', { state: { activeTab: 'studio', activeSection: 'library' } })}
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              View All →
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/studio/inspiration', { state: { activeTab: 'studio', activeSection: 'library', openAddModal: true } })}
+                className="text-sm text-white px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center space-x-1"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/studio/inspiration', { state: { activeTab: 'studio', activeSection: 'library' } })}
+                className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                View All →
+              </button>
+            </div>
           </div>
         </div>
         {inspirationsLoading ? (
@@ -418,7 +432,19 @@ const StudioOverview = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🎨</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Inspiration Yet</h4>
-            <p className="text-sm text-slate-600">Add your first video or file to get started</p>
+            <p className="text-sm text-slate-600 mb-4">Add your first video or file to get started</p>
+            <button
+              onClick={() => navigate('/studio/inspiration', { state: { activeTab: 'studio', activeSection: 'library', openAddModal: true } })}
+              className="px-6 py-3 text-white rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Inspiration</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -537,12 +563,26 @@ const StudioOverview = () => {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils' } })}
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              View All →
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', openAddModal: true } })}
+                className="text-sm text-white px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center space-x-1"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils' } })}
+                className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                View All →
+              </button>
+            </div>
           </div>
         </div>
         {pencilSetsLoading ? (
@@ -557,7 +597,19 @@ const StudioOverview = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">✏️</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets Yet</h4>
-            <p className="text-sm text-slate-600">Add your first colored pencil set to get started</p>
+            <p className="text-sm text-slate-600 mb-4">Add your first colored pencil set to get started</p>
+            <button
+              onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', openAddModal: true } })}
+              className="px-6 py-3 text-white rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Pencil Set</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -606,12 +658,26 @@ const StudioOverview = () => {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => navigate('/studio/combos', { state: { activeTab: 'studio', activeSection: 'combos' } })}
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              View All →
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/studio/combos', { state: { activeTab: 'studio', activeSection: 'combos', openAddModal: true } })}
+                className="text-sm text-white px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center space-x-1"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/studio/combos', { state: { activeTab: 'studio', activeSection: 'combos' } })}
+                className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                View All →
+              </button>
+            </div>
           </div>
         </div>
         {combosLoading ? (
@@ -626,7 +692,19 @@ const StudioOverview = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🎨</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Combos Yet</h4>
-            <p className="text-sm text-slate-600">Create your first color combo to get started</p>
+            <p className="text-sm text-slate-600 mb-4">Create your first color combo to get started</p>
+            <button
+              onClick={() => navigate('/studio/combos', { state: { activeTab: 'studio', activeSection: 'combos', openAddModal: true } })}
+              className="px-6 py-3 text-white rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Combo</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -682,12 +760,26 @@ const StudioOverview = () => {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => navigate('/studio/palettes', { state: { activeTab: 'studio', activeSection: 'palettes' } })}
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              View All →
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/studio/palettes', { state: { activeTab: 'studio', activeSection: 'palettes', openAddModal: true } })}
+                className="text-sm text-white px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center space-x-1"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/studio/palettes', { state: { activeTab: 'studio', activeSection: 'palettes' } })}
+                className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                View All →
+              </button>
+            </div>
           </div>
         </div>
         {palettesLoading ? (
@@ -702,7 +794,19 @@ const StudioOverview = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🌈</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Palettes Yet</h4>
-            <p className="text-sm text-slate-600">Create your first color palette to get started</p>
+            <p className="text-sm text-slate-600 mb-4">Create your first color palette to get started</p>
+            <button
+              onClick={() => navigate('/studio/palettes', { state: { activeTab: 'studio', activeSection: 'palettes', openAddModal: true } })}
+              className="px-6 py-3 text-white rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Palette</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -760,12 +864,26 @@ const StudioOverview = () => {
                 </button>
               </div>
             )}
-            <button
-              onClick={() => navigate('/studio/books', { state: { activeTab: 'studio', activeSection: 'books' } })}
-              className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
-            >
-              View All →
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/studio/books', { state: { activeTab: 'studio', activeSection: 'books', openAddModal: true } })}
+                className="text-sm text-white px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center space-x-1"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add</span>
+              </button>
+              <button
+                onClick={() => navigate('/studio/books', { state: { activeTab: 'studio', activeSection: 'books' } })}
+                className="text-sm text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                View All →
+              </button>
+            </div>
           </div>
         </div>
         {booksLoading ? (
@@ -780,7 +898,19 @@ const StudioOverview = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📖</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Coloring Books Yet</h4>
-            <p className="text-sm text-slate-600">Add your first coloring book to get started</p>
+            <p className="text-sm text-slate-600 mb-4">Add your first coloring book to get started</p>
+            <button
+              onClick={() => navigate('/studio/books', { state: { activeTab: 'studio', activeSection: 'books', openAddModal: true } })}
+              className="px-6 py-3 text-white rounded-lg font-medium transition-colors inline-flex items-center space-x-2"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Book</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

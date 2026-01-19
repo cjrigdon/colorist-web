@@ -13,15 +13,18 @@ export const deltaEToPercentage = (deltaE) => {
   // Formula uses exponential decay for more realistic mapping
   // For deltaE <= 1: 100% - (deltaE * 5) = 100% to 95%
   // For deltaE > 1: exponential decay from 95%
-  let percentage;
-  if (deltaE <= 1) {
-    percentage = 100 - (deltaE * 5);
-  } else if (deltaE <= 5) {
-    percentage = 95 - ((deltaE - 1) * 5);
-  } else {
+  
+  //let percentage;
+  //if (deltaE <= 1) {
+  //  percentage = 100 - (deltaE * 5);
+  //} else if (deltaE <= 5) {
+  //  percentage = 95 - ((deltaE - 1) * 5);
+  //} else {
     //percentage = deltaE; 
-    percentage = Math.max(0, 85 - ((deltaE - 20) * 5));
-  }
-  return Math.round(Math.max(0, Math.min(100, percentage)));
+  //  percentage = Math.max(0, 85 - ((deltaE - 20) * 5));
+  //}
+  //return Math.round(Math.max(0, Math.min(100, percentage)));
+  const number = 100- deltaE;
+  return number.toFixed(1);
 };
 

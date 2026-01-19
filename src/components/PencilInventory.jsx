@@ -41,6 +41,15 @@ const PencilInventory = () => {
     }
   }, [pencilSets, selectedSet, location.state]);
 
+  // Check if we should open the add modal from navigation state
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setIsAddModalOpen(true);
+      // Clear the state to prevent reopening on re-render
+      navigate(location.pathname, { replace: true, state: { ...location.state, openAddModal: false } });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   const selectedSetData = pencilSets.find(set => set.id === selectedSet);
 
   return (

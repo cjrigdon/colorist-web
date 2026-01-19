@@ -21,7 +21,8 @@ const AdminPencils = () => {
     hex: '',
     lightfast_rating: '',
     shopping_link: '',
-    inventory: 0
+    inventory: 0,
+    barcode: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -87,7 +88,8 @@ const AdminPencils = () => {
       hex: pencil.color?.hex || '',
       lightfast_rating: pencil.lightfast_rating || '',
       shopping_link: pencil.shopping_link || '',
-      inventory: pencil.inventory || 0
+      inventory: pencil.inventory || 0,
+      barcode: pencil.barcode || ''
     });
     setShowModal(true);
   };
@@ -125,7 +127,8 @@ const AdminPencils = () => {
         hex: '',
         lightfast_rating: '',
         shopping_link: '',
-        inventory: 0
+        inventory: 0,
+        barcode: ''
       });
       fetchPencils();
     } catch (err) {
@@ -234,6 +237,7 @@ const AdminPencils = () => {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Color Name</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Hex</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Lightfast</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Barcode</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Inventory</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
                 </tr>
@@ -241,7 +245,7 @@ const AdminPencils = () => {
               <tbody>
                 {pencils.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="py-8 text-center text-slate-500">
+                    <td colSpan="7" className="py-8 text-center text-slate-500">
                       No pencils found for this set
                     </td>
                   </tr>
@@ -264,6 +268,7 @@ const AdminPencils = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-600">{pencil.lightfast_rating}</td>
+                      <td className="py-3 px-4 text-sm text-slate-600">{pencil.barcode || '-'}</td>
                       <td className="py-3 px-4 text-sm text-slate-600">{pencil.inventory || 0}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center space-x-2">
@@ -389,6 +394,18 @@ const AdminPencils = () => {
                     type="url"
                     name="shopping_link"
                     value={formData.shopping_link}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Barcode
+                  </label>
+                  <input
+                    type="text"
+                    name="barcode"
+                    value={formData.barcode}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                   />

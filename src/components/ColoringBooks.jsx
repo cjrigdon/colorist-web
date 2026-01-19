@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { booksAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddBookModal from './AddBookModal';
+import PrimaryButton from './PrimaryButton';
+import HoverableCard from './HoverableCard';
+import LoadingState from './LoadingState';
+import ErrorState from './ErrorState';
+import EmptyState from './EmptyState';
 
 const ColoringBooks = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Check if we should open the add modal from navigation state
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setIsAddModalOpen(true);
+      // Clear the state to prevent reopening on re-render
+      navigate(location.pathname, { replace: true, state: { ...location.state, openAddModal: false } });
+    }
+  }, [location.state, navigate, location.pathname]);
   
   // Transform function for books
   const transformBooks = (data) => {
@@ -37,43 +52,30 @@ const ColoringBooks = () => {
     <div className="space-y-6">
       <div className="px-4">
         <div className="flex items-center justify-end">
-          <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-          style={{
-            backgroundColor: '#ea3663'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Add Book</span>
-        </button>
+          <PrimaryButton 
+            onClick={() => setIsAddModalOpen(true)}
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
+          >
+            Add Book
+          </PrimaryButton>
         </div>
       </div>
 
       {/* Books Grid Section */}
       <div className="bg-white p-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-slate-500">Loading books...</div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        ) : null}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {books.map((book) => (
-          <div
-            key={book.id}
-            className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer"
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-            onClick={() => navigate(`/edit/book/${book.id}`)}
-          >
+        {loading && <LoadingState message="Loading books..." />}
+        {error && <ErrorState error={error} className="mb-6" />}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {books.map((book) => (
+              <HoverableCard
+                key={book.id}
+                onClick={() => navigate(`/edit/book/${book.id}`)}
+              >
             {/* Cover Image */}
             <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
               <img
@@ -151,31 +153,24 @@ const ColoringBooks = () => {
               )}
 
             </div>
-          </div>
+          </HoverableCard>
         ))}
-        </div>
+          </div>
+        )}
 
         {/* Infinite scroll trigger */}
         {books.length > 0 && (
           <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />
         )}
 
-        {books.length === 0 && !loading && (
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-          <div className="text-6xl mb-4">📖</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Coloring Books Yet</h3>
-          <p className="text-slate-600 mb-4">Add your first coloring book to start tracking your progress</p>
-          <button 
-            className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
-            style={{
-              backgroundColor: '#ea3663'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
-          >
-            Add Book
-          </button>
-          </div>
+        {books.length === 0 && !loading && !error && (
+          <EmptyState
+            icon="📖"
+            title="No Coloring Books Yet"
+            message="Add your first coloring book to start tracking your progress"
+            buttonText="Add Book"
+            onButtonClick={() => setIsAddModalOpen(true)}
+          />
         )}
       </div>
       <AddBookModal

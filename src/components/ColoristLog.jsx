@@ -139,6 +139,8 @@ const ColoristLog = () => {
         }
         
         // Transform API response to match component format
+        // Note: Related data lookup is done at render time, not during fetch
+        // This prevents multiple re-renders when related data loads
         const transformedEntries = entriesData.map(entry => ({
           id: entry.id,
           date: entry.date,
@@ -148,11 +150,11 @@ const ColoristLog = () => {
           palette_id: entry.color_palette_id,
           combos: entry.combos || [],
           notes: entry.notes || '',
-          // Find related objects
-          inspiration: inspirations.find(i => i.id === entry.inspiration_id),
-          book: books.find(b => b.id === entry.book_id),
-          pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
-          palette: palettes.find(p => p.id === entry.color_palette_id),
+          // Related objects will be looked up at render time
+          inspiration: null,
+          book: null,
+          pencilSet: null,
+          palette: null,
         }));
         
         setEntries(transformedEntries);
@@ -165,7 +167,7 @@ const ColoristLog = () => {
     };
 
     fetchEntries();
-  }, [selectedDate, inspirations, books, pencilSets, palettes]);
+  }, [selectedDate]);
 
   // Get all dates with entries (for calendar indicators)
   useEffect(() => {
@@ -274,6 +276,7 @@ const ColoristLog = () => {
       }
       
       // Transform API response
+      // Related objects will be looked up at render time
       const transformedEntries = entriesData.map(entry => ({
         id: entry.id,
         date: entry.date,
@@ -283,10 +286,10 @@ const ColoristLog = () => {
         palette_id: entry.color_palette_id,
         combos: entry.combos || [],
         notes: entry.notes || '',
-        inspiration: inspirations.find(i => i.id === entry.inspiration_id),
-        book: books.find(b => b.id === entry.book_id),
-        pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
-        palette: palettes.find(p => p.id === entry.color_palette_id),
+        inspiration: null,
+        book: null,
+        pencilSet: null,
+        palette: null,
       }));
       
       setEntries(transformedEntries);
@@ -322,6 +325,7 @@ const ColoristLog = () => {
         entriesData = response.data;
       }
       
+      // Related objects will be looked up at render time
       const transformedEntries = entriesData.map(entry => ({
         id: entry.id,
         date: entry.date,
@@ -331,10 +335,10 @@ const ColoristLog = () => {
         palette_id: entry.color_palette_id,
         combos: entry.combos || [],
         notes: entry.notes || '',
-        inspiration: inspirations.find(i => i.id === entry.inspiration_id),
-        book: books.find(b => b.id === entry.book_id),
-        pencilSet: pencilSets.find(p => p.id === entry.colored_pencil_set_id),
-        palette: palettes.find(p => p.id === entry.color_palette_id),
+        inspiration: null,
+        book: null,
+        pencilSet: null,
+        palette: null,
       }));
       
       setEntries(transformedEntries);
@@ -578,7 +582,14 @@ const ColoristLog = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {entries.map((entry) => (
+            {entries.map((entry) => {
+              // Look up related objects at render time (prevents re-fetching when related data loads)
+              const inspiration = entry.inspiration_id ? inspirations.find(i => i.id === entry.inspiration_id) : null;
+              const book = entry.book_id ? books.find(b => b.id === entry.book_id) : null;
+              const pencilSet = entry.pencilSet_id ? pencilSets.find(p => p.id === entry.pencilSet_id) : null;
+              const palette = entry.palette_id ? palettes.find(p => p.id === entry.palette_id) : null;
+              
+              return (
               <div
                 key={entry.id}
                 className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
@@ -588,24 +599,24 @@ const ColoristLog = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                      {entry.inspiration && (
+                      {inspiration && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📚 {entry.inspiration.title || entry.inspiration.name || `Inspiration ${entry.inspiration_id}`}
+                          📚 {inspiration.title || inspiration.name || `Inspiration ${entry.inspiration_id}`}
                         </span>
                       )}
-                      {entry.book && (
+                      {book && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📖 {entry.book.title || entry.book.name || `Book ${entry.book_id}`}
+                          📖 {book.title || book.name || `Book ${entry.book_id}`}
                         </span>
                       )}
-                      {entry.pencilSet && (
+                      {pencilSet && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          ✏️ {entry.pencilSet.name} {entry.pencilSet.brand ? `(${entry.pencilSet.brand})` : ''}
+                          ✏️ {pencilSet.name} {pencilSet.brand ? `(${pencilSet.brand})` : ''}
                         </span>
                       )}
-                      {entry.palette && (
+                      {palette && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          🌈 {entry.palette.name || entry.palette.title || `Palette ${entry.palette_id}`}
+                          🌈 {palette.name || palette.title || `Palette ${entry.palette_id}`}
                         </span>
                       )}
                       {entry.combos && entry.combos.length > 0 && (
@@ -645,7 +656,8 @@ const ColoristLog = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -21,6 +21,23 @@ const colorDistance = (color1, color2) => {
   );
 };
 
+// Helper function to ensure hex values have # prefix
+const normalizeHex = (hex) => {
+  if (!hex) return '#000000';
+  if (typeof hex !== 'string') return '#000000';
+  return hex.startsWith('#') ? hex : `#${hex}`;
+};
+
+// Get the first character (number or letter) from a color name for indexing
+const getIndexChar = (colorName) => {
+  if (!colorName || typeof colorName !== 'string') return '#';
+  const firstChar = colorName.trim().charAt(0).toUpperCase();
+  // If it's a number, return it; if it's a letter, return it; otherwise return '#'
+  if (/[0-9]/.test(firstChar)) return firstChar;
+  if (/[A-Z]/.test(firstChar)) return firstChar;
+  return '#';
+};
+
 // Find closest matching color
 const findClosestColor = (sourceColor, targetSet) => {
   let closest = null;
@@ -59,6 +76,26 @@ const ColorAlong = () => {
   const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [showMatchesMenu, setShowMatchesMenu] = useState(false);
+  const [groupedMatches, setGroupedMatches] = useState({});
+  const [rowMixMatches, setRowMixMatches] = useState({}); // Store per-row two-color mix matches: { videoColorId: match }
+  const [loadingRowMix, setLoadingRowMix] = useState({}); // Track loading state per row: { videoColorId: boolean }
+
+  // Scroll to a section by index character
+  const scrollToSection = (char) => {
+    const element = document.getElementById(`color-section-${char}`);
+    if (element) {
+      // Get the scrollable container (the matches content div)
+      const scrollContainer = element.closest('.overflow-y-auto');
+      if (scrollContainer) {
+        const containerTop = scrollContainer.getBoundingClientRect().top;
+        const elementTop = element.getBoundingClientRect().top;
+        const offset = elementTop - containerTop - 8; // 8px padding
+        scrollContainer.scrollBy({ top: offset, behavior: 'smooth' });
+      } else {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
 
   // Inspiration data state
   const [inspirations, setInspirations] = useState([]);
@@ -483,12 +520,24 @@ const ColorAlong = () => {
         setLoadingMatches(true);
         const result = await coloredPencilSetsAPI.compare(videoSetId, userSetId, includeTwoColorMix);
         
+        // Handle response structure - check if matches exists and is an array
+        const matchesArray = result?.matches || result?.data?.matches || [];
+        
+        if (!Array.isArray(matchesArray)) {
+          console.error('Invalid matches format from API:', result);
+          setMatches([]);
+          setLoadingMatches(false);
+          return;
+        }
+        
+        console.log('Matches array from API:', matchesArray);
+        
         // Transform API response to match expected format
-        const transformedMatches = result.matches.map(match => {
+        const transformedMatches = matchesArray.map(match => {
           const videoColor = {
             id: match.source_pencil.id,
             name: match.source_pencil.color_name || match.source_pencil.color?.name || 'Unknown',
-            hex: match.source_pencil.color?.hex || '#000000',
+            hex: normalizeHex(match.source_pencil.color?.hex),
             color_number: match.source_pencil.color_number,
           };
 
@@ -501,22 +550,22 @@ const ColorAlong = () => {
                 color1: {
                   id: match.target_pencil_mix.color1.id,
                   name: match.target_pencil_mix.color1.color_name || match.target_pencil_mix.color1.color?.name || 'Unknown',
-                  hex: match.target_pencil_mix.color1.color?.hex || '#000000',
+                  hex: normalizeHex(match.target_pencil_mix.color1.color?.hex),
                   color_number: match.target_pencil_mix.color1.color_number,
                 },
                 color2: {
                   id: match.target_pencil_mix.color2.id,
                   name: match.target_pencil_mix.color2.color_name || match.target_pencil_mix.color2.color?.name || 'Unknown',
-                  hex: match.target_pencil_mix.color2.color?.hex || '#000000',
+                  hex: normalizeHex(match.target_pencil_mix.color2.color?.hex),
                   color_number: match.target_pencil_mix.color2.color_number,
                 },
-                mixed_hex: match.target_pencil_mix.mixed_hex || '#000000',
+                mixed_hex: normalizeHex(match.target_pencil_mix.mixed_hex),
                 ratio: match.target_pencil_mix.ratio,
                 delta_e: match.delta_e,
                 match_quality: match.match_quality,
               },
             };
-          } else {
+          } else if (match.target_pencil) {
             // Single color match
             return {
               videoColor,
@@ -524,17 +573,34 @@ const ColorAlong = () => {
                 is_mix: false,
                 id: match.target_pencil.id,
                 name: match.target_pencil.color_name || match.target_pencil.color?.name || 'Unknown',
-                hex: match.target_pencil.color?.hex || '#000000',
+                hex: normalizeHex(match.target_pencil.color?.hex),
                 color_number: match.target_pencil.color_number,
                 delta_e: match.delta_e,
                 match_quality: match.match_quality,
                 distance: match.delta_e, // For backwards compatibility
               },
             };
+          } else {
+            // No match found (shouldn't happen, but handle gracefully)
+            return null;
           }
-        });
+        }).filter(match => match !== null); // Filter out any null matches
 
+        console.log('Transformed matches:', transformedMatches);
         setMatches(transformedMatches);
+        
+        // Group matches by index character for navigation
+        const groupedMatches = {};
+        transformedMatches.forEach((match) => {
+          const char = getIndexChar(match.videoColor.name);
+          if (!groupedMatches[char]) {
+            groupedMatches[char] = [];
+          }
+          groupedMatches[char].push(match);
+        });
+        
+        // Store grouped matches for index navigation
+        setGroupedMatches(groupedMatches);
       } catch (error) {
         console.error('Error fetching matches:', error);
         // Fallback to client-side matching
@@ -550,6 +616,74 @@ const ColorAlong = () => {
 
     fetchMatches();
   }, [videoSet, userSet, videoSetId, userSetId, includeTwoColorMix]);
+
+  // Fetch two-color mix for a specific row
+  const fetchRowMix = async (videoColorId) => {
+    if (!videoSetId || !userSetId || !videoSet || !userSet) return;
+
+    try {
+      setLoadingRowMix(prev => ({ ...prev, [videoColorId]: true }));
+      
+      // Find the video color
+      const videoColor = videoSet.colors.find(c => c.id === videoColorId);
+      if (!videoColor) return;
+      
+      // Call compare API with two-color mix enabled
+      const result = await coloredPencilSetsAPI.compare(videoSetId, userSetId, true);
+      
+      // Find the match for this specific video color by matching hex
+      const matchesArray = result?.matches || result?.data?.matches || [];
+      const exactMatch = matchesArray.find(m => {
+        const sourceHex = normalizeHex(m.source_pencil?.color?.hex);
+        const targetHex = normalizeHex(videoColor.hex);
+        return sourceHex === targetHex;
+      });
+      
+      if (exactMatch && exactMatch.is_mix && exactMatch.target_pencil_mix) {
+        // Transform to match expected format
+        const mixMatch = {
+          is_mix: true,
+          color1: {
+            id: exactMatch.target_pencil_mix.color1.id,
+            name: exactMatch.target_pencil_mix.color1.color_name || exactMatch.target_pencil_mix.color1.color?.name || 'Unknown',
+            hex: normalizeHex(exactMatch.target_pencil_mix.color1.color?.hex),
+            color_number: exactMatch.target_pencil_mix.color1.color_number,
+          },
+          color2: {
+            id: exactMatch.target_pencil_mix.color2.id,
+            name: exactMatch.target_pencil_mix.color2.color_name || exactMatch.target_pencil_mix.color2.color?.name || 'Unknown',
+            hex: normalizeHex(exactMatch.target_pencil_mix.color2.color?.hex),
+            color_number: exactMatch.target_pencil_mix.color2.color_number,
+          },
+          mixed_hex: normalizeHex(exactMatch.target_pencil_mix.mixed_hex),
+          ratio: exactMatch.target_pencil_mix.ratio,
+          delta_e: exactMatch.delta_e,
+          match_quality: exactMatch.match_quality,
+        };
+        
+        setRowMixMatches(prev => ({ ...prev, [videoColorId]: mixMatch }));
+      }
+    } catch (error) {
+      console.error('Error fetching row mix:', error);
+    } finally {
+      setLoadingRowMix(prev => ({ ...prev, [videoColorId]: false }));
+    }
+  };
+
+  // Toggle two-color mix for a specific row
+  const toggleRowMix = (videoColorId) => {
+    if (rowMixMatches[videoColorId]) {
+      // Remove mix match
+      setRowMixMatches(prev => {
+        const updated = { ...prev };
+        delete updated[videoColorId];
+        return updated;
+      });
+    } else {
+      // Fetch mix match
+      fetchRowMix(videoColorId);
+    }
+  };
 
   const handleInspirationSelect = (inspiration) => {
     if (inspiration.type === 'video') {
@@ -711,19 +845,65 @@ const ColorAlong = () => {
                   </div>
                 </div>
 
-                <div className="p-1.5 flex-1 overflow-y-auto min-h-0" style={{ backgroundColor: '#ffffff' }}>
-                  {loadingColors || loadingMatches ? (
-                    <div className="flex items-center justify-center h-full text-center p-4">
-                      <div>
-                        <p className="text-sm text-slate-400 mb-1">Loading colors...</p>
+                <div className="flex flex-1 overflow-hidden min-h-0">
+                  {/* Vertical Index Navigation */}
+                  {matches.length > 0 && Object.keys(groupedMatches).length > 0 && (
+                    <div className="flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto" style={{ width: '32px', maxHeight: '100%' }}>
+                      <div className="py-2 flex flex-col items-center space-y-0.5">
+                        {Object.keys(groupedMatches)
+                          .sort((a, b) => {
+                            // Sort: numbers first, then letters, then '#'
+                            if (a === '#') return 1;
+                            if (b === '#') return -1;
+                            if (/[0-9]/.test(a) && /[A-Z]/.test(b)) return -1;
+                            if (/[A-Z]/.test(a) && /[0-9]/.test(b)) return 1;
+                            return a.localeCompare(b);
+                          })
+                          .map((char) => (
+                            <button
+                              key={char}
+                              onClick={() => scrollToSection(char)}
+                              className="w-6 h-6 flex items-center justify-center text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
+                              title={`Scroll to ${char}`}
+                            >
+                              {char}
+                            </button>
+                          ))}
                       </div>
                     </div>
-                  ) : matches.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {matches.map(({ videoColor, match }) => (
+                  )}
+                  
+                  {/* Matches Content */}
+                  <div className="p-3 flex-1 overflow-y-auto min-h-0" style={{ backgroundColor: '#ffffff' }}>
+                    {loadingColors || loadingMatches ? (
+                      <div className="flex items-center justify-center h-full text-center p-4">
+                        <div>
+                          <p className="text-sm text-slate-400 mb-1">Loading colors...</p>
+                        </div>
+                      </div>
+                    ) : matches.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {Object.keys(groupedMatches)
+                          .sort((a, b) => {
+                            // Sort: numbers first, then letters, then '#'
+                            if (a === '#') return 1;
+                            if (b === '#') return -1;
+                            if (/[0-9]/.test(a) && /[A-Z]/.test(b)) return -1;
+                            if (/[A-Z]/.test(a) && /[0-9]/.test(b)) return 1;
+                            return a.localeCompare(b);
+                          })
+                          .map((char) => (
+                            <div key={char} id={`color-section-${char}`} className="scroll-mt-2">
+                              {groupedMatches[char].map(({ videoColor, match }) => {
+                                // Use per-row mix match if available, otherwise use regular match
+                                const displayMatch = rowMixMatches[videoColor.id] || match;
+                                const isRowMixActive = !!rowMixMatches[videoColor.id];
+                                const isLoadingRowMix = loadingRowMix[videoColor.id];
+                                
+                                return (
                         <div
                           key={videoColor.id}
-                          className="bg-white p-1.5 border border-slate-200 hover:shadow-md transition-all"
+                          className="bg-white p-1.5 border border-slate-200 hover:shadow-md hover:scale-105 transition-all"
                           onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
                           onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                         >
@@ -738,44 +918,82 @@ const ColorAlong = () => {
                                 ></div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-medium text-slate-800 truncate">{videoColor.name}</p>
-                                  <p className="text-xs text-slate-500 font-mono truncate">{videoColor.hex}</p>
+                                  {videoColor.color_number && (
+                                    <p className="text-xs text-slate-500 font-mono truncate">{videoColor.color_number}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>
 
                             {/* Match Color - Handle both single and two-color mix */}
                             <div className="flex-1">
-                              <p className="text-xs font-medium text-slate-600 mb-1">Your Match</p>
-                              {match.is_mix ? (
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs font-medium text-slate-600">Your Match</p>
+                                {!match.is_mix && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleRowMix(videoColor.id);
+                                    }}
+                                    disabled={isLoadingRowMix}
+                                    className="p-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={isRowMixActive ? "Hide two-color mix" : "Show two-color mix"}
+                                  >
+                                    {isLoadingRowMix ? (
+                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                    ) : (
+                                      <svg 
+                                        className="w-3.5 h-3.5" 
+                                        fill="currentColor" 
+                                        viewBox="0 0 24 24"
+                                        style={{ color: isRowMixActive ? '#ea3663' : '#94a3b8' }}
+                                      >
+                                        <path d="M20.71 4.63l-1.34-1.34c-.37-.39-1.02-.39-1.41 0L9 12.25 11.75 15l8.96-8.96c.39-.39.39-1.04 0-1.41zM7 14a3 3 0 00-3 3c0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2a4 4 0 004-4c0-1.66-1.34-3-3-3z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              {displayMatch.is_mix ? (
                                 // Two-color mix display
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-1.5">
                                     <div
                                       className="w-7 h-7 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                                      style={{ backgroundColor: match.mixed_hex }}
-                                      title={`Mixed: ${match.mixed_hex}`}
+                                      style={{ backgroundColor: displayMatch.mixed_hex }}
+                                      title={`Mixed: ${displayMatch.mixed_hex}`}
                                     ></div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs font-medium text-slate-800 truncate">Two-color mix</p>
-                                      <p className="text-xs text-slate-500 font-mono truncate">{match.mixed_hex}</p>
+                                      {displayMatch.color1.color_number && displayMatch.color2.color_number && (
+                                        <p className="text-xs text-slate-500 font-mono truncate">{displayMatch.color1.color_number} + {displayMatch.color2.color_number}</p>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="pl-8 space-y-0.5">
+                                  <div className="pl-4 space-y-0.5">
                                     <div className="flex items-center gap-1">
                                       <div
                                         className="w-5 h-5 rounded shadow-sm border border-slate-200 flex-shrink-0"
-                                        style={{ backgroundColor: match.color1.hex }}
+                                        style={{ backgroundColor: displayMatch.color1.hex }}
                                       ></div>
-                                      <p className="text-xs text-slate-700 truncate">{match.color1.name}</p>
-                                      <span className="text-xs text-slate-500 ml-auto">{Math.round((1 - match.ratio) * 100)}%</span>
+                                      <p className="text-xs text-slate-700 truncate">
+                                        {displayMatch.color1.name}
+                                        {displayMatch.color1.color_number && <span className="text-slate-500 ml-1">{displayMatch.color1.color_number}</span>}
+                                      </p>
+                                      <span className="text-xs text-slate-500 ml-auto">{Math.round((1 - displayMatch.ratio) * 100)}%</span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <div
                                         className="w-5 h-5 rounded shadow-sm border border-slate-200 flex-shrink-0"
-                                        style={{ backgroundColor: match.color2.hex }}
+                                        style={{ backgroundColor: displayMatch.color2.hex }}
                                       ></div>
-                                      <p className="text-xs text-slate-700 truncate">{match.color2.name}</p>
-                                      <span className="text-xs text-slate-500 ml-auto">{Math.round(match.ratio * 100)}%</span>
+                                      <p className="text-xs text-slate-700 truncate">
+                                        {displayMatch.color2.name}
+                                        {displayMatch.color2.color_number && <span className="text-slate-500 ml-1">{displayMatch.color2.color_number}</span>}
+                                      </p>
+                                      <span className="text-xs text-slate-500 ml-auto">{Math.round(displayMatch.ratio * 100)}%</span>
                                     </div>
                                   </div>
                                 </div>
@@ -784,25 +1002,30 @@ const ColorAlong = () => {
                                 <div className="flex items-center gap-1.5">
                                   <div
                                     className="w-7 h-7 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                                    style={{ backgroundColor: match.hex }}
+                                    style={{ backgroundColor: displayMatch.hex }}
                                   ></div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-800 truncate">{match.name}</p>
-                                    <p className="text-xs text-slate-500 font-mono truncate">{match.hex}</p>
+                                    <p className="text-xs font-medium text-slate-800 truncate">{displayMatch.name}</p>
+                                    {displayMatch.color_number && (
+                                      <p className="text-xs text-slate-500 font-mono truncate">{displayMatch.color_number}</p>
+                                    )}
                                   </div>
                                 </div>
                               )}
                             </div>
                           </div>
                           <div className="text-xs text-slate-400 text-center mt-1.5 pt-1.5 border-t border-slate-100">
-                            {match.delta_e !== undefined ? (
-                              <>{deltaEToPercentage(match.delta_e)}% match</>
+                            {displayMatch.delta_e !== undefined ? (
+                              <>{deltaEToPercentage(displayMatch.delta_e)}% match</>
                             ) : (
-                              <>Distance: {Math.round(match.distance || 0)}</>
+                              <>Distance: {Math.round(displayMatch.distance || 0)}</>
                             )}
                           </div>
                         </div>
-                      ))}
+                              );
+                              })}
+                            </div>
+                          ))}
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-full text-center p-4">
@@ -813,6 +1036,7 @@ const ColorAlong = () => {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             </div>

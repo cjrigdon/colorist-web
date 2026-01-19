@@ -254,6 +254,11 @@ export const videosAPI = {
   delete: (id) => apiDelete(`/videos/${id}`, true)
 };
 
+export const playlistsAPI = {
+  getAll: () => apiGet('/playlists', true),
+  getVideos: (playlistId) => apiGet(`/playlists/${playlistId}/videos`, true)
+};
+
 export const filesAPI = {
   getAll: () => apiGet('/files', true),
   getById: (id) => apiGet(`/files/${id}`, true),

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { colorCombosAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
@@ -7,7 +7,17 @@ import AddColorComboModal from './AddColorComboModal';
 
 const ColorCombos = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Check if we should open the add modal from navigation state
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setIsAddModalOpen(true);
+      // Clear the state to prevent reopening on re-render
+      navigate(location.pathname, { replace: true, state: { ...location.state, openAddModal: false } });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   // Transform function for color combos
   const transformCombos = (data) => {
@@ -134,6 +144,7 @@ const ColorCombos = () => {
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Color Combos Yet</h3>
             <p className="text-slate-600 mb-4">Create your first color combination to get started</p>
             <button 
+              onClick={() => setIsAddModalOpen(true)}
               className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
               style={{
                 backgroundColor: '#ea3663'

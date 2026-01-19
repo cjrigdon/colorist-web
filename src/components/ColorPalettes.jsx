@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { colorPalettesAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorPaletteModal from './AddColorPaletteModal';
+import PrimaryButton from './PrimaryButton';
+import HoverableCard from './HoverableCard';
+import LoadingState from './LoadingState';
+import ErrorState from './ErrorState';
+import EmptyState from './EmptyState';
 
 const ColorPalettes = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Check if we should open the add modal from navigation state
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setIsAddModalOpen(true);
+      // Clear the state to prevent reopening on re-render
+      navigate(location.pathname, { replace: true, state: { ...location.state, openAddModal: false } });
+    }
+  }, [location.state, navigate, location.pathname]);
   
   // Use infinite scroll hook (no transformation needed for palettes)
   const { items: palettes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
@@ -20,43 +35,30 @@ const ColorPalettes = () => {
     <div className="space-y-6">
       <div className="px-4">
         <div className="flex items-center justify-end">
-          <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-          style={{
-            backgroundColor: '#ea3663'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>New Palette</span>
-        </button>
+          <PrimaryButton 
+            onClick={() => setIsAddModalOpen(true)}
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            }
+          >
+            New Palette
+          </PrimaryButton>
         </div>
       </div>
 
       {/* Palettes Grid Section */}
       <div className="bg-white p-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-slate-500">Loading palettes...</div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        ) : null}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {palettes.map((palette) => (
-          <div
-            key={palette.id}
-            className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer"
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-            onClick={() => palette.id && navigate(`/edit/color-palette/${palette.id}`)}
-          >
+        {loading && <LoadingState message="Loading palettes..." />}
+        {error && <ErrorState error={error} className="mb-6" />}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {palettes.map((palette) => (
+              <HoverableCard
+                key={palette.id}
+                onClick={() => palette.id && navigate(`/edit/color-palette/${palette.id}`)}
+              >
             {/* Color Strip */}
             <div className="flex h-24">
               {palette.colors && palette.colors.length > 0 ? (
@@ -87,31 +89,24 @@ const ColorPalettes = () => {
                 </div>
               )}
             </div>
-          </div>
+          </HoverableCard>
         ))}
-        </div>
+          </div>
+        )}
 
         {/* Infinite scroll trigger */}
         {palettes.length > 0 && (
           <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />
         )}
 
-        {palettes.length === 0 && !loading && (
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-          <div className="text-6xl mb-4">🌈</div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Palettes Yet</h3>
-          <p className="text-slate-600 mb-4">Create your first color palette to get started</p>
-          <button 
-            className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
-            style={{
-              backgroundColor: '#ea3663'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
-          >
-            Create Palette
-          </button>
-          </div>
+        {palettes.length === 0 && !loading && !error && (
+          <EmptyState
+            icon="🌈"
+            title="No Palettes Yet"
+            message="Create your first color palette to get started"
+            buttonText="Create Palette"
+            onButtonClick={() => setIsAddModalOpen(true)}
+          />
         )}
       </div>
       <AddColorPaletteModal
