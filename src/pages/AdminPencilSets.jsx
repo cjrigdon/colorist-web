@@ -24,6 +24,16 @@ const AdminPencilSets = () => {
   });
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
+  const [setSizes, setSetSizes] = useState([]);
+  const [loadingSizes, setLoadingSizes] = useState(false);
+  const [editingSize, setEditingSize] = useState(null);
+  const [sizeFormData, setSizeFormData] = useState({
+    count: '',
+    name: '',
+    thumb: '',
+    thumbFile: null
+  });
+  const [showSizeModal, setShowSizeModal] = useState(false);
 
   useEffect(() => {
     fetchSets();
@@ -60,7 +70,7 @@ const AdminPencilSets = () => {
     }
   };
 
-  const handleEdit = (set) => {
+  const handleEdit = async (set) => {
     setEditingSet(set);
     setFormData({
       brand: set.brand || '',
@@ -73,6 +83,94 @@ const AdminPencilSets = () => {
       thumb: set.thumb || ''
     });
     setShowModal(true);
+    // Fetch set sizes
+    await fetchSetSizes(set.id);
+  };
+
+  const fetchSetSizes = async (setId) => {
+    try {
+      setLoadingSizes(true);
+      const response = await adminAPI.pencilSets.getSetSizes(setId);
+      setSetSizes(Array.isArray(response) ? response : (response.data || []));
+    } catch (err) {
+      console.error('Error fetching set sizes:', err);
+      setSetSizes([]);
+    } finally {
+      setLoadingSizes(false);
+    }
+  };
+
+  const handleEditSize = (size) => {
+    setEditingSize(size);
+    setSizeFormData({
+      count: size.count || '',
+      name: size.name || '',
+      thumb: size.thumb || '',
+      thumbFile: null
+    });
+    setShowSizeModal(true);
+  };
+
+  const handleDeleteSize = async (sizeId) => {
+    if (!window.confirm('Are you sure you want to delete this set size?')) {
+      return;
+    }
+
+    try {
+      await adminAPI.pencilSets.deleteSetSize(sizeId);
+      if (editingSet) {
+        await fetchSetSizes(editingSet.id);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete set size');
+    }
+  };
+
+  const handleSizeSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    try {
+      // Prepare data - ensure count is a number if provided
+      const submitData = {
+        ...sizeFormData,
+        count: sizeFormData.count ? parseInt(sizeFormData.count, 10) : sizeFormData.count
+      };
+      
+      await adminAPI.pencilSets.updateSetSize(editingSize.id, submitData);
+      setShowSizeModal(false);
+      setEditingSize(null);
+      setSizeFormData({
+        count: '',
+        name: '',
+        thumb: '',
+        thumbFile: null
+      });
+      if (editingSet) {
+        await fetchSetSizes(editingSet.id);
+      }
+    } catch (err) {
+      console.error('Error saving set size:', err);
+      setError(err.message || err.data?.message || 'Failed to save set size');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSizeChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === 'thumbFile' && files && files.length > 0) {
+      setSizeFormData(prev => ({
+        ...prev,
+        thumbFile: files[0]
+      }));
+    } else {
+      setSizeFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleDelete = async (id) => {
@@ -187,6 +285,7 @@ const AdminPencilSets = () => {
   }
 
   return (
+    <>
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <div className="mb-6 flex items-center justify-between">
@@ -368,9 +467,10 @@ const AdminPencilSets = () => {
           </div>
         )}
       </div>
+    </div>
 
-      {/* Modal for Add/Edit */}
-      {showModal && (
+    {/* Modal for Add/Edit */}
+    {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
@@ -474,12 +574,76 @@ const AdminPencilSets = () => {
                     <span className="text-sm font-medium text-slate-700">Open Stock</span>
                   </label>
                 </div>
+
+                {/* Set Sizes Section */}
+                {editingSet && (
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-slate-800 font-venti">Set Sizes</h4>
+                    </div>
+                    {loadingSizes ? (
+                      <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
+                    ) : setSizes.length === 0 ? (
+                      <div className="text-center py-4 text-slate-500 text-sm">No set sizes found</div>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {setSizes.map((size) => {
+                          const thumbnailUrl = size.thumb 
+                            ? (size.thumb.startsWith('http') ? size.thumb : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${size.thumb}`)
+                            : null;
+                          return (
+                            <div key={size.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                              <div className="flex items-center gap-3 flex-1">
+                                {thumbnailUrl ? (
+                                  <img 
+                                    src={thumbnailUrl} 
+                                    alt={`${size.count}-count set`}
+                                    className="w-12 h-12 object-cover rounded-lg"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="font-medium text-slate-800">
+                                    {size.count}-count {size.name ? `(${size.name})` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditSize(size)}
+                                  className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSize(size.id)}
+                                  className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => {
                       setShowModal(false);
                       setEditingSet(null);
+                      setSetSizes([]);
                     }}
                     className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
                   >
@@ -500,8 +664,104 @@ const AdminPencilSets = () => {
             </div>
           </div>
         </div>
-      )}
-    </div>
+        )}
+
+    {/* Modal for Edit Set Size */}
+    {showSizeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-lg max-w-lg w-full mx-4">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-slate-800 font-venti mb-4">
+                  Edit Set Size
+                </h3>
+                <form onSubmit={handleSizeSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Count *
+                    </label>
+                    <input
+                      type="number"
+                      name="count"
+                      value={sizeFormData.count}
+                      onChange={handleSizeChange}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                      required
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={sizeFormData.name}
+                      onChange={handleSizeChange}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Thumbnail
+                    </label>
+                    {sizeFormData.thumb && !sizeFormData.thumbFile && (
+                      <div className="mb-2">
+                        <img 
+                          src={sizeFormData.thumb.startsWith('http') ? sizeFormData.thumb : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${sizeFormData.thumb}`}
+                          alt="Current thumbnail"
+                          className="w-24 h-24 object-cover rounded-lg mb-2"
+                        />
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      name="thumbFile"
+                      accept="image/jpeg,image/png,image/jpg"
+                      onChange={handleSizeChange}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                    />
+                    {sizeFormData.thumbFile && (
+                      <p className="mt-1 text-xs text-green-600 font-medium">
+                        ✓ File selected: {sizeFormData.thumbFile.name}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">Upload a new thumbnail image (JPG, PNG, max 2MB)</p>
+                  </div>
+                  <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSizeModal(false);
+                        setEditingSize(null);
+                        setSizeFormData({
+                          count: '',
+                          name: '',
+                          thumb: '',
+                          thumbFile: null
+                        });
+                      }}
+                      className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: '#ea3663' }}
+                      onMouseEnter={(e) => !saving && (e.target.style.backgroundColor = '#d12a4f')}
+                      onMouseLeave={(e) => !saving && (e.target.style.backgroundColor = '#ea3663')}
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+    </>
   );
 };
 

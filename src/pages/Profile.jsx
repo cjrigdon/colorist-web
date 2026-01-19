@@ -1,6 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="space-y-6">
       <div className="bg-white p-6">
@@ -68,18 +71,26 @@ const Profile = () => {
             ></textarea>
           </div>
 
-          <div className="flex items-center justify-end space-x-3 mt-8">
-            <button className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors">
-              Cancel
-            </button>
-            <button 
-              className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors"
-              style={{ backgroundColor: '#ea3663' }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+          <div className="flex items-center justify-between mt-8">
+            <button
+              onClick={() => navigate('/subscription')}
+              className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
             >
-              Save Changes
+              Manage Subscription
             </button>
+            <div className="flex items-center space-x-3">
+              <button className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors">
+                Cancel
+              </button>
+              <button 
+                className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       </div>

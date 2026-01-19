@@ -2,6 +2,41 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI } from '../services/api';
 
+// Component for pencil set card with thumbnail support
+const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <div
+      className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+      onClick={onNavigate}
+    >
+      {thumbnailUrl && !imageError ? (
+        <img 
+          src={thumbnailUrl} 
+          alt={`${set.set?.brand || set.brand} ${set.set?.name || set.name}`}
+          className="w-full h-32 object-cover rounded-lg mb-2"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div 
+          className="w-full h-32 rounded-lg mb-2 flex items-center justify-center"
+          style={{ backgroundColor: '#f1f5f9' }}
+        >
+          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </div>
+      )}
+      <h4 className="font-semibold text-slate-800 mb-1 text-sm">{set.set?.name || set.name}</h4>
+      <p className="text-xs text-slate-500 mb-2">{set.set?.brand || set.brand}</p>
+      <p className="text-xs text-slate-600">{set.count || 0} pencils</p>
+    </div>
+  );
+};
+
 const StudioOverview = () => {
   const navigate = useNavigate();
   const [inspirationIndex, setInspirationIndex] = useState(0);
@@ -68,8 +103,11 @@ const StudioOverview = () => {
         id: set.id,
         name: set.name,
         brand: set.brand,
+        // Use the thumb field from colored_pencil_set_sizes database table
+        thumb: set.thumb,
         set: set.set || set.colored_pencil_set,
-        count: set.count || (set.pencils ? set.pencils.length : 0)
+        // Use the count field directly from colored_pencil_set_sizes database table
+        count: set.count
       }));
 
       if (append) {
@@ -613,20 +651,23 @@ const StudioOverview = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(pencilSets, pencilSetIndex).map((set) => (
-              <div
-                key={set.id}
-                className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
-                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', selectedSetId: set.id } })}
-              >
-                <div className="text-3xl mb-2">✏️</div>
-                <h4 className="font-semibold text-slate-800 mb-1 text-sm">{set.set?.name || set.name}</h4>
-                <p className="text-xs text-slate-500 mb-2">{set.set?.brand || set.brand}</p>
-                <p className="text-xs text-slate-600">{set.count} colors</p>
-              </div>
-            ))}
+            {getVisibleItems(pencilSets, pencilSetIndex).map((set) => {
+              // Prioritize thumbnail from set size (colored_pencil_set_sizes.thumb), fallback to set thumb
+              // Use set size thumb if it exists (even if it's a full URL), otherwise use set thumb
+              const thumbnail = set.thumb ? set.thumb : (set.set?.thumb || null);
+              const thumbnailUrl = thumbnail 
+                ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                : null;
+              
+              return (
+                <PencilSetCard
+                  key={set.id}
+                  set={set}
+                  thumbnailUrl={thumbnailUrl}
+                  onNavigate={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', selectedSetId: set.id } })}
+                />
+              );
+            })}
           </div>
         )}
       </div>

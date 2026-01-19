@@ -56,19 +56,12 @@ const ColorConversion = () => {
         setError(null);
         // Use getAvailableSetSizes with all=true to get all system sets and sizes
         const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000, true);
-        console.log('ColorConversion - Full API Response:', response);
         // Handle paginated response (Laravel returns { data: [...], current_page, etc. })
         let setSizes = [];
         if (Array.isArray(response)) {
           setSizes = response;
         } else if (response.data && Array.isArray(response.data)) {
           setSizes = response.data;
-        }
-        console.log('ColorConversion - Extracted setSizes:', setSizes);
-        console.log('ColorConversion - SetSizes count:', setSizes.length);
-        if (setSizes.length > 0) {
-          console.log('ColorConversion - First setSize:', setSizes[0]);
-          console.log('ColorConversion - First setSize.set:', setSizes[0].set);
         }
         setPencilSets(setSizes);
       } catch (err) {
@@ -116,18 +109,6 @@ const ColorConversion = () => {
         });
 
         const results = await Promise.all(comparisonPromises);
-
-        // Debug: Log the first result to see the structure
-        if (results.length > 0 && results[0].matches && results[0].matches.length > 0) {
-          console.log('ColorConversion - First match structure:', results[0].matches[0]);
-          console.log('ColorConversion - Source pencil color:', results[0].matches[0].source_pencil);
-          if (results[0].matches[0].target_pencil) {
-            console.log('ColorConversion - Target pencil color:', results[0].matches[0].target_pencil);
-          }
-          if (results[0].matches[0].target_pencil_mix) {
-            console.log('ColorConversion - Target pencil mix:', results[0].matches[0].target_pencil_mix);
-          }
-        }
 
         // Transform results to match the expected format
         // Group matches by source pencil

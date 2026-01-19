@@ -12,13 +12,6 @@ const EditColorPalette = () => {
   const idFromPath = pathname.split('/edit/color-palette/')[1];
   const id = params.id || idFromPath;
   
-  console.log('=== EDITCOLORPALETTE COMPONENT RENDERED ===');
-  console.log('Pathname:', pathname);
-  console.log('ID from useParams:', params.id);
-  console.log('ID from pathname:', idFromPath);
-  console.log('Final ID:', id);
-  console.log('Full params object:', params);
-  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -56,38 +49,17 @@ const EditColorPalette = () => {
   }, []);
 
   useEffect(() => {
-    console.log('=== USEEFFECT TRIGGERED ===');
-    console.log('ID from params:', id);
-    console.log('ID type:', typeof id);
-    console.log('ID truthy?', !!id);
-    
     // Early return if no ID
     if (!id) {
-      console.log('No ID provided, setting loading to false');
       setLoading(false);
       return;
     }
 
-    console.log('ID exists, setting up fetch functions');
-
     const fetchData = async () => {
-      console.log('=== FETCHDATA CALLED ===');
-      console.log('ID in fetchData:', id);
-
       try {
-        console.log('=== MAKING API CALL ===');
-        console.log('Calling colorPalettesAPI.getById with id:', id);
         setLoading(true);
         setError(null);
         const response = await colorPalettesAPI.getById(id);
-        console.log('=== API CALL COMPLETED ===');
-        console.log('Response received:', response);
-        console.log('=== PALETTE API RESPONSE ===');
-        console.log('Full response:', response);
-        console.log('Response type:', typeof response);
-        console.log('Is array:', Array.isArray(response));
-        console.log('Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
-        console.log('Response stringified:', JSON.stringify(response, null, 2));
         
         // API returns the JSON object directly from handleResponse
         // But check if it's wrapped in a data property (some APIs do this)
@@ -95,23 +67,15 @@ const EditColorPalette = () => {
         if (response && typeof response === 'object' && 'data' in response && !('id' in response)) {
           // Response is wrapped in data property
           data = response.data;
-          console.log('Response was wrapped, extracted data:', data);
         } else {
           // Response is the data directly
           data = response;
-          console.log('Response is data directly');
         }
         
         if (!data || typeof data !== 'object') {
           console.error('Invalid data type:', typeof data, data);
           throw new Error('Invalid data received from server');
         }
-        
-        console.log('Data object:', data);
-        console.log('Title:', data.title);
-        console.log('Image:', data.image);
-        console.log('Base Color:', data.base_color);
-        console.log('Colors:', data.colors);
         
         // Extract form data - handle null/undefined values properly
         const title = (data.title !== null && data.title !== undefined) ? String(data.title) : '';
@@ -125,51 +89,29 @@ const EditColorPalette = () => {
           base_color: baseColor
         };
         
-        console.log('=== SETTING FORMDATA ===');
-        console.log('New formData object:', newFormData);
-        console.log('Title value:', newFormData.title);
-        console.log('Image value:', newFormData.image);
-        console.log('Base color value:', newFormData.base_color);
-        
         // Use functional update to ensure state is set correctly
-        setFormData(prev => {
-          console.log('Previous formData:', prev);
-          console.log('New formData:', newFormData);
-          return newFormData;
-        });
+        setFormData(prev => newFormData);
 
         // Set current colors
         if (data.colors && Array.isArray(data.colors) && data.colors.length > 0) {
-          console.log('Setting colors - count:', data.colors.length);
           const colorIds = data.colors.map(c => c.id?.toString()).filter(Boolean);
           setSelectedColorIds(colorIds);
           setCurrentColors(data.colors);
         } else {
-          console.log('No colors in palette');
           setSelectedColorIds([]);
           setCurrentColors([]);
         }
       } catch (err) {
-        console.error('=== ERROR FETCHING PALETTE ===');
-        console.error('Error object:', err);
-        console.error('Error message:', err.message);
-        console.error('Error data:', err.data);
+        console.error('Error fetching palette:', err);
         setError(err.message || err.data?.message || 'Failed to load color palette');
       } finally {
         setLoading(false);
       }
     };
-
-    console.log('About to call fetchData() and fetchAvailableColors()');
     
     // Call both functions - fetchAvailableColors is stable (useCallback with empty deps)
     fetchData();
     fetchAvailableColors();
-    
-    // Cleanup function
-    return () => {
-      console.log('useEffect cleanup');
-    };
   }, [id, fetchAvailableColors]);
 
 

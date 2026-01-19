@@ -8,6 +8,7 @@ import ColoristLog from '../components/ColoristLog';
 import ProfileDropdown from '../components/ProfileDropdown';
 import Profile from './Profile';
 import PrivacyPolicy from './PrivacyPolicy';
+import Subscription from './Subscription';
 import EditInspiration from './EditInspiration';
 import EditPencilSet from './EditPencilSet';
 import EditColorCombo from './EditColorCombo';
@@ -98,7 +99,10 @@ const Dashboard = () => {
   ];
 
   const renderContent = () => {
-    // Check if we're on profile or privacy policy pages
+    // Check if we're on profile, subscription, or privacy policy pages
+    if (pathname.includes('/subscription')) {
+      return <Subscription />;
+    }
     if (pathname.includes('/profile')) {
       return <Profile />;
     }
@@ -373,7 +377,8 @@ const Dashboard = () => {
         >
           <div>
             <h2 className="text-lg font-semibold text-slate-800 font-venti">
-              {pathname.includes('/profile') ? 'Profile' :
+              {pathname.includes('/subscription') ? 'Subscription' :
+               pathname.includes('/profile') ? 'Profile' :
                pathname.includes('/privacy-policy') ? 'Privacy Policy' :
                activeTab === 'studio' 
                 ? studioSections.find(section => section.id === activeStudioSection)?.label || 'Studio'
@@ -382,7 +387,8 @@ const Dashboard = () => {
                 : tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              {pathname.includes('/profile') ? 'Manage your account settings and preferences' :
+              {pathname.includes('/subscription') ? 'Manage your subscription and billing' :
+               pathname.includes('/profile') ? 'Manage your account settings and preferences' :
                pathname.includes('/privacy-policy') ? 'Learn how we protect and handle your data' :
                activeTab === 'studio' && (
                 activeStudioSection === 'overview' && 'A quick glance at your creative studio' ||

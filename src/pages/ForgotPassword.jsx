@@ -8,7 +8,6 @@ function ForgotPassword() {
   const handleSubmit = (e) => {
     e.preventDefault();
     // Handle forgot password logic here
-    console.log('Forgot Password:', { email });
     setIsSubmitted(true);
   };
 

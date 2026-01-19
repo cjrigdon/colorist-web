@@ -5,6 +5,60 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddPencilSetModal from './AddPencilSetModal';
 
+// Component for individual set item button with thumbnail support
+const SetItemButton = ({ set, thumbnailUrl, isSelected, onSelect }) => {
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full text-left p-4 rounded-lg border transition-colors ${
+        isSelected
+          ? ''
+          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+      }`}
+      style={isSelected ? {
+        borderColor: '#49817b',
+        backgroundColor: '#c1fcf6'
+      } : {}}
+    >
+      <div className="flex items-center gap-3">
+        {thumbnailUrl && !imageError ? (
+          <img 
+            src={thumbnailUrl} 
+            alt={`${set.set?.brand || 'Unknown'} ${set.set?.name || 'Unknown'}`}
+            className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div 
+            className="flex items-center justify-center w-12 h-12 rounded-lg flex-shrink-0"
+            style={{ backgroundColor: '#f1f5f9' }}
+          >
+            <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="font-medium text-slate-800 truncate">{set.set?.brand || 'Unknown'}</h4>
+            <span className="text-xs text-slate-500 flex-shrink-0 ml-2 bg-slate-200 px-2 py-0.5 rounded-full font-medium">
+              {set.count || 0} pencils
+            </span>
+          </div>
+          <p className="text-sm text-slate-600 truncate">
+            {set.set?.name || 'Unknown'}
+            {set.name && set.name !== set.set?.name && (
+              <span className="text-xs text-slate-500 ml-2">({set.name})</span>
+            )}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+};
+
 const PencilInventory = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,11 +67,16 @@ const PencilInventory = () => {
 
   // Transform function for pencil sets
   const transformPencilSets = (data) => {
-    return data.map(set => ({
-      ...set,
-      colors: Array.isArray(set.colors) ? set.colors : [],
-      count: set.count || (set.colors ? set.colors.length : 0)
-    }));
+    return data.map(set => {
+      return {
+        ...set,
+        colors: Array.isArray(set.colors) ? set.colors : [],
+        // Use the count field directly from colored_pencil_set_sizes database table
+        count: set.count,
+        // Use the thumb field from colored_pencil_set_sizes database table - preserve it explicitly
+        thumb: set.thumb
+      };
+    });
   };
 
   // Use infinite scroll hook
@@ -93,27 +152,24 @@ const PencilInventory = () => {
                   No pencil sets found
                 </div>
               )}
-              {pencilSets.map((set) => (
-                <button
-                  key={set.id}
-                  onClick={() => setSelectedSet(set.id)}
-                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                    selectedSet === set.id
-                      ? ''
-                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                  style={selectedSet === set.id ? {
-                    borderColor: '#49817b',
-                    backgroundColor: '#c1fcf6'
-                  } : {}}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-slate-800">{set.set.brand}</h4>
-                    <span className="text-xs text-slate-500">Colors: {set.count}</span>
-                  </div>
-                  <p className="text-sm text-slate-600">{set.set.name}</p>
-                </button>
-              ))}
+              {pencilSets.map((set) => {
+                // Prioritize thumbnail from set size (colored_pencil_set_sizes.thumb), fallback to set thumb
+                // Use set size thumb if it exists (even if it's a full URL), otherwise use set thumb
+                const thumbnail = set.thumb ? set.thumb : (set.set?.thumb || null);
+                const thumbnailUrl = thumbnail 
+                  ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                  : null;
+                
+                return (
+                  <SetItemButton
+                    key={set.id}
+                    set={set}
+                    thumbnailUrl={thumbnailUrl}
+                    isSelected={selectedSet === set.id}
+                    onSelect={() => setSelectedSet(set.id)}
+                  />
+                );
+              })}
               {/* Infinite scroll trigger */}
               <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />
             </div>
@@ -126,7 +182,19 @@ const PencilInventory = () => {
             <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
               <div className="flex items-center justify-between mb-4 min-h-[60px]">
                 <div className="flex-1 min-w-0 pr-4">
-                  <h3 className="text-xl font-semibold text-slate-800 font-venti truncate">{selectedSetData.set?.name || selectedSetData.name}</h3>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-xl font-semibold text-slate-800 font-venti truncate">
+                      {selectedSetData.set?.name || selectedSetData.name}
+                      {selectedSetData.name && selectedSetData.name !== selectedSetData.set?.name && (
+                        <span className="text-base text-slate-600 ml-2 font-normal">({selectedSetData.name})</span>
+                      )}
+                    </h3>
+                    {selectedSetData.count && (
+                      <span className="text-sm text-slate-600 bg-slate-200 px-3 py-1 rounded-full font-medium flex-shrink-0">
+                        {selectedSetData.count} pencils
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-600 truncate">{selectedSetData.set?.brand || selectedSetData.brand}</p>
                 </div>
                 {/* Only show Edit button for custom sets */}

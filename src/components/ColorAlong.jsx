@@ -530,8 +530,6 @@ const ColorAlong = () => {
           return;
         }
         
-        console.log('Matches array from API:', matchesArray);
-        
         // Transform API response to match expected format
         const transformedMatches = matchesArray.map(match => {
           const videoColor = {
@@ -586,7 +584,6 @@ const ColorAlong = () => {
           }
         }).filter(match => match !== null); // Filter out any null matches
 
-        console.log('Transformed matches:', transformedMatches);
         setMatches(transformedMatches);
         
         // Group matches by index character for navigation

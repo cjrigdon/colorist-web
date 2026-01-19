@@ -158,9 +158,18 @@ export const isAuthenticated = () => {
 // Specific API endpoints as convenience methods
 export const authAPI = {
   login: (email, password) => apiPost('/users/login', { email, password }, false),
+  register: (userData) => apiPost('/users/register', userData, false),
   getYoutubeRedirect: () => apiGet('/auth/youtube/redirect', false),
   getYoutubeCallback: (searchParams) => apiGet(`/auth/youtube/callback${searchParams}`, false),
   getUser: () => apiGet('/user', true)
+};
+
+export const subscriptionAPI = {
+  get: () => apiGet('/subscription', true),
+  create: (plan, paymentMethod) => apiPost('/subscription', { plan, payment_method: paymentMethod }, true),
+  update: (plan, paymentMethod) => apiPut('/subscription', { plan, payment_method: paymentMethod }, true),
+  cancel: () => apiDelete('/subscription', true),
+  getSetupIntent: () => apiPost('/subscription/setup-intent', {}, true)
 };
 
 export const colorsAPI = {
@@ -325,7 +334,42 @@ export const adminAPI = {
     delete: (id) => apiDelete(`/admin/colored-pencil-sets/${id}`, true),
     getPencils: (id) => apiGet(`/admin/colored-pencil-sets/${id}/pencils`, true),
     approve: (id) => apiPost(`/admin/colored-pencil-sets/${id}/approve`, {}, true),
-    reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true)
+    reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true),
+    getSetSizes: (id) => apiGet(`/admin/colored-pencil-sets/${id}/set-sizes`, true),
+    updateSetSize: (id, data) => {
+      // Handle file upload for thumbnail
+      // Check if thumbFile exists and is a File object
+      if (data.thumbFile && (data.thumbFile instanceof File || data.thumbFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('thumb', data.thumbFile);
+        formData.append('_method', 'PUT'); // Laravel method spoofing for PUT with files
+        if (data.count !== undefined && data.count !== null && data.count !== '') {
+          formData.append('count', String(data.count));
+        }
+        if (data.name !== undefined && data.name !== null && data.name !== '') {
+          formData.append('name', String(data.name));
+        }
+        return fetch(`${API_BASE_URL}/admin/colored-pencil-set-sizes/${id}`, {
+          method: 'POST', // Use POST for file uploads, Laravel will handle _method=PUT
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+            // Don't set Content-Type - browser will set it with boundary for FormData
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      // Remove thumbFile from data before sending
+      const { thumbFile, ...dataToSend } = data;
+      // Convert count to integer if it exists
+      if (dataToSend.count !== undefined && dataToSend.count !== null && dataToSend.count !== '') {
+        dataToSend.count = parseInt(dataToSend.count, 10);
+      }
+      return apiPut(`/admin/colored-pencil-set-sizes/${id}`, dataToSend, true);
+    },
+    deleteSetSize: (id) => apiDelete(`/admin/colored-pencil-set-sizes/${id}`, true)
   },
   // Colored Pencils
   pencils: {
