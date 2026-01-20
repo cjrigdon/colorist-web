@@ -113,11 +113,10 @@ const AdminPencils = () => {
     setError(null);
 
     try {
-      // Prepare data - convert empty color_number and hex to null
+      // Prepare data - convert empty color_number to null
       const submitData = {
         ...formData,
-        color_number: formData.color_number === '' ? null : formData.color_number,
-        hex: formData.hex === '' ? null : formData.hex
+        color_number: formData.color_number === '' ? null : formData.color_number
       };
 
       if (editingPencil) {
@@ -360,7 +359,7 @@ const AdminPencils = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Hex Color
+                    Hex Color *
                   </label>
                   <div className="flex items-center space-x-2">
                     <input
@@ -370,6 +369,7 @@ const AdminPencils = () => {
                       onChange={handleChange}
                       placeholder="#FF0000"
                       className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                      required
                     />
                     {formData.hex && (
                       <div
