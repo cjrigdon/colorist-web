@@ -389,42 +389,42 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Select Sets ({selectedSetSizeIds.length} selected)
                 </label>
-                {loadingAvailable ? (
-                  <div className="text-center py-4 text-slate-500">Loading available sets...</div>
-                ) : availableSets.length === 0 ? (
-                  <div className="text-center py-4 text-slate-500">No available sets to add</div>
-                ) : (
-                  <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-2 min-h-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {availableSets.map((setSize) => (
-                        <label
-                          key={setSize.id}
-                          className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                            selectedSetSizeIds.includes(setSize.id.toString())
-                              ? 'bg-slate-100 border-2 border-slate-300'
-                              : 'hover:bg-slate-50 border-2 border-transparent'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedSetSizeIds.includes(setSize.id.toString())}
-                            onChange={() => toggleSetSizeSelection(setSize.id)}
-                            className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500 flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-slate-800 truncate">
-                              {setSize.set?.name || 'Unknown'}
-                            </div>
-                            <div className="text-xs text-slate-600 truncate">
-                              {setSize.set?.brand || 'Unknown'} - {setSize.count} pencils
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+              {loadingAvailable ? (
+                <div className="text-center py-4 text-slate-500 flex-shrink-0">Loading available sets...</div>
+              ) : availableSets.length === 0 ? (
+                <div className="text-center py-4 text-slate-500 flex-shrink-0">No available sets to add</div>
+              ) : (
+                <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-2 min-h-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {availableSets.map((setSize) => (
+                      <label
+                        key={setSize.id}
+                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                          selectedSetSizeIds.includes(setSize.id.toString())
+                            ? 'bg-slate-100 border-2 border-slate-300'
+                            : 'hover:bg-slate-50 border-2 border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedSetSizeIds.includes(setSize.id.toString())}
+                          onChange={() => toggleSetSizeSelection(setSize.id)}
+                          className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-slate-800 truncate">
+                            {setSize.set?.name || 'Unknown'}
+                          </div>
+                          <div className="text-xs text-slate-600 truncate">
+                            {setSize.set?.brand || 'Unknown'} - {setSize.count} pencils
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="text-sm text-slate-600 flex-shrink-0">
                 Select one or more sets from the system pencil sets to add to your collection.
               </div>
