@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { coloredPencilSetsAPI, colorsAPI } from '../services/api';
+import { coloredPencilSetsAPI, colorsAPI, brandsAPI, apiGet } from '../services/api';
 import ColorSelector from './ColorSelector';
 import DropdownMenu from './DropdownMenu';
 
@@ -8,10 +8,21 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Existing sets data
+  // Existing sets data - multi-step flow
+  const [step, setStep] = useState('brand'); // 'brand', 'set', 'size'
+  const [brands, setBrands] = useState([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [setsForBrand, setSetsForBrand] = useState([]);
+  const [loadingSets, setLoadingSets] = useState(false);
+  const [selectedSet, setSelectedSet] = useState(null);
+  const [sizesForSet, setSizesForSet] = useState([]);
+  const [loadingSizes, setLoadingSizes] = useState(false);
+  const [selectedSetSizeIds, setSelectedSetSizeIds] = useState([]);
+  
+  // Legacy - keep for backward compatibility if needed
   const [availableSets, setAvailableSets] = useState([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
-  const [selectedSetSizeIds, setSelectedSetSizeIds] = useState([]);
 
   // New set form data
   const [newSetData, setNewSetData] = useState({
@@ -49,8 +60,14 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (isOpen && activeTab === 'existing') {
-      fetchAvailableSets();
+      // Reset to brand selection step
+      setStep('brand');
+      setSelectedBrand(null);
+      setSelectedSet(null);
       setSelectedSetSizeIds([]);
+      setSetsForBrand([]);
+      setSizesForSet([]);
+      fetchBrands();
     } else if (isOpen && activeTab === 'custom') {
       fetchPencilsForCustomSet();
       setSelectedColorIdsForCustomSet([]);
@@ -80,6 +97,139 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
     }
   }, [newSetData.count, activeTab]);
 
+
+  const fetchBrands = async () => {
+    try {
+      setLoadingBrands(true);
+      const response = await brandsAPI.getAll(1, 100);
+      let brandsData = [];
+      if (Array.isArray(response)) {
+        brandsData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        brandsData = response.data;
+      }
+      setBrands(brandsData);
+    } catch (err) {
+      console.error('Error fetching brands:', err);
+      setError('Failed to load brands');
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  const fetchSetsForBrand = async (brandId) => {
+    try {
+      setLoadingSets(true);
+      setError(null);
+      // Build query params with filter
+      const params = new URLSearchParams({ 
+        page: '1', 
+        per_page: '100',
+        'filter[brand_id]': brandId.toString()
+      });
+      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
+      
+      let setsData = [];
+      if (Array.isArray(data)) {
+        setsData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        setsData = data.data;
+      }
+      
+      // For each set, we need to count how many sizes it has
+      // We'll fetch all available sizes and count them per set
+      const sizesResponse = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000);
+      let allSizes = [];
+      if (Array.isArray(sizesResponse)) {
+        allSizes = sizesResponse;
+      } else if (sizesResponse.data && Array.isArray(sizesResponse.data)) {
+        allSizes = sizesResponse.data;
+      }
+      
+      // Group sizes by set ID and count them
+      const sizesBySetId = {};
+      allSizes.forEach(size => {
+        const setId = size.set?.id;
+        if (setId) {
+          if (!sizesBySetId[setId]) {
+            sizesBySetId[setId] = [];
+          }
+          sizesBySetId[setId].push(size);
+        }
+      });
+      
+      // Add size count to each set
+      const setsWithSizeCounts = setsData.map(set => ({
+        ...set,
+        sizeCount: sizesBySetId[set.id]?.length || 0
+      }));
+      
+      setSetsForBrand(setsWithSizeCounts);
+    } catch (err) {
+      console.error('Error fetching sets for brand:', err);
+      setError('Failed to load sets for this brand');
+    } finally {
+      setLoadingSets(false);
+    }
+  };
+
+  const fetchSizesForSet = async (setId) => {
+    try {
+      setLoadingSizes(true);
+      setError(null);
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000);
+      let allSizes = [];
+      if (Array.isArray(response)) {
+        allSizes = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        allSizes = response.data;
+      }
+      
+      // Filter sizes that belong to the selected set
+      const sizesForThisSet = allSizes.filter(size => 
+        size.set?.id === setId
+      );
+      
+      setSizesForSet(sizesForThisSet);
+    } catch (err) {
+      console.error('Error fetching sizes for set:', err);
+      setError('Failed to load sizes for this set');
+    } finally {
+      setLoadingSizes(false);
+    }
+  };
+
+  const handleBrandSelect = (brand) => {
+    setSelectedBrand(brand);
+    setSelectedSet(null);
+    setSelectedSetSizeIds([]);
+    setSizesForSet([]);
+    fetchSetsForBrand(brand.id);
+    setStep('set');
+  };
+
+  const handleSetSelect = (set) => {
+    setSelectedSet(set);
+    setSelectedSetSizeIds([]);
+    fetchSizesForSet(set.id);
+    setStep('size');
+  };
+
+  const handleBack = () => {
+    if (step === 'size') {
+      setStep('set');
+      setSelectedSet(null);
+      setSelectedSetSizeIds([]);
+      setSizesForSet([]);
+    } else if (step === 'set') {
+      setStep('brand');
+      setSelectedBrand(null);
+      setSelectedSet(null);
+      setSetsForBrand([]);
+      setSizesForSet([]);
+      setSelectedSetSizeIds([]);
+    }
+  };
 
   const fetchAvailableSets = async () => {
     try {
@@ -384,50 +534,193 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* Existing Set Tab */}
           {activeTab === 'existing' && (
-            <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
-              <div className="flex-shrink-0">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Select Sets ({selectedSetSizeIds.length} selected)
+            <div className="flex-1 overflow-hidden flex flex-col relative">
+              {/* Back button */}
+              {step !== 'brand' && (
+                <button
+                  onClick={handleBack}
+                  className="absolute top-0 right-0 px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium flex items-center space-x-1 z-10"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>Back</span>
+                </button>
+              )}
+
+              {/* Label - fixed position with consistent height */}
+              <div className="flex-shrink-0 h-10 mb-3 flex items-center">
+                <label className="block text-sm font-medium text-slate-700">
+                  {step === 'brand' && 'Select a Brand'}
+                  {step === 'set' && `Select a Set for ${selectedBrand?.name || ''}`}
+                  {step === 'size' && `Select Sizes for ${selectedSet?.name || ''} (${selectedSetSizeIds.length} selected)`}
                 </label>
               </div>
-              {loadingAvailable ? (
-                <div className="text-center py-4 text-slate-500 flex-shrink-0">Loading available sets...</div>
-              ) : availableSets.length === 0 ? (
-                <div className="text-center py-4 text-slate-500 flex-shrink-0">No available sets to add</div>
-              ) : (
-                <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-2 min-h-0">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {availableSets.map((setSize) => (
-                      <label
-                        key={setSize.id}
-                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                          selectedSetSizeIds.includes(setSize.id.toString())
-                            ? 'bg-slate-100 border-2 border-slate-300'
-                            : 'hover:bg-slate-50 border-2 border-transparent'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedSetSizeIds.includes(setSize.id.toString())}
-                          onChange={() => toggleSetSizeSelection(setSize.id)}
-                          className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500 flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-slate-800 truncate">
-                            {setSize.set?.name || 'Unknown'}
-                          </div>
-                          <div className="text-xs text-slate-600 truncate">
-                            {setSize.set?.brand || 'Unknown'} - {setSize.count} pencils
-                          </div>
-                        </div>
-                      </label>
-                    ))}
+
+              {/* Step 1: Brand Selection */}
+              {step === 'brand' && (
+                <div className="flex-1 overflow-hidden flex flex-col space-y-3">
+                  {loadingBrands ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">Loading brands...</div>
+                  ) : brands.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">No brands available</div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-3 min-h-0">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {brands.map((brand) => {
+                          const thumbnailUrl = brand.thumbnail 
+                            ? (brand.thumbnail.startsWith('http') 
+                                ? brand.thumbnail 
+                                : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${brand.thumbnail}`)
+                            : null;
+                          
+                          return (
+                            <button
+                              key={brand.id}
+                              onClick={() => handleBrandSelect(brand)}
+                              className="flex flex-col items-center p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                            >
+                              {thumbnailUrl ? (
+                                <img 
+                                  src={thumbnailUrl} 
+                                  alt={brand.name}
+                                  className="w-16 h-16 object-cover rounded-lg mb-2"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-16 h-16 rounded-lg flex items-center justify-center mb-2 ${thumbnailUrl ? 'hidden' : ''}`}
+                                style={{ backgroundColor: '#f1f5f9' }}
+                              >
+                                <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                              </div>
+                              <span className="text-sm font-medium text-slate-800 text-center">{brand.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-sm text-slate-600 flex-shrink-0">
+                    Select a brand to see available pencil sets.
                   </div>
                 </div>
               )}
-              <div className="text-sm text-slate-600 flex-shrink-0">
-                Select one or more sets from the system pencil sets to add to your collection.
-              </div>
+
+              {/* Step 2: Set Selection */}
+              {step === 'set' && selectedBrand && (
+                <div className="flex-1 overflow-hidden flex flex-col space-y-3">
+                  {loadingSets ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">Loading sets...</div>
+                  ) : setsForBrand.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">No sets available for this brand</div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-3 min-h-0">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {setsForBrand.map((set) => (
+                          <button
+                            key={set.id}
+                            onClick={() => handleSetSelect(set)}
+                            className="flex items-center space-x-3 p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-slate-800 truncate">
+                                {set.name || 'Unknown'}
+                              </div>
+                              <div className="text-xs text-slate-600 mt-1">
+                                {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                              </div>
+                            </div>
+                            <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-sm text-slate-600 flex-shrink-0">
+                    Select a set to see available sizes.
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Size Selection */}
+              {step === 'size' && selectedSet && (
+                <div className="flex-1 overflow-hidden flex flex-col space-y-3">
+                  {loadingSizes ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">Loading sizes...</div>
+                  ) : sizesForSet.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 flex-shrink-0">No sizes available for this set</div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-2 min-h-0">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {sizesForSet.map((setSize) => {
+                          const thumbnail = setSize.thumb || setSize.set?.thumb || null;
+                          const thumbnailUrl = thumbnail 
+                            ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                            : null;
+                          
+                          return (
+                            <label
+                              key={setSize.id}
+                              className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                selectedSetSizeIds.includes(setSize.id.toString())
+                                  ? 'bg-slate-100 border-2 border-slate-300'
+                                  : 'hover:bg-slate-50 border-2 border-transparent'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedSetSizeIds.includes(setSize.id.toString())}
+                                onChange={() => toggleSetSizeSelection(setSize.id)}
+                                className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500 flex-shrink-0"
+                              />
+                              {thumbnailUrl ? (
+                                <img 
+                                  src={thumbnailUrl} 
+                                  alt={setSize.name || `${setSize.count} pencils`}
+                                  className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    if (e.target.nextSibling) {
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${thumbnailUrl ? 'hidden' : ''}`}
+                                style={{ backgroundColor: '#f1f5f9' }}
+                              >
+                                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-slate-800 truncate">
+                                  {setSize.name || `${setSize.count} pencils`}
+                                </div>
+                                <div className="text-xs text-slate-600 truncate">
+                                  {setSize.count} pencils
+                                </div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-sm text-slate-600 flex-shrink-0">
+                    Select one or more sizes to add to your collection.
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -742,20 +1035,22 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
             >
               Cancel
             </button>
-            <button
-              onClick={() => {
-                if (activeTab === 'existing') handleAttachExistingSet();
-                else if (activeTab === 'new') handleCreateNewSet();
-                else if (activeTab === 'custom') handleCreateCustomSet();
-              }}
-              className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              style={{ backgroundColor: '#ea3663' }}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : activeTab === 'existing' 
-                ? `Add ${selectedSetSizeIds.length > 0 ? `${selectedSetSizeIds.length} ` : ''}Set${selectedSetSizeIds.length !== 1 ? 's' : ''}` 
-                : 'Create Set'}
-            </button>
+            {(activeTab !== 'existing' || step === 'size') && (
+              <button
+                onClick={() => {
+                  if (activeTab === 'existing') handleAttachExistingSet();
+                  else if (activeTab === 'new') handleCreateNewSet();
+                  else if (activeTab === 'custom') handleCreateCustomSet();
+                }}
+                className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                style={{ backgroundColor: '#ea3663' }}
+                disabled={loading || (activeTab === 'existing' && selectedSetSizeIds.length === 0)}
+              >
+                {loading ? 'Processing...' : activeTab === 'existing' 
+                  ? `Add ${selectedSetSizeIds.length > 0 ? `${selectedSetSizeIds.length} ` : ''}Size${selectedSetSizeIds.length !== 1 ? 's' : ''}` 
+                  : 'Create Set'}
+              </button>
+            )}
           </div>
         </div>
       </div>

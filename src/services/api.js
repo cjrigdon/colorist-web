@@ -206,6 +206,17 @@ export const colorCombosAPI = {
   delete: (id) => apiDelete(`/color-combos/${id}`, true)
 };
 
+export const brandsAPI = {
+  getAll: (page = 1, perPage = 100) => {
+    const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    return apiGet(`/brands?${params.toString()}`, true);
+  },
+  getById: (id) => apiGet(`/brands/${id}`, true),
+  create: (brand) => apiPost('/brands', brand, true),
+  update: (id, brand) => apiPut(`/brands/${id}`, brand, true),
+  delete: (id) => apiDelete(`/brands/${id}`, true)
+};
+
 export const coloredPencilSetsAPI = {
   getAll: (page = 1, perPage = 5) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
