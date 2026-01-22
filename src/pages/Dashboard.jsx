@@ -16,8 +16,8 @@ import EditColorPalette from './EditColorPalette';
 import EditBook from './EditBook';
 import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
-import AdminPencils from './AdminPencils';
 import AdminUsers from './AdminUsers';
+import AdminBrands from './AdminBrands';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI } from '../services/api';
 
@@ -68,8 +68,8 @@ const Dashboard = () => {
     activeTab = 'admin';
     if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
     else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
-    else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
     else if (pathname.includes('/users')) activeAdminSection = 'users';
+    else if (pathname.includes('/brands')) activeAdminSection = 'brands';
   }
 
   const isAdmin = user?.admin === 1 || user?.admin === true;
@@ -85,7 +85,7 @@ const Dashboard = () => {
   const adminSections = [
     { id: 'pencil-import', label: 'Pencil Import', icon: '📤' },
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦' },
-    { id: 'pencils', label: 'Pencils', icon: '✏️' },
+    { id: 'brands', label: 'Brands', icon: '🏷️' },
     { id: 'users', label: 'Users', icon: '👥' },
   ];
 
@@ -163,8 +163,8 @@ const Dashboard = () => {
         if (activeAdminSection === 'pencil-sets') {
           return <AdminPencilSets />;
         }
-        if (activeAdminSection === 'pencils') {
-          return <AdminPencils />;
+        if (activeAdminSection === 'brands') {
+          return <AdminBrands />;
         }
         if (activeAdminSection === 'users') {
           return <AdminUsers />;
@@ -404,7 +404,6 @@ const Dashboard = () => {
               {activeTab === 'log' && 'Track your coloring journey and creative process'}
               {activeTab === 'admin' && activeAdminSection === 'pencil-import' && 'Upload CSV files to import colored pencils, sets, and sizes'}
               {activeTab === 'admin' && activeAdminSection === 'pencil-sets' && 'Manage colored pencil sets - add, edit, and delete sets'}
-              {activeTab === 'admin' && activeAdminSection === 'pencils' && 'Manage colored pencils within sets - add, edit, and delete pencils'}
               {activeTab === 'admin' && activeAdminSection === 'users' && 'Manage users - add, edit, and delete user accounts'}
             </p>
           </div>

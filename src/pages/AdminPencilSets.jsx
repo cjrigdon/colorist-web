@@ -20,10 +20,12 @@ const AdminPencilSets = () => {
     shopping_link: '',
     water_soluable: false,
     open_stock: false,
-    thumb: ''
+    thumb: '',
+    thumbFile: null
   });
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
+  const [hideCustom, setHideCustom] = useState(true);
   const [setSizes, setSetSizes] = useState([]);
   const [loadingSizes, setLoadingSizes] = useState(false);
   const [editingSize, setEditingSize] = useState(null);
@@ -37,7 +39,7 @@ const AdminPencilSets = () => {
 
   useEffect(() => {
     fetchSets();
-  }, [page, filter]);
+  }, [page, filter, hideCustom]);
 
   const fetchSets = async () => {
     try {
@@ -51,18 +53,24 @@ const AdminPencilSets = () => {
       }
       const response = await adminAPI.pencilSets.getAll(page, perPage, params);
       // Handle Laravel pagination response structure
+      let setsData = [];
       if (response.data && Array.isArray(response.data)) {
-        setSets(response.data);
+        setsData = response.data;
         if (response.meta) {
           setTotalPages(response.meta.last_page || 1);
         } else if (response.last_page) {
           setTotalPages(response.last_page);
         }
       } else if (Array.isArray(response)) {
-        setSets(response);
-      } else {
-        setSets([]);
+        setsData = response;
       }
+      
+      // Filter out custom sets if hideCustom is true
+      if (hideCustom) {
+        setsData = setsData.filter(set => !set.is_custom);
+      }
+      
+      setSets(setsData);
     } catch (err) {
       setError(err.message || 'Failed to load pencil sets');
     } finally {
@@ -80,7 +88,8 @@ const AdminPencilSets = () => {
       shopping_link: set.shopping_link || '',
       water_soluable: set.water_soluable || false,
       open_stock: set.open_stock || false,
-      thumb: set.thumb || ''
+      thumb: set.thumb || '',
+      thumbFile: null
     });
     setShowModal(true);
     // Fetch set sizes
@@ -207,7 +216,8 @@ const AdminPencilSets = () => {
         shopping_link: '',
         water_soluable: false,
         open_stock: false,
-        thumb: ''
+        thumb: '',
+        thumbFile: null
       });
       fetchSets();
     } catch (err) {
@@ -218,11 +228,18 @@ const AdminPencilSets = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    const { name, value, type, checked, files } = e.target;
+    if (name === 'thumbFile' && files && files.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        thumbFile: files[0]
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleNew = () => {
@@ -333,6 +350,15 @@ const AdminPencilSets = () => {
                 Approved
               </button>
             </div>
+            <label className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={hideCustom}
+                onChange={(e) => setHideCustom(e.target.checked)}
+                className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-2 focus:ring-pink-500"
+              />
+              <span className="text-sm font-medium text-slate-700">Hide Custom</span>
+            </label>
             <button
               onClick={handleNew}
               className="px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors"
@@ -370,11 +396,11 @@ const AdminPencilSets = () => {
                   <td className="py-3 px-4 text-sm text-slate-800">{set.brand}</td>
                   <td className="py-3 px-4 text-sm text-slate-800">
                     {set.name}
-                    {set.is_custom && (
+                    {set.is_custom === true || set.is_custom === 1 ? (
                       <span className="ml-2 px-2 py-0.5 text-xs font-medium text-purple-700 bg-purple-50 rounded">
                         Custom
                       </span>
-                    )}
+                    ) : null}
                   </td>
                   <td className="py-3 px-4 text-sm text-slate-600">{set.type}</td>
                   <td className="py-3 px-4 text-sm text-slate-600">{set.origin_country}</td>
@@ -400,16 +426,16 @@ const AdminPencilSets = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center space-x-2 flex-wrap">
-                      {set.user_id !== null && set.user_id !== undefined && !set.is_approved && (
+                      {set.user_id !== null && set.user_id !== undefined && !set.is_approved && !set.is_custom && (
                         <button
                           onClick={() => handleApprove(set.id)}
-                          className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                          className="px-3 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
                           title="Approve Set - Make visible to all users"
                         >
                           ✓ Approve
                         </button>
                       )}
-                      {set.user_id !== null && set.user_id !== undefined && set.is_approved && (
+                      {set.user_id !== null && set.user_id !== undefined && set.is_approved ? (
                         <button
                           onClick={() => handleReject(set.id)}
                           className="px-3 py-1 text-xs font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors shadow-sm"
@@ -417,7 +443,7 @@ const AdminPencilSets = () => {
                         >
                           ✗ Reject
                         </button>
-                      )}
+                      ) : null}
                       <button
                         onClick={() => handleManagePencils(set.id)}
                         className="px-3 py-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
@@ -544,13 +570,40 @@ const AdminPencilSets = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Thumbnail
                   </label>
+                  {formData.thumb && !formData.thumbFile && (
+                    <div className="mb-2">
+                      <img 
+                        src={formData.thumb.startsWith('http') ? formData.thumb : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${formData.thumb}`}
+                        alt="Current thumbnail"
+                        className="w-24 h-24 object-cover rounded-lg mb-2"
+                      />
+                    </div>
+                  )}
                   <input
-                    type="text"
-                    name="thumb"
-                    value={formData.thumb}
+                    type="file"
+                    name="thumbFile"
+                    accept="image/jpeg,image/png,image/jpg"
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                   />
+                  {formData.thumbFile && (
+                    <p className="mt-1 text-xs text-green-600 font-medium">
+                      ✓ File selected: {formData.thumbFile.name}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">Upload a thumbnail image (JPG, PNG, max 2MB)</p>
+                  {!formData.thumbFile && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        name="thumb"
+                        value={formData.thumb}
+                        onChange={handleChange}
+                        placeholder="Or enter thumbnail URL"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center space-x-6">
                   <label className="flex items-center space-x-2">
@@ -581,59 +634,61 @@ const AdminPencilSets = () => {
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="text-lg font-semibold text-slate-800 font-venti">Set Sizes</h4>
                     </div>
-                    {loadingSizes ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
-                    ) : setSizes.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No set sizes found</div>
-                    ) : (
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {setSizes.map((size) => {
-                          const thumbnailUrl = size.thumb 
-                            ? (size.thumb.startsWith('http') ? size.thumb : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${size.thumb}`)
-                            : null;
-                          return (
-                            <div key={size.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                              <div className="flex items-center gap-3 flex-1">
-                                {thumbnailUrl ? (
-                                  <img 
-                                    src={thumbnailUrl} 
-                                    alt={`${size.count}-count set`}
-                                    className="w-12 h-12 object-cover rounded-lg"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                  </div>
-                                )}
-                                <div className="flex-1">
-                                  <div className="font-medium text-slate-800">
-                                    {size.count}-count {size.name ? `(${size.name})` : ''}
+                    <div className="h-64 overflow-y-auto">
+                      {loadingSizes ? (
+                        <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
+                      ) : setSizes.length === 0 ? (
+                        <div className="text-center py-4 text-slate-500 text-sm">No set sizes found</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {setSizes.map((size) => {
+                            const thumbnailUrl = size.thumb 
+                              ? (size.thumb.startsWith('http') ? size.thumb : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${size.thumb}`)
+                              : null;
+                            return (
+                              <div key={size.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <div className="flex items-center gap-3 flex-1">
+                                  {thumbnailUrl ? (
+                                    <img 
+                                      src={thumbnailUrl} 
+                                      alt={`${size.count}-count set`}
+                                      className="w-12 h-12 object-cover rounded-lg"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
+                                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="font-medium text-slate-800">
+                                      {size.count}-count {size.name ? `(${size.name})` : ''}
+                                    </div>
                                   </div>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditSize(size)}
+                                    className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSize(size.id)}
+                                    className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditSize(size)}
-                                  className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteSize(size.id)}
-                                  className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

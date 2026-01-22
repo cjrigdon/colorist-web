@@ -226,10 +226,16 @@ export const coloredPencilSetsAPI = {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     return apiGet(`/colored-pencil-sets?${params.toString()}`, true);
   },
-  getAvailableSetSizes: (page = 1, perPage = 100, all = false) => {
+  getAvailableSetSizes: (page = 1, perPage = 100, all = false, options = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     if (all) {
       params.append('all', 'true');
+    }
+    if (options.excludePencils) {
+      params.append('exclude_pencils', 'true');
+    }
+    if (options.setId) {
+      params.append('filter[colored_pencil_set_id]', options.setId.toString());
     }
     return apiGet(`/colored-pencil-set-sizes/available?${params.toString()}`, true);
   },
@@ -340,8 +346,93 @@ export const adminAPI = {
       return apiGet(`/admin/colored-pencil-sets?${params.toString()}`, true);
     },
     getById: (id) => apiGet(`/admin/colored-pencil-sets/${id}`, true),
-    create: (set) => apiPost('/admin/colored-pencil-sets', set, true),
-    update: (id, set) => apiPut(`/admin/colored-pencil-sets/${id}`, set, true),
+    create: (data) => {
+      // Handle file upload for thumbnail
+      // Check if thumbFile exists and is a File object
+      if (data.thumbFile && (data.thumbFile instanceof File || data.thumbFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('thumb', data.thumbFile);
+        if (data.brand !== undefined && data.brand !== null && data.brand !== '') {
+          formData.append('brand', String(data.brand));
+        }
+        if (data.name !== undefined && data.name !== null && data.name !== '') {
+          formData.append('name', String(data.name));
+        }
+        if (data.origin_country !== undefined && data.origin_country !== null && data.origin_country !== '') {
+          formData.append('origin_country', String(data.origin_country));
+        }
+        if (data.type !== undefined && data.type !== null && data.type !== '') {
+          formData.append('type', String(data.type));
+        }
+        if (data.shopping_link !== undefined && data.shopping_link !== null && data.shopping_link !== '') {
+          formData.append('shopping_link', String(data.shopping_link));
+        }
+        if (data.water_soluable !== undefined) {
+          formData.append('water_soluable', data.water_soluable ? '1' : '0');
+        }
+        if (data.open_stock !== undefined) {
+          formData.append('open_stock', data.open_stock ? '1' : '0');
+        }
+        return fetch(`${API_BASE_URL}/admin/colored-pencil-sets`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+            // Don't set Content-Type - browser will set it with boundary for FormData
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      // Remove thumbFile from data before sending
+      const { thumbFile, ...dataToSend } = data;
+      return apiPost('/admin/colored-pencil-sets', dataToSend, true);
+    },
+    update: (id, data) => {
+      // Handle file upload for thumbnail
+      // Check if thumbFile exists and is a File object
+      if (data.thumbFile && (data.thumbFile instanceof File || data.thumbFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('thumb', data.thumbFile);
+        formData.append('_method', 'PUT'); // Laravel method spoofing for PUT with files
+        if (data.brand !== undefined && data.brand !== null && data.brand !== '') {
+          formData.append('brand', String(data.brand));
+        }
+        if (data.name !== undefined && data.name !== null && data.name !== '') {
+          formData.append('name', String(data.name));
+        }
+        if (data.origin_country !== undefined && data.origin_country !== null && data.origin_country !== '') {
+          formData.append('origin_country', String(data.origin_country));
+        }
+        if (data.type !== undefined && data.type !== null && data.type !== '') {
+          formData.append('type', String(data.type));
+        }
+        if (data.shopping_link !== undefined && data.shopping_link !== null && data.shopping_link !== '') {
+          formData.append('shopping_link', String(data.shopping_link));
+        }
+        if (data.water_soluable !== undefined) {
+          formData.append('water_soluable', data.water_soluable ? '1' : '0');
+        }
+        if (data.open_stock !== undefined) {
+          formData.append('open_stock', data.open_stock ? '1' : '0');
+        }
+        return fetch(`${API_BASE_URL}/admin/colored-pencil-sets/${id}`, {
+          method: 'POST', // Use POST for file uploads, Laravel will handle _method=PUT
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+            // Don't set Content-Type - browser will set it with boundary for FormData
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      // Remove thumbFile from data before sending
+      const { thumbFile, ...dataToSend } = data;
+      return apiPut(`/admin/colored-pencil-sets/${id}`, dataToSend, true);
+    },
     delete: (id) => apiDelete(`/admin/colored-pencil-sets/${id}`, true),
     getPencils: (id) => apiGet(`/admin/colored-pencil-sets/${id}/pencils`, true),
     approve: (id) => apiPost(`/admin/colored-pencil-sets/${id}/approve`, {}, true),
@@ -400,6 +491,50 @@ export const adminAPI = {
     create: (user) => apiPost('/admin/users', user, true),
     update: (id, user) => apiPut(`/admin/users/${id}`, user, true),
     delete: (id) => apiDelete(`/admin/users/${id}`, true)
+  },
+  // Brands
+  brands: {
+    getAll: (page = 1, perPage = 15, additionalParams = {}) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      Object.keys(additionalParams).forEach(key => {
+        if (additionalParams[key] !== undefined && additionalParams[key] !== null) {
+          params.append(`filter[${key}]`, additionalParams[key].toString());
+        }
+      });
+      return apiGet(`/admin/brands?${params.toString()}`, true);
+    },
+    getById: (id) => apiGet(`/admin/brands/${id}`, true),
+    create: (brand) => apiPost('/admin/brands', brand, true),
+    update: (id, data) => {
+      // Handle file upload for thumbnail
+      // Check if thumbnailFile exists and is a File object
+      if (data.thumbnailFile && (data.thumbnailFile instanceof File || data.thumbnailFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('thumbnail', data.thumbnailFile);
+        formData.append('_method', 'PUT'); // Laravel method spoofing for PUT with files
+        if (data.name !== undefined && data.name !== null && data.name !== '') {
+          formData.append('name', String(data.name));
+        }
+        if (data.website !== undefined && data.website !== null && data.website !== '') {
+          formData.append('website', String(data.website));
+        }
+        return fetch(`${API_BASE_URL}/admin/brands/${id}`, {
+          method: 'POST', // Use POST for file uploads, Laravel will handle _method=PUT
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+            // Don't set Content-Type - browser will set it with boundary for FormData
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      // Remove thumbnailFile from data before sending
+      const { thumbnailFile, ...dataToSend } = data;
+      return apiPut(`/admin/brands/${id}`, dataToSend, true);
+    },
+    delete: (id) => apiDelete(`/admin/brands/${id}`, true)
   }
 };
 

@@ -121,11 +121,12 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoadingSets(true);
       setError(null);
-      // Build query params with filter
+      // Build query params with filter and exclude pencils for performance
       const params = new URLSearchParams({ 
         page: '1', 
         per_page: '100',
-        'filter[brand_id]': brandId.toString()
+        'filter[brand_id]': brandId.toString(),
+        exclude_pencils: 'true'
       });
       const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
       
@@ -136,32 +137,10 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
         setsData = data.data;
       }
       
-      // For each set, we need to count how many sizes it has
-      // We'll fetch all available sizes and count them per set
-      const sizesResponse = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000);
-      let allSizes = [];
-      if (Array.isArray(sizesResponse)) {
-        allSizes = sizesResponse;
-      } else if (sizesResponse.data && Array.isArray(sizesResponse.data)) {
-        allSizes = sizesResponse.data;
-      }
-      
-      // Group sizes by set ID and count them
-      const sizesBySetId = {};
-      allSizes.forEach(size => {
-        const setId = size.set?.id;
-        if (setId) {
-          if (!sizesBySetId[setId]) {
-            sizesBySetId[setId] = [];
-          }
-          sizesBySetId[setId].push(size);
-        }
-      });
-      
-      // Add size count to each set
+      // Use the sizes_count from the API response (already included via withCount)
       const setsWithSizeCounts = setsData.map(set => ({
         ...set,
-        sizeCount: sizesBySetId[set.id]?.length || 0
+        sizeCount: set.sizes_count || 0
       }));
       
       setSetsForBrand(setsWithSizeCounts);
@@ -177,18 +156,17 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoadingSizes(true);
       setError(null);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000);
-      let allSizes = [];
+      // Fetch only sizes for this specific set, without pencils for performance
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, false, {
+        setId: setId,
+        excludePencils: true
+      });
+      let sizesForThisSet = [];
       if (Array.isArray(response)) {
-        allSizes = response;
+        sizesForThisSet = response;
       } else if (response.data && Array.isArray(response.data)) {
-        allSizes = response.data;
+        sizesForThisSet = response.data;
       }
-      
-      // Filter sizes that belong to the selected set
-      const sizesForThisSet = allSizes.filter(size => 
-        size.set?.id === setId
-      );
       
       setSizesForSet(sizesForThisSet);
     } catch (err) {
@@ -615,35 +593,37 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
               {/* Step 2: Set Selection */}
               {step === 'set' && selectedBrand && (
                 <div className="flex-1 overflow-hidden flex flex-col space-y-3">
-                  {loadingSets ? (
-                    <div className="text-center py-8 text-slate-500 flex-shrink-0">Loading sets...</div>
-                  ) : setsForBrand.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500 flex-shrink-0">No sets available for this brand</div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-3 min-h-0">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {setsForBrand.map((set) => (
-                          <button
-                            key={set.id}
-                            onClick={() => handleSetSelect(set)}
-                            className="flex items-center space-x-3 p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-800 truncate">
-                                {set.name || 'Unknown'}
+                  <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg min-h-0">
+                    {loadingSets ? (
+                      <div className="text-center py-8 text-slate-500">Loading sets...</div>
+                    ) : setsForBrand.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">No sets available for this brand</div>
+                    ) : (
+                      <div className="p-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {setsForBrand.map((set) => (
+                            <button
+                              key={set.id}
+                              onClick={() => handleSetSelect(set)}
+                              className="flex items-center space-x-3 p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-slate-800 truncate">
+                                  {set.name || 'Unknown'}
+                                </div>
+                                <div className="text-xs text-slate-600 mt-1">
+                                  {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                                </div>
                               </div>
-                              <div className="text-xs text-slate-600 mt-1">
-                                {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
-                              </div>
-                            </div>
-                            <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        ))}
+                              <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                   <div className="text-sm text-slate-600 flex-shrink-0">
                     Select a set to see available sizes.
                   </div>
