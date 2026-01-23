@@ -164,6 +164,42 @@ export const authAPI = {
   getUser: () => apiGet('/user', true)
 };
 
+export const userAPI = {
+  getProfile: () => apiGet('/user', true),
+  updateProfile: (userData) => {
+    // Handle file upload for profile image
+    // Check if profileImageFile exists and is a File object
+    if (userData.profileImageFile && (userData.profileImageFile instanceof File || userData.profileImageFile instanceof Blob)) {
+      const formData = new FormData();
+      formData.append('profile_image', userData.profileImageFile);
+      // Always include all fields, even if empty, so backend can update them
+      if (userData.first_name !== undefined) {
+        formData.append('first_name', userData.first_name || '');
+      }
+      if (userData.last_name !== undefined) {
+        formData.append('last_name', userData.last_name || '');
+      }
+      if (userData.email !== undefined) {
+        formData.append('email', userData.email || '');
+      }
+      return fetch(`${API_BASE_URL}/user`, {
+        method: 'POST', // Use POST for file uploads (we have a POST route for this)
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Accept': 'application/json',
+          // Don't set Content-Type - browser will set it with boundary for FormData
+        },
+        body: formData
+      }).then(response => {
+        return handleResponse(response);
+      });
+    }
+    // Remove profileImageFile from data before sending
+    const { profileImageFile, ...dataToSend } = userData;
+    return apiPut('/user', dataToSend, true);
+  }
+};
+
 export const subscriptionAPI = {
   get: () => apiGet('/subscription', true),
   create: (plan, paymentMethod) => apiPost('/subscription', { plan, payment_method: paymentMethod }, true),

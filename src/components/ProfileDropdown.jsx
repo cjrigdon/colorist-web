@@ -1,10 +1,46 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { userAPI } from '../services/api';
 
 const ProfileDropdown = ({ sidebarCollapsed = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  const fetchUser = async (isInitialLoad = false) => {
+    try {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+      const userData = await userAPI.getProfile();
+      setUser(userData);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    } finally {
+      if (isInitialLoad) {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchUser(true);
+  }, []);
+
+  // Listen for profile update events
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      fetchUser(false); // Don't show loading state on refresh
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -22,6 +58,22 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
     };
   }, [isOpen]);
 
+  const getUserDisplayName = () => {
+    if (user) {
+      const firstName = user.first_name || '';
+      const lastName = user.last_name || '';
+      if (firstName || lastName) {
+        return `${firstName} ${lastName}`.trim();
+      }
+      return user.email || 'User';
+    }
+    return loading ? 'Loading...' : 'User Name';
+  };
+
+  const getUserEmail = () => {
+    return user?.email || (loading ? 'Loading...' : 'user@example.com');
+  };
+
   const handleLogout = () => {
     // Handle logout logic here
     navigate('/');
@@ -36,18 +88,28 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
         }`}
       >
         <div 
-          className="h-10 w-10 rounded-full cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+          className="h-10 w-10 rounded-full cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0 overflow-hidden border border-slate-200"
           style={{
-            background: 'linear-gradient(to bottom right, #ea3663, #ff8e7e)'
+            background: user?.profile_image 
+              ? 'transparent' 
+              : 'linear-gradient(to bottom right, #ea3663, #ff8e7e)'
           }}
-        ></div>
+        >
+          {user?.profile_image && (
+            <img 
+              src={user.profile_image} 
+              alt="Profile" 
+              className="w-full h-full object-cover"
+            />
+          )}
+        </div>
         <div className={`transition-all duration-300 ${
           sidebarCollapsed 
             ? 'opacity-0 w-0 overflow-hidden' 
             : 'opacity-100 w-auto flex-1 min-w-0'
         }`}>
-          <p className="text-sm font-medium text-slate-800 truncate">User Name</p>
-          <p className="text-xs text-slate-500 truncate">user@example.com</p>
+          <p className="text-sm font-medium text-slate-800 truncate">{getUserDisplayName()}</p>
+          <p className="text-xs text-slate-500 truncate">{getUserEmail()}</p>
         </div>
         <svg 
           className={`w-4 h-4 text-slate-600 transition-transform duration-200 flex-shrink-0 ${
@@ -66,14 +128,24 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
           <div className="p-4 border-b border-slate-100">
             <div className="flex items-center space-x-3">
               <div 
-                className="h-12 w-12 rounded-full flex-shrink-0"
+                className="h-12 w-12 rounded-full flex-shrink-0 overflow-hidden border border-slate-200"
                 style={{
-                  background: 'linear-gradient(to bottom right, #ea3663, #ff8e7e)'
+                  background: user?.profile_image 
+                    ? 'transparent' 
+                    : 'linear-gradient(to bottom right, #ea3663, #ff8e7e)'
                 }}
-              ></div>
+              >
+                {user?.profile_image && (
+                  <img 
+                    src={user.profile_image} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">User Name</p>
-                <p className="text-xs text-slate-500 truncate">user@example.com</p>
+                <p className="text-sm font-semibold text-slate-800 truncate">{getUserDisplayName()}</p>
+                <p className="text-xs text-slate-500 truncate">{getUserEmail()}</p>
               </div>
             </div>
           </div>
