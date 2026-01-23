@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI } from '../services/api';
+import HoverableCard from './HoverableCard';
 
 // Component for pencil set card with thumbnail support
 const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
@@ -852,27 +853,41 @@ const StudioOverview = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {getVisibleItems(palettes, paletteIndex).map((palette) => (
-              <div
+              <HoverableCard
                 key={palette.id}
-                className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
-                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                 onClick={() => navigate(`/edit/color-palette/${palette.id}`)}
               >
-                <div className="grid grid-cols-5 gap-1 mb-3">
-                  {palette.colors && palette.colors.map((color, index) => (
-                    <div
-                      key={index}
-                      className="h-10 rounded border border-slate-200"
-                      style={{ backgroundColor: color.hex }}
-                    ></div>
-                  ))}
+                {/* Color Strip */}
+                <div className="flex h-24">
+                  {palette.colors && palette.colors.length > 0 ? (
+                    palette.colors.map((color, index) => (
+                      <div
+                        key={index}
+                        className="flex-1"
+                        style={{ backgroundColor: color.hex }}
+                      ></div>
+                    ))
+                  ) : (
+                    <div className="flex-1 bg-slate-200"></div>
+                  )}
                 </div>
-                <h4 className="font-semibold text-slate-800 mb-1 text-sm">{palette.title}</h4>
-                {palette.base_color && (
-                  <p className="text-xs text-slate-500">Based on {palette.base_color}</p>
-                )}
-              </div>
+
+                {/* Content */}
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-slate-800 font-venti">{palette.title}</h3>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-4"></p>
+                  {palette.base_color && (
+                    <div className="flex items-center space-x-1 text-sm text-slate-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span>Based on {palette.base_color}</span>
+                    </div>
+                  )}
+                </div>
+              </HoverableCard>
             ))}
           </div>
         )}

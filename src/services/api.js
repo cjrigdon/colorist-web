@@ -360,6 +360,8 @@ export const coloredPencilsAPI = {
   create: (pencil) => apiPost('/colored-pencils', pencil, true),
   update: (id, pencil) => apiPut(`/colored-pencils/${id}`, pencil, true),
   delete: (id) => apiDelete(`/colored-pencils/${id}`, true),
+  updateInventory: (id, inventory) => apiPut(`/colored-pencils/${id}/inventory`, { inventory }, true),
+  updateInventories: (inventories) => apiPost('/colored-pencils/inventories', { inventories }, true),
   importCsv: (file) => {
     const formData = new FormData();
     formData.append('file', file);

@@ -68,12 +68,12 @@ const AdminPencilImport = () => {
             <p><strong>Required columns:</strong></p>
             <ul className="list-disc list-inside ml-4 space-y-1">
               <li><strong>Set fields:</strong> brand, set_name, origin_country, type, set_shopping_link, water_soluable, open_stock, thumb</li>
-              <li><strong>Pencil fields:</strong> color_number, color_name, hex, lightfast_rating, shopping_link, inventory</li>
+              <li><strong>Pencil fields:</strong> color_number, color_name, hex, lightfast_rating, shopping_link</li>
               <li><strong>Set size field:</strong> set_sizes (comma-separated, format: "count:name" or just "name" or just "count")</li>
             </ul>
             <p className="mt-3"><strong>Example:</strong></p>
             <pre className="bg-white p-3 rounded border border-slate-200 text-xs overflow-x-auto">
-{`brand,set_name,origin_country,type,set_shopping_link,water_soluable,open_stock,thumb,color_number,color_name,hex,lightfast_rating,shopping_link,inventory,set_sizes
+{`brand,set_name,origin_country,type,set_shopping_link,water_soluable,open_stock,thumb,color_number,color_name,hex,lightfast_rating,shopping_link,set_sizes
 Prismacolor,Premier,USA,Professional,https://...,0,1,thumb.jpg,101,Crimson Red,#DC143C,Excellent,https://...,0,12:12-count,24:24-count,36:36-count`}
             </pre>
           </div>

@@ -16,6 +16,7 @@ import EditColorPalette from './EditColorPalette';
 import EditBook from './EditBook';
 import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
+import AdminPencils from './AdminPencils';
 import AdminUsers from './AdminUsers';
 import AdminBrands from './AdminBrands';
 import AdminBooks from './AdminBooks';
@@ -69,6 +70,7 @@ const Dashboard = () => {
       activeTab = 'admin';
       if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
       else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
+      else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
       else if (pathname.includes('/users')) activeAdminSection = 'users';
       else if (pathname.includes('/brands')) activeAdminSection = 'brands';
       else if (pathname.includes('/books')) activeAdminSection = 'books';
@@ -165,6 +167,9 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'pencil-sets') {
           return <AdminPencilSets />;
+        }
+        if (activeAdminSection === 'pencils') {
+          return <AdminPencils />;
         }
         if (activeAdminSection === 'brands') {
           return <AdminBrands />;
