@@ -18,6 +18,7 @@ import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
 import AdminUsers from './AdminUsers';
 import AdminBrands from './AdminBrands';
+import AdminBooks from './AdminBooks';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI } from '../services/api';
 
@@ -64,13 +65,14 @@ const Dashboard = () => {
     activeTab = 'coloralong';
   } else if (pathname.includes('/log')) {
     activeTab = 'log';
-  } else if (pathname.includes('/admin/')) {
-    activeTab = 'admin';
-    if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
-    else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
-    else if (pathname.includes('/users')) activeAdminSection = 'users';
-    else if (pathname.includes('/brands')) activeAdminSection = 'brands';
-  }
+  } else     if (pathname.includes('/admin/')) {
+      activeTab = 'admin';
+      if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
+      else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
+      else if (pathname.includes('/users')) activeAdminSection = 'users';
+      else if (pathname.includes('/brands')) activeAdminSection = 'brands';
+      else if (pathname.includes('/books')) activeAdminSection = 'books';
+    }
 
   const isAdmin = user?.admin === 1 || user?.admin === true;
 
@@ -87,6 +89,7 @@ const Dashboard = () => {
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦' },
     { id: 'brands', label: 'Brands', icon: '🏷️' },
     { id: 'users', label: 'Users', icon: '👥' },
+    { id: 'books', label: 'Books', icon: '📖' },
   ];
 
   const studioSections = [
@@ -168,6 +171,9 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'users') {
           return <AdminUsers />;
+        }
+        if (activeAdminSection === 'books') {
+          return <AdminBooks />;
         }
         // Default admin page - redirect to first admin section
         if (isAdmin && adminSections.length > 0) {

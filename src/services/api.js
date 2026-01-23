@@ -291,14 +291,21 @@ export const coloredPencilSetsAPI = {
 };
 
 export const booksAPI = {
-  getAll: (page = 1, perPage = 5) => {
+  getAll: (page = 1, perPage = 5, additionalParams = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    Object.keys(additionalParams).forEach(key => {
+      if (additionalParams[key] !== undefined && additionalParams[key] !== null) {
+        params.append(`filter[${key}]`, additionalParams[key].toString());
+      }
+    });
     return apiGet(`/books?${params.toString()}`, true);
   },
   getById: (id) => apiGet(`/books/${id}`, true),
   create: (book) => apiPost('/books', book, true),
   update: (id, book) => apiPut(`/books/${id}`, book, true),
-  delete: (id) => apiDelete(`/books/${id}`, true)
+  delete: (id) => apiDelete(`/books/${id}`, true),
+  attachToUser: (id) => apiPost(`/books/${id}/attach`, {}, true),
+  detachFromUser: (id) => apiDelete(`/books/${id}/detach`, true)
 };
 
 export const inspirationAPI = {
@@ -473,6 +480,7 @@ export const adminAPI = {
     getPencils: (id) => apiGet(`/admin/colored-pencil-sets/${id}/pencils`, true),
     approve: (id) => apiPost(`/admin/colored-pencil-sets/${id}/approve`, {}, true),
     reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true),
+    convertToSystem: (id) => apiPost(`/admin/colored-pencil-sets/${id}/convert-to-system`, {}, true),
     getSetSizes: (id) => apiGet(`/admin/colored-pencil-sets/${id}/set-sizes`, true),
     updateSetSize: (id, data) => {
       // Handle file upload for thumbnail
@@ -527,6 +535,77 @@ export const adminAPI = {
     create: (user) => apiPost('/admin/users', user, true),
     update: (id, user) => apiPut(`/admin/users/${id}`, user, true),
     delete: (id) => apiDelete(`/admin/users/${id}`, true)
+  },
+  // Books
+  books: {
+    getAll: (page = 1, perPage = 15, additionalParams = {}) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      Object.keys(additionalParams).forEach(key => {
+        if (additionalParams[key] !== undefined && additionalParams[key] !== null) {
+          params.append(`filter[${key}]`, additionalParams[key].toString());
+        }
+      });
+      return apiGet(`/admin/books?${params.toString()}`, true);
+    },
+    getById: (id) => apiGet(`/admin/books/${id}`, true),
+    create: (book) => {
+      // Handle file upload for image
+      if (book.imageFile && (book.imageFile instanceof File || book.imageFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('image', book.imageFile);
+        if (book.title !== undefined && book.title !== null && book.title !== '') {
+          formData.append('title', String(book.title));
+        }
+        if (book.author !== undefined && book.author !== null && book.author !== '') {
+          formData.append('author', String(book.author));
+        }
+        if (book.user_id !== undefined && book.user_id !== null) {
+          formData.append('user_id', String(book.user_id));
+        }
+        return fetch(`${API_BASE_URL}/admin/books`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      const { imageFile, ...dataToSend } = book;
+      return apiPost('/admin/books', dataToSend, true);
+    },
+    update: (id, book) => {
+      // Handle file upload for image
+      if (book.imageFile && (book.imageFile instanceof File || book.imageFile instanceof Blob)) {
+        const formData = new FormData();
+        formData.append('image', book.imageFile);
+        formData.append('_method', 'PUT');
+        if (book.title !== undefined && book.title !== null && book.title !== '') {
+          formData.append('title', String(book.title));
+        }
+        if (book.author !== undefined && book.author !== null && book.author !== '') {
+          formData.append('author', String(book.author));
+        }
+        return fetch(`${API_BASE_URL}/admin/books/${id}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Accept': 'application/json',
+          },
+          body: formData
+        }).then(response => {
+          return handleResponse(response);
+        });
+      }
+      const { imageFile, ...dataToSend } = book;
+      return apiPut(`/admin/books/${id}`, dataToSend, true);
+    },
+    delete: (id) => apiDelete(`/admin/books/${id}`, true),
+    approve: (id) => apiPost(`/admin/books/${id}/approve`, {}, true),
+    reject: (id) => apiPost(`/admin/books/${id}/reject`, {}, true),
+    convertToSystem: (id) => apiPost(`/admin/books/${id}/convert-to-system`, {}, true)
   },
   // Brands
   brands: {

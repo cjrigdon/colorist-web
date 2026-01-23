@@ -17,9 +17,11 @@ const EmptyState = ({
       {title && <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">{title}</h3>}
       {message && <p className="text-slate-600 mb-4">{message}</p>}
       {buttonText && onButtonClick && (
-        <PrimaryButton onClick={onButtonClick}>
-          {buttonText}
-        </PrimaryButton>
+        <div className="flex justify-center">
+          <PrimaryButton onClick={onButtonClick}>
+            {buttonText}
+          </PrimaryButton>
+        </div>
       )}
     </div>
   );

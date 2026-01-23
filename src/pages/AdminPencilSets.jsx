@@ -50,6 +50,8 @@ const AdminPencilSets = () => {
         params.is_approved = '0';
       } else if (filter === 'approved') {
         params.is_approved = '1';
+      } else if (filter === 'system') {
+        params.is_system = 'true';
       }
       const response = await adminAPI.pencilSets.getAll(page, perPage, params);
       // Handle Laravel pagination response structure
@@ -293,100 +295,110 @@ const AdminPencilSets = () => {
     }
   };
 
-  if (loading && sets.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-slate-500">Loading...</div>
-      </div>
-    );
-  }
+  const handleConvertToSystem = async (id) => {
+    if (!window.confirm('Are you sure you want to convert this pencil set to a system set? It will become available to all users.')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await adminAPI.pencilSets.convertToSystem(id);
+      // Refresh the list after conversion
+      await fetchSets();
+    } catch (err) {
+      console.error('Error converting set to system:', err);
+      setError(err.data?.message || err.message || 'Failed to convert pencil set to system');
+    }
+  };
 
   return (
     <>
-    <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-800 font-venti mb-2">
-              Manage Colored Pencil Sets
-            </h2>
-            <p className="text-sm text-slate-600">
-              Add, edit, delete, and approve colored pencil sets
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                  filter === 'all'
-                    ? 'text-white'
-                    : 'text-slate-600 hover:text-slate-800'
-                }`}
-                style={filter === 'all' ? { backgroundColor: '#ea3663' } : {}}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilter('pending')}
-                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                  filter === 'pending'
-                    ? 'text-white'
-                    : 'text-slate-600 hover:text-slate-800'
-                }`}
-                style={filter === 'pending' ? { backgroundColor: '#ea3663' } : {}}
-              >
-                Pending
-              </button>
-              <button
-                onClick={() => setFilter('approved')}
-                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                  filter === 'approved'
-                    ? 'text-white'
-                    : 'text-slate-600 hover:text-slate-800'
-                }`}
-                style={filter === 'approved' ? { backgroundColor: '#ea3663' } : {}}
-              >
-                Approved
-              </button>
-            </div>
-            <label className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-              <input
-                type="checkbox"
-                checked={hideCustom}
-                onChange={(e) => setHideCustom(e.target.checked)}
-                className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-2 focus:ring-pink-500"
-              />
-              <span className="text-sm font-medium text-slate-700">Hide Custom</span>
-            </label>
-            <button
-              onClick={handleNew}
-              className="px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors"
-              style={{ backgroundColor: '#ea3663' }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = '#d12a4f')}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = '#ea3663')}
-            >
-              + Add New Set
-            </button>
-          </div>
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-800">Manage Colored Pencil Sets</h1>
+        <button
+          onClick={handleNew}
+          className="px-4 py-2 text-white rounded-lg font-medium transition-colors"
+          style={{ backgroundColor: '#ea3663' }}
+        >
+          + Add New Set
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
-        )}
+      {/* Filters */}
+      <div className="mb-4 flex items-center space-x-3">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => { setFilter('all'); setPage(1); }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'all' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+            style={filter === 'all' ? { backgroundColor: '#ea3663' } : {}}
+          >
+            All
+          </button>
+          <button
+            onClick={() => { setFilter('system'); setPage(1); }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'system' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+            style={filter === 'system' ? { backgroundColor: '#ea3663' } : {}}
+          >
+            System Sets
+          </button>
+          <button
+            onClick={() => { setFilter('pending'); setPage(1); }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'pending' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+            style={filter === 'pending' ? { backgroundColor: '#ea3663' } : {}}
+          >
+            Pending
+          </button>
+          <button
+            onClick={() => { setFilter('approved'); setPage(1); }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              filter === 'approved' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+            style={filter === 'approved' ? { backgroundColor: '#ea3663' } : {}}
+          >
+            Approved
+          </button>
+        </div>
+        <label className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors ml-auto">
+          <input
+            type="checkbox"
+            checked={hideCustom}
+            onChange={(e) => { setHideCustom(e.target.checked); setPage(1); }}
+            className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500"
+          />
+          <span className="text-sm font-medium text-slate-700">Hide Custom</span>
+        </label>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Brand</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Name</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Type</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Origin</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">User</th>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+
+        {loading ? (
+          <div className="text-center py-12 text-slate-500">Loading pencil sets...</div>
+        ) : sets.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">No pencil sets found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Brand</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Name</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Type</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Origin</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">User</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
@@ -444,6 +456,15 @@ const AdminPencilSets = () => {
                           ✗ Reject
                         </button>
                       ) : null}
+                      {set.user_id !== null && set.user_id !== undefined ? (
+                        <button
+                          onClick={() => handleConvertToSystem(set.id)}
+                          className="px-3 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                          title="Convert to System Set - Make available to all users"
+                        >
+                          Make System
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => handleManagePencils(set.id)}
                         className="px-3 py-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
@@ -469,7 +490,8 @@ const AdminPencilSets = () => {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        )}
 
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center space-x-2">
