@@ -53,23 +53,29 @@ const AdminPencilSets = () => {
       } else if (filter === 'system') {
         params.is_system = 'true';
       }
+      // Filter out custom sets on backend if hideCustom is true
+      if (hideCustom) {
+        params.is_custom = '0';
+      }
       const response = await adminAPI.pencilSets.getAll(page, perPage, params);
       // Handle Laravel pagination response structure
       let setsData = [];
       if (response.data && Array.isArray(response.data)) {
         setsData = response.data;
-        if (response.meta) {
-          setTotalPages(response.meta.last_page || 1);
-        } else if (response.last_page) {
+        // Set pagination metadata
+        if (response.last_page !== undefined) {
           setTotalPages(response.last_page);
+        } else if (response.meta && response.meta.last_page) {
+          setTotalPages(response.meta.last_page);
+        } else {
+          setTotalPages(1);
         }
       } else if (Array.isArray(response)) {
         setsData = response;
-      }
-      
-      // Filter out custom sets if hideCustom is true
-      if (hideCustom) {
-        setsData = setsData.filter(set => !set.is_custom);
+        setTotalPages(1);
+      } else {
+        setsData = [];
+        setTotalPages(1);
       }
       
       setSets(setsData);

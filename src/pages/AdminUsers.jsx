@@ -32,15 +32,20 @@ const AdminUsers = () => {
       // Handle Laravel pagination response structure
       if (response.data && Array.isArray(response.data)) {
         setUsers(response.data);
-        if (response.meta) {
-          setTotalPages(response.meta.last_page || 1);
-        } else if (response.last_page) {
+        // Set pagination metadata
+        if (response.last_page !== undefined) {
           setTotalPages(response.last_page);
+        } else if (response.meta && response.meta.last_page) {
+          setTotalPages(response.meta.last_page);
+        } else {
+          setTotalPages(1);
         }
       } else if (Array.isArray(response)) {
         setUsers(response);
+        setTotalPages(1);
       } else {
         setUsers([]);
+        setTotalPages(1);
       }
     } catch (err) {
       setError(err.message || 'Failed to load users');
