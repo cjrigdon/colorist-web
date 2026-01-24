@@ -3,9 +3,6 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 const stripeKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
-if (!stripeKey) {
-  console.warn('REACT_APP_STRIPE_PUBLISHABLE_KEY is not set. Stripe payment form will not work.');
-}
 
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 

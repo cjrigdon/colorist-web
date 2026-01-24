@@ -175,7 +175,6 @@ const JoyrideWalkthrough = ({ user, loadingUser }) => {
           return false; // Keep trying
         } else {
           // Fallback: start anyway after max retries
-          console.warn('Joyride: Target element not found after retries, starting tour anyway');
           setRun(true);
           return true; // Done
         }

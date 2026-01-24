@@ -90,6 +90,13 @@ const ColorConversion = () => {
     fetchBrands();
   }, []);
 
+  // Reset two-color mix option when target sets change
+  useEffect(() => {
+    if (targetSets.length !== 1) {
+      setIncludeTwoColorMix(false);
+    }
+  }, [targetSets.length]);
+
   // Fetch comparison results when source and target sets change
   useEffect(() => {
     const fetchMatches = async () => {
@@ -238,6 +245,7 @@ const ColorConversion = () => {
         page: '1', 
         per_page: '100',
         'filter[brand_id]': brandId.toString(),
+        'filter[is_system]': '1',
         exclude_pencils: 'true'
       });
       const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
@@ -267,7 +275,7 @@ const ColorConversion = () => {
     try {
       setLoadingSourceSizes(true);
       setError(null);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, false, {
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
         setId: setId,
         excludePencils: true
       });
@@ -348,6 +356,7 @@ const ColorConversion = () => {
         page: '1', 
         per_page: '100',
         'filter[brand_id]': brandId.toString(),
+        'filter[is_system]': '1',
         exclude_pencils: 'true'
       });
       const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
@@ -377,7 +386,15 @@ const ColorConversion = () => {
     try {
       setLoadingTargetSizes(true);
       setError(null);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, false, {
+      // Build URL manually to verify the parameter format
+      const params = new URLSearchParams({ 
+        page: '1', 
+        per_page: '100',
+        all: 'true',
+        exclude_pencils: 'true',
+        'filter[colored_pencil_set_id]': setId.toString()
+      });
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
         setId: setId,
         excludePencils: true
       });
@@ -799,19 +816,38 @@ const ColorConversion = () => {
                     {loadingTargetSizes ? (
                       <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
                     ) : targetSizesForSet.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No sizes available for this set</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {targetSizesForSet.map((setSize) => {
-                          // Filter out sizes that are already selected or match the source set
-                          const sourceSetId = sourceSet?.set?.id || sourceSet?.id;
-                          const targetSetId = setSize.set?.id || setSize.id;
-                          const isSourceSet = sourceSetId && targetSetId === sourceSetId;
-                          const isAlreadySelected = targetSets.some(ts => ts.id === setSize.id);
-                          
-                          if (isSourceSet || isAlreadySelected) {
-                            return null;
-                          }
+                      <div className="text-center py-4 text-slate-500 text-sm">
+                        No sizes available for this set
+                        {targetSelectedSet && (
+                          <div className="text-xs mt-1">Set ID: {targetSelectedSet.id}</div>
+                        )}
+                      </div>
+                    ) : (() => {
+                      // Filter out sizes that are already selected or match the source set
+                      const filteredSizes = targetSizesForSet.filter((setSize) => {
+                        if (!setSize.set) {
+                          // Still show it if we can't determine if it's the source set
+                          return true;
+                        }
+                        const sourceSetId = sourceSet?.set?.id;
+                        const targetSetId = setSize.set?.id;
+                        const isSourceSet = sourceSetId && targetSetId && targetSetId === sourceSetId;
+                        const isAlreadySelected = targetSets.some(ts => ts.id === setSize.id);
+                        const shouldShow = !isSourceSet && !isAlreadySelected;
+                        return shouldShow;
+                      });
+                      
+                      if (filteredSizes.length === 0 && targetSizesForSet.length > 0) {
+                        return (
+                          <div className="text-center py-4 text-slate-500 text-sm">
+                            All available sizes are already selected or match the source set
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {filteredSizes.map((setSize) => {
 
                           const thumbnail = setSize.thumb || setSize.set?.thumb || null;
                           const thumbnailUrl = thumbnail 
@@ -856,8 +892,9 @@ const ColorConversion = () => {
                             </button>
                           );
                         })}
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -895,19 +932,21 @@ const ColorConversion = () => {
                   <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
                   <p className="text-sm text-slate-500 mt-1">{matches.length} source colors matched</p>
                 </div>
-                <div className="flex-1 flex justify-center items-center">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeTwoColorMix}
-                      onChange={(e) => setIncludeTwoColorMix(e.target.checked)}
-                      className="theme-checkbox theme-checkbox-small"
-                    />
-                    <span className="ml-2 text-sm text-slate-700">
-                      Include two-color mixes
-                    </span>
-                  </label>
-                </div>
+                {targetSets.length === 1 && (
+                  <div className="flex-1 flex justify-center items-center">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeTwoColorMix}
+                        onChange={(e) => setIncludeTwoColorMix(e.target.checked)}
+                        className="theme-checkbox theme-checkbox-small"
+                      />
+                      <span className="ml-2 text-sm text-slate-700">
+                        Include two-color mixes
+                      </span>
+                    </label>
+                  </div>
+                )}
                 <div className="flex items-center">
                   <button
                     onClick={() => window.print()}

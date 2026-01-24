@@ -199,7 +199,6 @@ const PencilInventory = () => {
       
       // No refetch needed - local state update is sufficient
     } catch (error) {
-      console.error('Failed to update inventory:', error);
       alert('Failed to update inventory. Please try again.');
     } finally {
       setUpdatingInventory(false);

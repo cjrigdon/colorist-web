@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
-import { coloredPencilSetsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI } from '../services/api';
+import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
 
 // Color distance calculation using Euclidean distance in RGB space
@@ -79,6 +79,29 @@ const ColorAlong = () => {
   const [groupedMatches, setGroupedMatches] = useState({});
   const [rowMixMatches, setRowMixMatches] = useState({}); // Store per-row two-color mix matches: { videoColorId: match }
   const [loadingRowMix, setLoadingRowMix] = useState({}); // Track loading state per row: { videoColorId: boolean }
+  const [markingOut, setMarkingOut] = useState({}); // Track which pencils are being marked as out: { pencilId: boolean }
+
+  // Video Set Selection State (3-step: brand -> set -> size)
+  const [videoStep, setVideoStep] = useState('brand'); // 'brand', 'set', 'size'
+  const [brands, setBrands] = useState([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [videoSelectedBrand, setVideoSelectedBrand] = useState(null);
+  const [videoSetsForBrand, setVideoSetsForBrand] = useState([]);
+  const [loadingVideoSets, setLoadingVideoSets] = useState(false);
+  const [videoSelectedSet, setVideoSelectedSet] = useState(null);
+  const [videoSizesForSet, setVideoSizesForSet] = useState([]);
+  const [loadingVideoSizes, setLoadingVideoSizes] = useState(false);
+  const [videoSelectedSetSize, setVideoSelectedSetSize] = useState(null); // Store selected set size for display
+
+  // User Set Selection State (3-step: brand -> set -> size)
+  const [userStep, setUserStep] = useState('brand'); // 'brand', 'set', 'size'
+  const [userSelectedBrand, setUserSelectedBrand] = useState(null);
+  const [userSetsForBrand, setUserSetsForBrand] = useState([]);
+  const [loadingUserSets, setLoadingUserSets] = useState(false);
+  const [userSelectedSet, setUserSelectedSet] = useState(null);
+  const [userSizesForSet, setUserSizesForSet] = useState([]);
+  const [loadingUserSizes, setLoadingUserSizes] = useState(false);
+  const [userSelectedSetSize, setUserSelectedSetSize] = useState(null); // Store selected set size for display
 
   // Scroll to a section by index character
   const scrollToSection = (char) => {
@@ -170,45 +193,30 @@ const ColorAlong = () => {
     }
   }, [searchParams, inspirations]);
 
-  // Fetch all system pencil set sizes for Video Set dropdown
+  // Fetch brands on mount
   useEffect(() => {
-    const fetchAllPencilSets = async () => {
+    const fetchBrands = async () => {
       try {
-        setLoadingSets(true);
-        // Use getAvailableSetSizes with all=true to get all system sets and sizes
-        const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 1000, true);
-        
-        // Handle paginated response
-        let setSizesData = [];
+        setLoadingBrands(true);
+        const response = await brandsAPI.getAll(1, 100);
+        let brandsData = [];
         if (Array.isArray(response)) {
-          setSizesData = response;
+          brandsData = response;
         } else if (response.data && Array.isArray(response.data)) {
-          setSizesData = response.data;
+          brandsData = response.data;
         }
-        
-        // Transform set sizes to the format expected by the component
-        // Group by set ID and show each set size as a separate option
-        const transformedSets = setSizesData.map(setSize => ({
-          id: setSize.set?.id || setSize.id, // Use set ID for comparison API
-          setSizeId: setSize.id, // Keep set size ID for reference
-          name: setSize.set?.name || 'Unknown',
-          brand: setSize.set?.brand || 'Unknown',
-          count: setSize.count || 0,
-          setSizeData: setSize // Keep full data
-        }));
-        
-        setAllPencilSets(transformedSets);
-      } catch (error) {
-        console.error('Error fetching all pencil sets:', error);
+        setBrands(brandsData);
+      } catch (err) {
+        console.error('Error fetching brands:', err);
       } finally {
-        setLoadingSets(false);
+        setLoadingBrands(false);
       }
     };
 
-    fetchAllPencilSets();
+    fetchBrands();
   }, []);
 
-  // Fetch user's pencil sets for Your Set dropdown
+  // Fetch user's pencil sets for Your Set dropdown (keep for journal entry)
   useEffect(() => {
     const fetchUserPencilSets = async () => {
       try {
@@ -243,6 +251,199 @@ const ColorAlong = () => {
 
     fetchUserPencilSets();
   }, []);
+
+  // Video Set Selection Handlers
+  const fetchVideoSetsForBrand = async (brandId) => {
+    try {
+      setLoadingVideoSets(true);
+      const params = new URLSearchParams({ 
+        page: '1', 
+        per_page: '100',
+        'filter[brand_id]': brandId.toString(),
+        'filter[is_system]': '1',
+        exclude_pencils: 'true'
+      });
+      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
+      
+      let setsData = [];
+      if (Array.isArray(data)) {
+        setsData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        setsData = data.data;
+      }
+      
+      const setsWithSizeCounts = setsData.map(set => ({
+        ...set,
+        sizeCount: set.sizes_count || 0
+      }));
+      
+      setVideoSetsForBrand(setsWithSizeCounts);
+    } catch (err) {
+      console.error('Error fetching sets for brand:', err);
+    } finally {
+      setLoadingVideoSets(false);
+    }
+  };
+
+  const fetchVideoSizesForSet = async (setId) => {
+    try {
+      setLoadingVideoSizes(true);
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
+        setId: setId,
+        excludePencils: true
+      });
+      let sizesForThisSet = [];
+      if (Array.isArray(response)) {
+        sizesForThisSet = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        sizesForThisSet = response.data;
+      }
+      
+      setVideoSizesForSet(sizesForThisSet);
+    } catch (err) {
+      console.error('Error fetching sizes for set:', err);
+    } finally {
+      setLoadingVideoSizes(false);
+    }
+  };
+
+  const handleVideoBrandSelect = (brand) => {
+    setVideoSelectedBrand(brand);
+    setVideoSelectedSet(null);
+    setVideoSetId(null);
+    setVideoSizesForSet([]);
+    fetchVideoSetsForBrand(brand.id);
+    setVideoStep('set');
+  };
+
+  const handleVideoSetSelect = (set) => {
+    setVideoSelectedSet(set);
+    setVideoSetId(null);
+    fetchVideoSizesForSet(set.id);
+    setVideoStep('size');
+  };
+
+  const handleVideoSizeSelect = (setSize) => {
+    const setId = setSize.set?.id || setSize.id;
+    setVideoSetId(setId);
+    // Store selected set size for display
+    setVideoSelectedSetSize(setSize);
+    setVideoStep('brand');
+    setVideoSelectedBrand(null);
+    setVideoSelectedSet(null);
+    setVideoSetsForBrand([]);
+    setVideoSizesForSet([]);
+  };
+
+  const handleVideoBack = () => {
+    if (videoStep === 'size') {
+      setVideoStep('set');
+      setVideoSelectedSet(null);
+      setVideoSizesForSet([]);
+    } else if (videoStep === 'set') {
+      setVideoStep('brand');
+      setVideoSelectedBrand(null);
+      setVideoSelectedSet(null);
+      setVideoSetsForBrand([]);
+      setVideoSizesForSet([]);
+    }
+  };
+
+  // User Set Selection Handlers
+  const fetchUserSetsForBrand = async (brandId) => {
+    try {
+      setLoadingUserSets(true);
+      const params = new URLSearchParams({ 
+        page: '1', 
+        per_page: '100',
+        'filter[brand_id]': brandId.toString(),
+        exclude_pencils: 'true'
+      });
+      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
+      
+      let setsData = [];
+      if (Array.isArray(data)) {
+        setsData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        setsData = data.data;
+      }
+      
+      const setsWithSizeCounts = setsData.map(set => ({
+        ...set,
+        sizeCount: set.sizes_count || 0
+      }));
+      
+      setUserSetsForBrand(setsWithSizeCounts);
+    } catch (err) {
+      console.error('Error fetching sets for brand:', err);
+    } finally {
+      setLoadingUserSets(false);
+    }
+  };
+
+  const fetchUserSizesForSet = async (setId) => {
+    try {
+      setLoadingUserSizes(true);
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
+        setId: setId,
+        excludePencils: true
+      });
+      let sizesForThisSet = [];
+      if (Array.isArray(response)) {
+        sizesForThisSet = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        sizesForThisSet = response.data;
+      }
+      
+      setUserSizesForSet(sizesForThisSet);
+    } catch (err) {
+      console.error('Error fetching sizes for set:', err);
+    } finally {
+      setLoadingUserSizes(false);
+    }
+  };
+
+  const handleUserBrandSelect = (brand) => {
+    setUserSelectedBrand(brand);
+    setUserSelectedSet(null);
+    setUserSetId(null);
+    setUserSizesForSet([]);
+    fetchUserSetsForBrand(brand.id);
+    setUserStep('set');
+  };
+
+  const handleUserSetSelect = (set) => {
+    setUserSelectedSet(set);
+    setUserSetId(null);
+    fetchUserSizesForSet(set.id);
+    setUserStep('size');
+  };
+
+  const handleUserSizeSelect = (setSize) => {
+    const setId = setSize.set?.id || setSize.id;
+    setUserSetId(setId);
+    // Store selected set size for display
+    setUserSelectedSetSize(setSize);
+    setUserStep('brand');
+    setUserSelectedBrand(null);
+    setUserSelectedSet(null);
+    setUserSetsForBrand([]);
+    setUserSizesForSet([]);
+  };
+
+  const handleUserBack = () => {
+    if (userStep === 'size') {
+      setUserStep('set');
+      setUserSelectedSet(null);
+      setUserSizesForSet([]);
+    } else if (userStep === 'set') {
+      setUserStep('brand');
+      setUserSelectedBrand(null);
+      setUserSelectedSet(null);
+      setUserSetsForBrand([]);
+      setUserSizesForSet([]);
+    }
+  };
 
   // Fetch user's inspirations on component mount
   useEffect(() => {
@@ -550,12 +751,14 @@ const ColorAlong = () => {
                   name: match.target_pencil_mix.color1.color_name || match.target_pencil_mix.color1.color?.name || 'Unknown',
                   hex: normalizeHex(match.target_pencil_mix.color1.color?.hex),
                   color_number: match.target_pencil_mix.color1.color_number,
+                  inventory: match.target_pencil_mix.color1.inventory ?? 0,
                 },
                 color2: {
                   id: match.target_pencil_mix.color2.id,
                   name: match.target_pencil_mix.color2.color_name || match.target_pencil_mix.color2.color?.name || 'Unknown',
                   hex: normalizeHex(match.target_pencil_mix.color2.color?.hex),
                   color_number: match.target_pencil_mix.color2.color_number,
+                  inventory: match.target_pencil_mix.color2.inventory ?? 0,
                 },
                 mixed_hex: normalizeHex(match.target_pencil_mix.mixed_hex),
                 ratio: match.target_pencil_mix.ratio,
@@ -573,6 +776,7 @@ const ColorAlong = () => {
                 name: match.target_pencil.color_name || match.target_pencil.color?.name || 'Unknown',
                 hex: normalizeHex(match.target_pencil.color?.hex),
                 color_number: match.target_pencil.color_number,
+                inventory: match.target_pencil.inventory ?? 0,
                 delta_e: match.delta_e,
                 match_quality: match.match_quality,
                 distance: match.delta_e, // For backwards compatibility
@@ -645,12 +849,14 @@ const ColorAlong = () => {
             name: exactMatch.target_pencil_mix.color1.color_name || exactMatch.target_pencil_mix.color1.color?.name || 'Unknown',
             hex: normalizeHex(exactMatch.target_pencil_mix.color1.color?.hex),
             color_number: exactMatch.target_pencil_mix.color1.color_number,
+            inventory: exactMatch.target_pencil_mix.color1.inventory ?? 0,
           },
           color2: {
             id: exactMatch.target_pencil_mix.color2.id,
             name: exactMatch.target_pencil_mix.color2.color_name || exactMatch.target_pencil_mix.color2.color?.name || 'Unknown',
             hex: normalizeHex(exactMatch.target_pencil_mix.color2.color?.hex),
             color_number: exactMatch.target_pencil_mix.color2.color_number,
+            inventory: exactMatch.target_pencil_mix.color2.inventory ?? 0,
           },
           mixed_hex: normalizeHex(exactMatch.target_pencil_mix.mixed_hex),
           ratio: exactMatch.target_pencil_mix.ratio,
@@ -679,6 +885,41 @@ const ColorAlong = () => {
     } else {
       // Fetch mix match
       fetchRowMix(videoColorId);
+    }
+  };
+
+  // Mark pencil(s) as out (set inventory to 0)
+  const handleMarkAsOut = async (pencilIds) => {
+    // Ensure pencilIds is an array
+    const ids = Array.isArray(pencilIds) ? pencilIds : [pencilIds];
+    
+    // Set loading state for all pencils being marked
+    setMarkingOut(prev => {
+      const updated = { ...prev };
+      ids.forEach(id => {
+        updated[id] = true;
+      });
+      return updated;
+    });
+
+    try {
+      // Update inventory to 0 for all pencils
+      await Promise.all(ids.map(id => coloredPencilsAPI.updateInventory(id, 0)));
+      
+      // Show success message
+      alert('Pencil(s) marked as out. They will be added to your shopping list.');
+    } catch (error) {
+      console.error('Error marking pencil as out:', error);
+      alert('Failed to mark pencil(s) as out. Please try again.');
+    } finally {
+      // Clear loading state
+      setMarkingOut(prev => {
+        const updated = { ...prev };
+        ids.forEach(id => {
+          delete updated[id];
+        });
+        return updated;
+      });
     }
   };
 
@@ -732,42 +973,340 @@ const ColorAlong = () => {
           <div className="h-full flex flex-col overflow-hidden">
             {/* Pencil Set Selection Section */}
             {(!videoSetId || !userSetId) && (
-              <div className="bg-white p-2 flex-shrink-0 border-b border-slate-200">
+              <div className="bg-white p-2 flex-shrink-0 border-b border-slate-200 overflow-y-auto max-h-[calc(100vh-200px)]">
                 <h3 className="text-xs font-semibold text-slate-800 mb-1.5 font-venti">Pencil Sets</h3>
                 <div className="space-y-1.5">
                   {/* Video Set Selection */}
                   <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5">
-                    <h4 className="text-xs font-semibold text-slate-800 mb-1 font-venti">Video Set</h4>
-                    {loadingSets ? (
-                      <div className="text-xs text-slate-500 py-2">Loading sets...</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Video Set</h4>
+                      {videoSetId && (
+                        <button
+                          onClick={() => {
+                            setVideoSetId(null);
+                            setVideoSelectedSetSize(null);
+                            setVideoStep('brand');
+                            setVideoSelectedBrand(null);
+                            setVideoSelectedSet(null);
+                            setVideoSetsForBrand([]);
+                            setVideoSizesForSet([]);
+                          }}
+                          className="text-xs text-slate-500 hover:text-slate-700 underline"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
+                    
+                    {videoSetId && videoSelectedSetSize ? (
+                      <div className="p-2 bg-white rounded text-xs">
+                        <p className="font-medium text-slate-800">{videoSelectedSetSize.set?.name || videoSelectedSetSize.name}</p>
+                        <p className="text-slate-600 mt-0.5">{videoSelectedSetSize.set?.brand || videoSelectedSetSize.brand} - {videoSelectedSetSize.count || 0} pencils</p>
+                      </div>
                     ) : (
-                      <DropdownMenu
-                        options={allPencilSets.map(set => ({
-                          value: set.id,
-                          label: `${set.name} (${set.brand}) - ${set.count} colors`
-                        }))}
-                        value={videoSetId || ''}
-                        onChange={(value) => setVideoSetId(value ? parseInt(value) : null)}
-                        placeholder="Select the set used in the video..."
-                      />
+                      <div className="space-y-2">
+                        {videoStep !== 'brand' && (
+                          <button
+                            onClick={handleVideoBack}
+                            className="flex items-center space-x-1 text-xs text-slate-600 hover:text-slate-800 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            <span>Back</span>
+                          </button>
+                        )}
+                        
+                        <div className="text-xs font-medium text-slate-700 mb-1">
+                          {videoStep === 'brand' && 'Select a Brand'}
+                          {videoStep === 'set' && `Select a Set for ${videoSelectedBrand?.name || ''}`}
+                          {videoStep === 'size' && `Select a Size for ${videoSelectedSet?.name || ''}`}
+                        </div>
+
+                        {/* Step 1: Brand Selection */}
+                        {videoStep === 'brand' && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingBrands ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading brands...</div>
+                            ) : brands.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No brands available</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {brands.map((brand) => (
+                                  <button
+                                    key={brand.id}
+                                    onClick={() => handleVideoBrandSelect(brand)}
+                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                  >
+                                    <span className="text-xs font-medium text-slate-800 truncate">{brand.name}</span>
+                                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Step 2: Set Selection */}
+                        {videoStep === 'set' && videoSelectedBrand && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingVideoSets ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading sets...</div>
+                            ) : videoSetsForBrand.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No sets available for this brand</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {videoSetsForBrand.map((set) => (
+                                  <button
+                                    key={set.id}
+                                    onClick={() => handleVideoSetSelect(set)}
+                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs font-medium text-slate-800 truncate">
+                                        {set.name || 'Unknown'}
+                                      </div>
+                                      <div className="text-xs text-slate-600 mt-0.5">
+                                        {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                                      </div>
+                                    </div>
+                                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Step 3: Size Selection */}
+                        {videoStep === 'size' && videoSelectedSet && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingVideoSizes ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading sizes...</div>
+                            ) : videoSizesForSet.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No sizes available for this set</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {videoSizesForSet.map((setSize) => {
+                                  const thumbnail = setSize.thumb || setSize.set?.thumb || null;
+                                  const thumbnailUrl = thumbnail 
+                                    ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                                    : null;
+                                  
+                                  return (
+                                    <button
+                                      key={setSize.id}
+                                      onClick={() => handleVideoSizeSelect(setSize)}
+                                      className="w-full flex items-center space-x-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                      {thumbnailUrl ? (
+                                        <img 
+                                          src={thumbnailUrl} 
+                                          alt={setSize.name || `${setSize.count} pencils`}
+                                          className="w-6 h-6 object-cover rounded flex-shrink-0"
+                                          onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextSibling) {
+                                              e.target.nextSibling.style.display = 'flex';
+                                            }
+                                          }}
+                                        />
+                                      ) : null}
+                                      <div 
+                                        className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${thumbnailUrl ? 'hidden' : ''}`}
+                                        style={{ backgroundColor: '#f1f5f9' }}
+                                      >
+                                        <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-medium text-slate-800 truncate">
+                                          {setSize.name || `${setSize.count} pencils`}
+                                        </div>
+                                        <div className="text-xs text-slate-600 truncate">
+                                          {setSize.count} pencils
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
 
                   {/* User Set Selection */}
                   <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5">
-                    <h4 className="text-xs font-semibold text-slate-800 mb-1 font-venti">Your Set</h4>
-                    {loadingSets ? (
-                      <div className="text-xs text-slate-500 py-2">Loading sets...</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Your Set</h4>
+                      {userSetId && (
+                        <button
+                          onClick={() => {
+                            setUserSetId(null);
+                            setUserSelectedSetSize(null);
+                            setUserStep('brand');
+                            setUserSelectedBrand(null);
+                            setUserSelectedSet(null);
+                            setUserSetsForBrand([]);
+                            setUserSizesForSet([]);
+                          }}
+                          className="text-xs text-slate-500 hover:text-slate-700 underline"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
+                    
+                    {userSetId && userSelectedSetSize ? (
+                      <div className="p-2 bg-white rounded text-xs">
+                        <p className="font-medium text-slate-800">{userSelectedSetSize.set?.name || userSelectedSetSize.name}</p>
+                        <p className="text-slate-600 mt-0.5">{userSelectedSetSize.set?.brand || userSelectedSetSize.brand} - {userSelectedSetSize.count || 0} pencils</p>
+                      </div>
                     ) : (
-                      <DropdownMenu
-                        options={userPencilSets.map(set => ({
-                          value: set.id,
-                          label: `${set.name} (${set.brand}) - ${set.count} colors`
-                        }))}
-                        value={userSetId || ''}
-                        onChange={(value) => setUserSetId(value ? parseInt(value) : null)}
-                        placeholder="Select your pencil set..."
-                      />
+                      <div className="space-y-2">
+                        {userStep !== 'brand' && (
+                          <button
+                            onClick={handleUserBack}
+                            className="flex items-center space-x-1 text-xs text-slate-600 hover:text-slate-800 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            <span>Back</span>
+                          </button>
+                        )}
+                        
+                        <div className="text-xs font-medium text-slate-700 mb-1">
+                          {userStep === 'brand' && 'Select a Brand'}
+                          {userStep === 'set' && `Select a Set for ${userSelectedBrand?.name || ''}`}
+                          {userStep === 'size' && `Select a Size for ${userSelectedSet?.name || ''}`}
+                        </div>
+
+                        {/* Step 1: Brand Selection */}
+                        {userStep === 'brand' && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingBrands ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading brands...</div>
+                            ) : brands.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No brands available</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {brands.map((brand) => (
+                                  <button
+                                    key={brand.id}
+                                    onClick={() => handleUserBrandSelect(brand)}
+                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                  >
+                                    <span className="text-xs font-medium text-slate-800 truncate">{brand.name}</span>
+                                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Step 2: Set Selection */}
+                        {userStep === 'set' && userSelectedBrand && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingUserSets ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading sets...</div>
+                            ) : userSetsForBrand.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No sets available for this brand</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {userSetsForBrand.map((set) => (
+                                  <button
+                                    key={set.id}
+                                    onClick={() => handleUserSetSelect(set)}
+                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs font-medium text-slate-800 truncate">
+                                        {set.name || 'Unknown'}
+                                      </div>
+                                      <div className="text-xs text-slate-600 mt-0.5">
+                                        {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                                      </div>
+                                    </div>
+                                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Step 3: Size Selection */}
+                        {userStep === 'size' && userSelectedSet && (
+                          <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
+                            {loadingUserSizes ? (
+                              <div className="text-center py-2 text-xs text-slate-500">Loading sizes...</div>
+                            ) : userSizesForSet.length === 0 ? (
+                              <div className="text-center py-2 text-xs text-slate-500">No sizes available for this set</div>
+                            ) : (
+                              <div className="space-y-1">
+                                {userSizesForSet.map((setSize) => {
+                                  const thumbnail = setSize.thumb || setSize.set?.thumb || null;
+                                  const thumbnailUrl = thumbnail 
+                                    ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                                    : null;
+                                  
+                                  return (
+                                    <button
+                                      key={setSize.id}
+                                      onClick={() => handleUserSizeSelect(setSize)}
+                                      className="w-full flex items-center space-x-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                      {thumbnailUrl ? (
+                                        <img 
+                                          src={thumbnailUrl} 
+                                          alt={setSize.name || `${setSize.count} pencils`}
+                                          className="w-6 h-6 object-cover rounded flex-shrink-0"
+                                          onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextSibling) {
+                                              e.target.nextSibling.style.display = 'flex';
+                                            }
+                                          }}
+                                        />
+                                      ) : null}
+                                      <div 
+                                        className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${thumbnailUrl ? 'hidden' : ''}`}
+                                        style={{ backgroundColor: '#f1f5f9' }}
+                                      >
+                                        <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-medium text-slate-800 truncate">
+                                          {setSize.name || `${setSize.count} pencils`}
+                                        </div>
+                                        <div className="text-xs text-slate-600 truncate">
+                                          {setSize.count} pencils
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -897,6 +1436,12 @@ const ColorAlong = () => {
                                 const isRowMixActive = !!rowMixMatches[videoColor.id];
                                 const isLoadingRowMix = loadingRowMix[videoColor.id];
                                 
+                                // Calculate match percentage for the original match (not the mix)
+                                const matchPercentage = match.delta_e !== undefined 
+                                  ? deltaEToPercentage(match.delta_e) 
+                                  : null;
+                                const showTwoColorMixButton = !match.is_mix && (matchPercentage === null || matchPercentage < 95);
+                                
                                 return (
                         <div
                           key={videoColor.id}
@@ -913,7 +1458,7 @@ const ColorAlong = () => {
                                   className="w-7 h-7 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                   style={{ backgroundColor: videoColor.hex }}
                                 ></div>
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0" style={{ maxWidth: '100px' }}>
                                   <p className="text-xs font-medium text-slate-800 truncate">{videoColor.name}</p>
                                   {videoColor.color_number && (
                                     <p className="text-xs text-slate-500 font-mono truncate">{videoColor.color_number}</p>
@@ -926,32 +1471,77 @@ const ColorAlong = () => {
                             <div className="flex-1">
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-xs font-medium text-slate-600">Your Match</p>
-                                {!match.is_mix && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleRowMix(videoColor.id);
-                                    }}
-                                    disabled={isLoadingRowMix}
-                                    className="p-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title={isRowMixActive ? "Hide two-color mix" : "Show two-color mix"}
-                                  >
-                                    {isLoadingRowMix ? (
-                                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                      </svg>
-                                    ) : (
-                                      <svg 
-                                        className="w-3.5 h-3.5" 
-                                        fill="currentColor" 
-                                        viewBox="0 0 24 24"
-                                        style={{ color: isRowMixActive ? '#ea3663' : '#94a3b8' }}
-                                      >
-                                        <path d="M20.71 4.63l-1.34-1.34c-.37-.39-1.02-.39-1.41 0L9 12.25 11.75 15l8.96-8.96c.39-.39.39-1.04 0-1.41zM7 14a3 3 0 00-3 3c0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2a4 4 0 004-4c0-1.66-1.34-3-3-3z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                )}
+                                <div className="flex items-center gap-1">
+                                  {showTwoColorMixButton && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleRowMix(videoColor.id);
+                                      }}
+                                      disabled={isLoadingRowMix}
+                                      className="p-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title={isRowMixActive ? "Hide two-color mix" : "Show two-color mix"}
+                                    >
+                                      {isLoadingRowMix ? (
+                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                      ) : (
+                                        <svg 
+                                          className="w-3.5 h-3.5" 
+                                          fill="currentColor" 
+                                          viewBox="0 0 24 24"
+                                          style={{ color: isRowMixActive ? '#ea3663' : '#94a3b8' }}
+                                        >
+                                          <path d="M20.71 4.63l-1.34-1.34c-.37-.39-1.02-.39-1.41 0L9 12.25 11.75 15l8.96-8.96c.39-.39.39-1.04 0-1.41zM7 14a3 3 0 00-3 3c0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2a4 4 0 004-4c0-1.66-1.34-3-3-3z" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
+                                  {!displayMatch.is_mix && displayMatch.id && (displayMatch.inventory ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMarkAsOut(displayMatch.id);
+                                      }}
+                                      disabled={markingOut[displayMatch.id]}
+                                      className="p-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-red-600 hover:text-red-700"
+                                      title="Mark as out (set inventory to 0)"
+                                    >
+                                      {markingOut[displayMatch.id] ? (
+                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
+                                  {displayMatch.is_mix && displayMatch.color1?.id && displayMatch.color2?.id && 
+                                   ((displayMatch.color1.inventory ?? 0) > 0 || (displayMatch.color2.inventory ?? 0) > 0) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMarkAsOut([displayMatch.color1.id, displayMatch.color2.id]);
+                                      }}
+                                      disabled={markingOut[displayMatch.color1.id] || markingOut[displayMatch.color2.id]}
+                                      className="p-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-red-600 hover:text-red-700"
+                                      title="Mark both colors as out (set inventory to 0)"
+                                    >
+                                      {(markingOut[displayMatch.color1.id] || markingOut[displayMatch.color2.id]) ? (
+                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               {displayMatch.is_mix ? (
                                 // Two-color mix display
@@ -975,7 +1565,7 @@ const ColorAlong = () => {
                                         className="w-5 h-5 rounded shadow-sm border border-slate-200 flex-shrink-0"
                                         style={{ backgroundColor: displayMatch.color1.hex }}
                                       ></div>
-                                      <p className="text-xs text-slate-700 truncate">
+                                      <p className="text-xs text-slate-700 truncate" style={{ maxWidth: '100px' }}>
                                         {displayMatch.color1.name}
                                         {displayMatch.color1.color_number && <span className="text-slate-500 ml-1">{displayMatch.color1.color_number}</span>}
                                       </p>
@@ -986,7 +1576,7 @@ const ColorAlong = () => {
                                         className="w-5 h-5 rounded shadow-sm border border-slate-200 flex-shrink-0"
                                         style={{ backgroundColor: displayMatch.color2.hex }}
                                       ></div>
-                                      <p className="text-xs text-slate-700 truncate">
+                                      <p className="text-xs text-slate-700 truncate" style={{ maxWidth: '100px' }}>
                                         {displayMatch.color2.name}
                                         {displayMatch.color2.color_number && <span className="text-slate-500 ml-1">{displayMatch.color2.color_number}</span>}
                                       </p>
@@ -1001,7 +1591,7 @@ const ColorAlong = () => {
                                     className="w-7 h-7 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                     style={{ backgroundColor: displayMatch.hex }}
                                   ></div>
-                                  <div className="flex-1 min-w-0">
+                                  <div className="flex-1 min-w-0" style={{ maxWidth: '100px' }}>
                                     <p className="text-xs font-medium text-slate-800 truncate">{displayMatch.name}</p>
                                     {displayMatch.color_number && (
                                       <p className="text-xs text-slate-500 font-mono truncate">{displayMatch.color_number}</p>
