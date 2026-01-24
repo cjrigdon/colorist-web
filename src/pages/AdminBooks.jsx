@@ -15,6 +15,10 @@ const AdminBooks = () => {
   const [formData, setFormData] = useState({
     title: '',
     author: '',
+    publisher: '',
+    year_published: '',
+    number_of_pages: '',
+    isbn: '',
     image: '',
     imageFile: null
   });
@@ -74,6 +78,10 @@ const AdminBooks = () => {
     setFormData({
       title: book.title || '',
       author: book.author || '',
+      publisher: book.publisher || '',
+      year_published: book.year_published || '',
+      number_of_pages: book.number_of_pages || '',
+      isbn: book.isbn || '',
       image: book.image || '',
       imageFile: null
     });
@@ -85,6 +93,10 @@ const AdminBooks = () => {
     setFormData({
       title: '',
       author: '',
+      publisher: '',
+      year_published: '',
+      number_of_pages: '',
+      isbn: '',
       image: '',
       imageFile: null
     });
@@ -104,6 +116,10 @@ const AdminBooks = () => {
       const dataToSend = {
         title: formData.title,
         author: formData.author,
+        publisher: formData.publisher || null,
+        year_published: formData.year_published ? parseInt(formData.year_published) : null,
+        number_of_pages: formData.number_of_pages ? parseInt(formData.number_of_pages) : null,
+        isbn: formData.isbn || null,
         imageFile: formData.imageFile
       };
 
@@ -409,6 +425,62 @@ const AdminBooks = () => {
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
                   placeholder="Enter author name"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Publisher
+                </label>
+                <input
+                  type="text"
+                  value={formData.publisher}
+                  onChange={(e) => setFormData({ ...formData, publisher: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                  placeholder="Enter publisher name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Year Published
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.year_published}
+                    onChange={(e) => setFormData({ ...formData, year_published: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="e.g., 2024"
+                    min="1000"
+                    max="9999"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Number of Pages
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.number_of_pages}
+                    onChange={(e) => setFormData({ ...formData, number_of_pages: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="e.g., 96"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  ISBN
+                </label>
+                <input
+                  type="text"
+                  value={formData.isbn}
+                  onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                  placeholder="Enter ISBN (10 or 13 digits)"
                 />
               </div>
 

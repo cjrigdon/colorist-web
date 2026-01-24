@@ -32,6 +32,7 @@ const ColoringBooks = () => {
         id: book.id,
         title: book.title || 'Untitled',
         author: book.author || 'Unknown',
+        year_published: book.year_published || null,
         cover: book.image || 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop',
         progress: 0, // Not available in API
         pages: 0, // Not available in API
@@ -96,7 +97,10 @@ const ColoringBooks = () => {
             {/* Content */}
             <div className="p-5">
               <h3 className="font-semibold text-slate-800 mb-1 line-clamp-2">{book.title}</h3>
-              <p className="text-sm text-slate-600 mb-3">by {book.author}</p>
+              <div className="flex items-center justify-between text-sm text-slate-600 mb-3">
+                <span>by {book.author}</span>
+                {book.year_published && <span className="text-slate-500">{book.year_published}</span>}
+              </div>
 
               {/* Progress - Only show if available */}
               {book.pages > 0 && (

@@ -11,6 +11,10 @@ const AddBookModal = ({ isOpen, onClose, onSuccess }) => {
   const [bookData, setBookData] = useState({
     title: '',
     author: '',
+    publisher: '',
+    year_published: '',
+    number_of_pages: '',
+    isbn: '',
     image: null,
     preview: null
   });
@@ -20,7 +24,7 @@ const AddBookModal = ({ isOpen, onClose, onSuccess }) => {
       fetchAvailableBooks();
       setSelectedBookIds([]);
     } else if (isOpen && activeTab === 'new') {
-      setBookData({ title: '', author: '', image: null, preview: null });
+      setBookData({ title: '', author: '', publisher: '', year_published: '', number_of_pages: '', isbn: '', image: null, preview: null });
     }
   }, [isOpen, activeTab]);
 
@@ -96,7 +100,11 @@ const AddBookModal = ({ isOpen, onClose, onSuccess }) => {
 
       const payload = {
         title: bookData.title,
-        author: bookData.author
+        author: bookData.author,
+        publisher: bookData.publisher || null,
+        year_published: bookData.year_published ? parseInt(bookData.year_published) : null,
+        number_of_pages: bookData.number_of_pages ? parseInt(bookData.number_of_pages) : null,
+        isbn: bookData.isbn || null
       };
 
       // If image is provided, convert to base64
@@ -113,7 +121,7 @@ const AddBookModal = ({ isOpen, onClose, onSuccess }) => {
             await booksAPI.create(payload);
             onSuccess();
             onClose();
-            setBookData({ title: '', author: '', image: null, preview: null });
+            setBookData({ title: '', author: '', publisher: '', year_published: '', number_of_pages: '', isbn: '', image: null, preview: null });
           } catch (err) {
             console.error('Error creating book:', err);
             setError(err.data?.message || 'Failed to create book');
@@ -276,6 +284,62 @@ const AddBookModal = ({ isOpen, onClose, onSuccess }) => {
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
                   placeholder="Enter author name"
                   required
+                />
+              </div>
+
+              <div className="flex-shrink-0">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Publisher
+                </label>
+                <input
+                  type="text"
+                  value={bookData.publisher}
+                  onChange={(e) => setBookData({ ...bookData, publisher: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                  placeholder="Enter publisher name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Year Published
+                  </label>
+                  <input
+                    type="number"
+                    value={bookData.year_published}
+                    onChange={(e) => setBookData({ ...bookData, year_published: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="e.g., 2024"
+                    min="1000"
+                    max="9999"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Number of Pages
+                  </label>
+                  <input
+                    type="number"
+                    value={bookData.number_of_pages}
+                    onChange={(e) => setBookData({ ...bookData, number_of_pages: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="e.g., 96"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-shrink-0">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  ISBN
+                </label>
+                <input
+                  type="text"
+                  value={bookData.isbn}
+                  onChange={(e) => setBookData({ ...bookData, isbn: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                  placeholder="Enter ISBN (10 or 13 digits)"
                 />
               </div>
 

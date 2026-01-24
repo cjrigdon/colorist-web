@@ -18,6 +18,10 @@ const EditBook = () => {
   const [formData, setFormData] = useState({
     title: '',
     author: '',
+    publisher: '',
+    year_published: '',
+    number_of_pages: '',
+    isbn: '',
     image: ''
   });
   const [selectedFile, setSelectedFile] = useState(null);
@@ -54,6 +58,10 @@ const EditBook = () => {
         setFormData(prev => ({
           title: (data.title !== null && data.title !== undefined) ? String(data.title) : '',
           author: (data.author !== null && data.author !== undefined) ? String(data.author) : '',
+          publisher: (data.publisher !== null && data.publisher !== undefined) ? String(data.publisher) : '',
+          year_published: (data.year_published !== null && data.year_published !== undefined) ? String(data.year_published) : '',
+          number_of_pages: (data.number_of_pages !== null && data.number_of_pages !== undefined) ? String(data.number_of_pages) : '',
+          isbn: (data.isbn !== null && data.isbn !== undefined) ? String(data.isbn) : '',
           image: (data.image !== null && data.image !== undefined) ? String(data.image) : ''
         }));
       } catch (err) {
@@ -74,7 +82,11 @@ const EditBook = () => {
     try {
       const updateData = {
         title: formData.title,
-        author: formData.author
+        author: formData.author,
+        publisher: formData.publisher || null,
+        year_published: formData.year_published ? parseInt(formData.year_published) : null,
+        number_of_pages: formData.number_of_pages ? parseInt(formData.number_of_pages) : null,
+        isbn: formData.isbn || null
       };
 
       // If a new file was selected, convert it to base64 and include in update
@@ -203,6 +215,69 @@ const EditBook = () => {
               onChange={handleChange}
               className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
               style={{ focusRingColor: '#ea3663' }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Publisher
+            </label>
+            <input
+              type="text"
+              name="publisher"
+              value={formData.publisher}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+              style={{ focusRingColor: '#ea3663' }}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Year Published
+              </label>
+              <input
+                type="number"
+                name="year_published"
+                value={formData.year_published}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                style={{ focusRingColor: '#ea3663' }}
+                placeholder="e.g., 2024"
+                min="1000"
+                max="9999"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Number of Pages
+              </label>
+              <input
+                type="number"
+                name="number_of_pages"
+                value={formData.number_of_pages}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                style={{ focusRingColor: '#ea3663' }}
+                placeholder="e.g., 96"
+                min="1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              ISBN
+            </label>
+            <input
+              type="text"
+              name="isbn"
+              value={formData.isbn}
+              onChange={handleChange}
+              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+              style={{ focusRingColor: '#ea3663' }}
+              placeholder="Enter ISBN (10 or 13 digits)"
             />
           </div>
 
