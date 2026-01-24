@@ -47,13 +47,17 @@ const AdminBooks = () => {
       let booksData = [];
       if (response.data && Array.isArray(response.data)) {
         booksData = response.data;
-        if (response.meta) {
-          setTotalPages(response.meta.last_page || 1);
-        } else if (response.last_page) {
+        // Set pagination metadata
+        if (response.last_page !== undefined) {
           setTotalPages(response.last_page);
+        } else if (response.meta && response.meta.last_page) {
+          setTotalPages(response.meta.last_page);
+        } else {
+          setTotalPages(1);
         }
       } else if (Array.isArray(response)) {
         booksData = response;
+        setTotalPages(1);
       }
       
       // Filter out custom books if hideCustom is true
