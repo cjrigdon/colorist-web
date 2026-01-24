@@ -479,7 +479,10 @@ export const adminAPI = {
       return apiPut(`/admin/colored-pencil-sets/${id}`, dataToSend, true);
     },
     delete: (id) => apiDelete(`/admin/colored-pencil-sets/${id}`, true),
-    getPencils: (id) => apiGet(`/admin/colored-pencil-sets/${id}/pencils`, true),
+    getPencils: (id, page = 1, perPage = 15) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      return apiGet(`/admin/colored-pencil-sets/${id}/pencils?${params.toString()}`, true);
+    },
     approve: (id) => apiPost(`/admin/colored-pencil-sets/${id}/approve`, {}, true),
     reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true),
     convertToSystem: (id) => apiPost(`/admin/colored-pencil-sets/${id}/convert-to-system`, {}, true),
@@ -561,6 +564,18 @@ export const adminAPI = {
         if (book.author !== undefined && book.author !== null && book.author !== '') {
           formData.append('author', String(book.author));
         }
+        if (book.publisher !== undefined && book.publisher !== null && book.publisher !== '') {
+          formData.append('publisher', String(book.publisher));
+        }
+        if (book.year_published !== undefined && book.year_published !== null) {
+          formData.append('year_published', String(book.year_published));
+        }
+        if (book.number_of_pages !== undefined && book.number_of_pages !== null) {
+          formData.append('number_of_pages', String(book.number_of_pages));
+        }
+        if (book.isbn !== undefined && book.isbn !== null && book.isbn !== '') {
+          formData.append('isbn', String(book.isbn));
+        }
         if (book.user_id !== undefined && book.user_id !== null) {
           formData.append('user_id', String(book.user_id));
         }
@@ -590,6 +605,18 @@ export const adminAPI = {
         if (book.author !== undefined && book.author !== null && book.author !== '') {
           formData.append('author', String(book.author));
         }
+        if (book.publisher !== undefined && book.publisher !== null && book.publisher !== '') {
+          formData.append('publisher', String(book.publisher));
+        }
+        if (book.year_published !== undefined && book.year_published !== null) {
+          formData.append('year_published', String(book.year_published));
+        }
+        if (book.number_of_pages !== undefined && book.number_of_pages !== null) {
+          formData.append('number_of_pages', String(book.number_of_pages));
+        }
+        if (book.isbn !== undefined && book.isbn !== null && book.isbn !== '') {
+          formData.append('isbn', String(book.isbn));
+        }
         return fetch(`${API_BASE_URL}/admin/books/${id}`, {
           method: 'POST',
           headers: {
@@ -607,7 +634,8 @@ export const adminAPI = {
     delete: (id) => apiDelete(`/admin/books/${id}`, true),
     approve: (id) => apiPost(`/admin/books/${id}/approve`, {}, true),
     reject: (id) => apiPost(`/admin/books/${id}/reject`, {}, true),
-    convertToSystem: (id) => apiPost(`/admin/books/${id}/convert-to-system`, {}, true)
+    convertToSystem: (id) => apiPost(`/admin/books/${id}/convert-to-system`, {}, true),
+    populateFromIsbn: (isbn) => apiPost('/admin/books/populate-from-isbn', { isbn }, true)
   },
   // Brands
   brands: {

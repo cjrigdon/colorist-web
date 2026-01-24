@@ -25,6 +25,7 @@ const AdminBooks = () => {
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'system'
   const [hideCustom, setHideCustom] = useState(true);
+  const [populatingFromIsbn, setPopulatingFromIsbn] = useState(false);
 
   useEffect(() => {
     fetchBooks();
@@ -124,7 +125,9 @@ const AdminBooks = () => {
         year_published: formData.year_published ? parseInt(formData.year_published) : null,
         number_of_pages: formData.number_of_pages ? parseInt(formData.number_of_pages) : null,
         isbn: formData.isbn || null,
-        imageFile: formData.imageFile
+        imageFile: formData.imageFile,
+        // Include image path if no file is selected but image path exists (from ISBN population)
+        ...(formData.image && !formData.imageFile ? { image: formData.image } : {})
       };
 
       if (editingBook) {
@@ -182,6 +185,36 @@ const AdminBooks = () => {
       fetchBooks();
     } catch (err) {
       setError(err.data?.message || 'Failed to delete book');
+    }
+  };
+
+  const handlePopulateFromIsbn = async () => {
+    if (!formData.isbn || !formData.isbn.trim()) {
+      setError('Please enter an ISBN number first');
+      return;
+    }
+
+    try {
+      setPopulatingFromIsbn(true);
+      setError(null);
+      const bookData = await adminAPI.books.populateFromIsbn(formData.isbn.trim());
+      
+      // Populate form with fetched data
+      setFormData({
+        ...formData,
+        title: bookData.title || formData.title,
+        author: bookData.author || formData.author,
+        publisher: bookData.publisher || formData.publisher,
+        year_published: bookData.year_published || formData.year_published,
+        number_of_pages: bookData.number_of_pages || formData.number_of_pages,
+        isbn: bookData.isbn || formData.isbn,
+        image: bookData.image || formData.image,
+        imageFile: null // Clear any selected file since we got an image from API
+      });
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Failed to populate book data from ISBN');
+    } finally {
+      setPopulatingFromIsbn(false);
     }
   };
 
@@ -479,13 +512,28 @@ const AdminBooks = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   ISBN
                 </label>
-                <input
-                  type="text"
-                  value={formData.isbn}
-                  onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
-                  placeholder="Enter ISBN (10 or 13 digits)"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={formData.isbn}
+                    onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="Enter ISBN (10 or 13 digits)"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePopulateFromIsbn}
+                    disabled={populatingFromIsbn || !formData.isbn || !formData.isbn.trim()}
+                    className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    style={{ backgroundColor: '#ea3663' }}
+                    title="Populate book data from Open Library API"
+                  >
+                    {populatingFromIsbn ? 'Loading...' : 'Populate from ISBN'}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Enter an ISBN and click "Populate from ISBN" to automatically fill in book details from Open Library
+                </p>
               </div>
 
               <div>

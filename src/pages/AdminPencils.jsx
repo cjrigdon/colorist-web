@@ -12,6 +12,9 @@ const AdminPencils = () => {
   const [selectedSetId, setSelectedSetId] = useState(setId || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(15);
+  const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingPencil, setEditingPencil] = useState(null);
   const [formData, setFormData] = useState({
@@ -35,7 +38,7 @@ const AdminPencils = () => {
     } else {
       setPencils([]);
     }
-  }, [selectedSetId]);
+  }, [selectedSetId, page]);
 
   const fetchSets = async () => {
     try {
@@ -62,14 +65,24 @@ const AdminPencils = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await adminAPI.pencilSets.getPencils(selectedSetId);
+      const response = await adminAPI.pencilSets.getPencils(selectedSetId, page, perPage);
       // Handle response structure
       if (response.data && Array.isArray(response.data)) {
         setPencils(response.data);
+        // Set pagination metadata
+        if (response.last_page !== undefined) {
+          setTotalPages(response.last_page);
+        } else if (response.meta && response.meta.last_page) {
+          setTotalPages(response.meta.last_page);
+        } else {
+          setTotalPages(1);
+        }
       } else if (Array.isArray(response)) {
         setPencils(response);
+        setTotalPages(1);
       } else {
         setPencils([]);
+        setTotalPages(1);
       }
     } catch (err) {
       setError(err.message || 'Failed to load pencils');
@@ -189,6 +202,7 @@ const AdminPencils = () => {
                 value={selectedSetId}
                 onChange={(value) => {
                   setSelectedSetId(value);
+                  setPage(1); // Reset to first page when changing sets
                   navigate(`/admin/pencils?setId=${value}`);
                 }}
                 placeholder="Select a set..."
@@ -291,6 +305,29 @@ const AdminPencils = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {selectedSetId && totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center space-x-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 text-sm text-slate-600">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         )}
       </div>
