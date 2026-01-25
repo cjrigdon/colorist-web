@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { colorPalettesAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -9,8 +9,9 @@ import HoverableCard from './HoverableCard';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
+import UpgradeBanner from './UpgradeBanner';
 
-const ColorPalettes = () => {
+const ColorPalettes = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -24,19 +25,41 @@ const ColorPalettes = () => {
     }
   }, [location.state, navigate, location.pathname]);
   
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
+
   // Use infinite scroll hook (no transformation needed for palettes)
-  const { items: palettes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
+  const { items: allPalettes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
     colorPalettesAPI.getAll,
     null,
     { perPage: 40 }
   );
 
+  // Limit items for free plan users
+  const palettes = useMemo(() => {
+    if (isFreePlan) {
+      return allPalettes.slice(0, FREE_PLAN_LIMIT);
+    }
+    return allPalettes;
+  }, [allPalettes, isFreePlan]);
+
+  const hasReachedLimit = isFreePlan && allPalettes.length >= FREE_PLAN_LIMIT;
+
   return (
     <div className="space-y-6">
       <div className="px-4">
-        <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+      <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
           <PrimaryButton 
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              if (hasReachedLimit) {
+                alert('You\'ve reached the limit of 5 color palettes on the free plan. Please upgrade to Premium to add more.');
+                return;
+              }
+              setIsAddModalOpen(true);
+            }}
+            disabled={hasReachedLimit}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -50,6 +73,9 @@ const ColorPalettes = () => {
 
       {/* Palettes Grid Section */}
       <div className="bg-white p-6">
+        {hasReachedLimit && (
+          <UpgradeBanner itemType="color palettes" />
+        )}
         {loading && <LoadingState message="Loading palettes..." />}
         {error && <ErrorState error={error} className="mb-6" />}
         {!loading && !error && (
@@ -105,7 +131,13 @@ const ColorPalettes = () => {
             title="No Palettes Yet"
             message="Create your first color palette to get started"
             buttonText="Create Palette"
-            onButtonClick={() => setIsAddModalOpen(true)}
+            onButtonClick={() => {
+              if (hasReachedLimit) {
+                alert('You\'ve reached the limit of 5 color palettes on the free plan. Please upgrade to Premium to add more.');
+                return;
+              }
+              setIsAddModalOpen(true);
+            }}
           />
         )}
       </div>

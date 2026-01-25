@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { booksAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -9,8 +9,9 @@ import HoverableCard from './HoverableCard';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
+import UpgradeBanner from './UpgradeBanner';
 
-const ColoringBooks = () => {
+const ColoringBooks = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -42,19 +43,41 @@ const ColoringBooks = () => {
       }));
   };
 
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
+
   // Use infinite scroll hook
-  const { items: books, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
+  const { items: allBooks, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
     booksAPI.getAll,
     transformBooks,
     { perPage: 40 }
   );
 
+  // Limit items for free plan users
+  const books = useMemo(() => {
+    if (isFreePlan) {
+      return allBooks.slice(0, FREE_PLAN_LIMIT);
+    }
+    return allBooks;
+  }, [allBooks, isFreePlan]);
+
+  const hasReachedLimit = isFreePlan && allBooks.length >= FREE_PLAN_LIMIT;
+
   return (
     <div className="space-y-6">
       <div className="px-4">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
           <PrimaryButton 
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              if (hasReachedLimit) {
+                alert('You\'ve reached the limit of 5 books on the free plan. Please upgrade to Premium to add more.');
+                return;
+              }
+              setIsAddModalOpen(true);
+            }}
+            disabled={hasReachedLimit}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -68,6 +91,9 @@ const ColoringBooks = () => {
 
       {/* Books Grid Section */}
       <div className="bg-white p-6">
+        {hasReachedLimit && (
+          <UpgradeBanner itemType="books" />
+        )}
         {loading && <LoadingState message="Loading books..." />}
         {error && <ErrorState error={error} className="mb-6" />}
         {!loading && !error && (

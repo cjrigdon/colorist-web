@@ -5,6 +5,7 @@ import StudioOverview from '../components/StudioOverview';
 import ColorConversion from '../components/ColorConversion';
 import ColorAlong from '../components/ColorAlong';
 import ColoristLog from '../components/ColoristLog';
+import UpgradePrompt from '../components/UpgradePrompt';
 import ProfileDropdown from '../components/ProfileDropdown';
 import Profile from './Profile';
 import PrivacyPolicy from './PrivacyPolicy';
@@ -84,7 +85,7 @@ const Dashboard = () => {
     { id: 'studio', label: 'Studio', icon: '🎨' },
     { id: 'conversion', label: 'Conversion', icon: '🔄' },
     { id: 'coloralong', label: 'Color Along', icon: '📺' },
-    { id: 'log', label: 'Log', icon: '📔' },
+    { id: 'log', label: 'Diary', icon: '📔' },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️' }] : []),
   ];
 
@@ -163,7 +164,7 @@ const Dashboard = () => {
           return <SetSizeDetail />;
         }
         if (activeStudioSection === 'overview') {
-          return <StudioOverview />;
+          return <StudioOverview user={user} />;
         }
         return <Studio activeSection={activeStudioSection} user={user} />;
       case 'conversion':
@@ -171,6 +172,11 @@ const Dashboard = () => {
       case 'coloralong':
         return <ColorAlong user={user} />;
       case 'log':
+        // Check if user has paid subscription
+        const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+        if (isFreePlan) {
+          return <UpgradePrompt featureName="Diary" />;
+        }
         return <ColoristLog />;
       case 'admin':
         if (activeAdminSection === 'pencil-import') {
@@ -403,7 +409,7 @@ const Dashboard = () => {
                pathname.includes('/profile') ? 'Profile' :
                pathname.includes('/privacy-policy') ? 'Privacy Policy' :
                activeTab === 'studio' 
-                ? studioSections.find(section => section.id === activeStudioSection)?.label || 'Studio'
+                ? 'Studio'
                 : activeTab === 'admin'
                 ? adminSections.find(section => section.id === activeAdminSection)?.label || 'Admin'
                 : tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
@@ -412,15 +418,7 @@ const Dashboard = () => {
               {pathname.includes('/subscription') ? 'Manage your subscription and billing' :
                pathname.includes('/profile') ? 'Manage your account settings and preferences' :
                pathname.includes('/privacy-policy') ? 'Learn how we protect and handle your data' :
-               activeTab === 'studio' && (
-                activeStudioSection === 'overview' && 'A quick glance at your creative studio' ||
-                activeStudioSection === 'library' && 'Browse your collection of inspirations' ||
-                activeStudioSection === 'pencils' && 'Track your colored pencil sets and colors' ||
-                activeStudioSection === 'combos' && 'Save and organize your favorite color combinations' ||
-                activeStudioSection === 'palettes' && 'Your favorite color palette collections' ||
-                activeStudioSection === 'books' && 'Track your favorite coloring book collection' ||
-                'Your creative workspace for inspiration, colors, and projects'
-              )}
+               activeTab === 'studio' && 'Your creative workspace for inspiration, colors, and projects'}
               {activeTab === 'conversion' && 'Find the closest matching colors between your pencil sets'}
               {activeTab === 'coloralong' && 'Match colors from video tutorials with your own pencil sets'}
               {activeTab === 'log' && 'Track your coloring journey and creative process'}

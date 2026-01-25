@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI } from '../services/api';
 import HoverableCard from './HoverableCard';
+import UpgradeBanner from './UpgradeBanner';
 
 // Component for pencil set card with thumbnail support
 const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
@@ -38,13 +39,17 @@ const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
   );
 };
 
-const StudioOverview = () => {
+const StudioOverview = ({ user }) => {
   const navigate = useNavigate();
   const [inspirationIndex, setInspirationIndex] = useState(0);
   const [pencilSetIndex, setPencilSetIndex] = useState(0);
   const [comboIndex, setComboIndex] = useState(0);
   const [paletteIndex, setPaletteIndex] = useState(0);
   const [bookIndex, setBookIndex] = useState(0);
+
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
   
   // Pencil Sets state
   const [pencilSets, setPencilSets] = useState([]);
@@ -382,8 +387,10 @@ const StudioOverview = () => {
   }, [fetchInspirations]);
 
   // Helper function to get visible items for carousel (shows 5 at a time)
+  // For free plan users, limit to 5 total items
   const getVisibleItems = (items, currentIndex) => {
-    return items.slice(currentIndex, currentIndex + 5);
+    const limitedItems = isFreePlan ? items.slice(0, FREE_PLAN_LIMIT) : items;
+    return limitedItems.slice(currentIndex, currentIndex + 5);
   };
 
   // Helper function to check if carousel is needed

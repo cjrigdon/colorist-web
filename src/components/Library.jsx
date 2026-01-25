@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { inspirationAPI, playlistsAPI } from '../services/api';
 import AddInspirationModal from './AddInspirationModal';
@@ -7,8 +7,9 @@ import HoverableCard from './HoverableCard';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import VideoThumbnail from './VideoThumbnail';
+import UpgradeBanner from './UpgradeBanner';
 
-const Library = () => {
+const Library = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [filter, setFilter] = useState('all'); // all, videos, images, pdfs
@@ -168,6 +169,10 @@ const Library = () => {
     };
   }, [hasMore, loadingMore, loading, currentPage, fetchInspirations]);
 
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
+
   // Filter inspirations based on selected filter
   const filteredInspirations = filter === 'all' 
     ? inspirations 
@@ -178,23 +183,37 @@ const Library = () => {
         return true;
       });
 
+  // Limit items for free plan users
+  const limitedInspirations = useMemo(() => {
+    if (isFreePlan) {
+      return filteredInspirations.slice(0, FREE_PLAN_LIMIT);
+    }
+    return filteredInspirations;
+  }, [filteredInspirations, isFreePlan]);
+
+  const hasReachedLimit = isFreePlan && inspirations.length >= FREE_PLAN_LIMIT;
+
   // Get all videos from playlists for "all videos" view
   const allVideosFromPlaylists = playlists.flatMap(playlist => playlist.videos);
 
   // Get videos to display based on view mode
   const getVideosToDisplay = () => {
     if (filter !== 'videos') {
-      return filteredInspirations;
+      return limitedInspirations;
     }
     
     if (viewMode === 'all') {
       // Combine videos from playlists and standalone videos from inspirations
-      const standaloneVideos = filteredInspirations.filter(item => item.type === 'video');
+      const standaloneVideos = limitedInspirations.filter(item => item.type === 'video');
       const allVideos = [...standaloneVideos, ...allVideosFromPlaylists];
       // Remove duplicates based on video ID
       const uniqueVideos = Array.from(
         new Map(allVideos.map(video => [video.videoId || video.id, video])).values()
       );
+      // Limit to 5 for free plan
+      if (isFreePlan) {
+        return uniqueVideos.slice(0, FREE_PLAN_LIMIT);
+      }
       return uniqueVideos;
     } else {
       // Return empty array when in playlist view - we'll render playlists separately
@@ -207,41 +226,44 @@ const Library = () => {
       {/* Filters */}
       <div className="px-4">
         <div className="flex items-center justify-between">
-          {/* View mode toggle for videos */}
-          {filter === 'videos' && (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-slate-600">View:</span>
-              <button
-                onClick={() => setViewMode('playlists')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === 'playlists'
-                    ? ''
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-                style={viewMode === 'playlists' ? {
-                  backgroundColor: '#c1fcf6',
-                  color: '#49817b'
-                } : {}}
-              >
-                By Playlists
-              </button>
-              <button
-                onClick={() => setViewMode('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === 'all'
-                    ? ''
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-                style={viewMode === 'all' ? {
-                  backgroundColor: '#c1fcf6',
-                  color: '#49817b'
-                } : {}}
-              >
-                All Videos
-              </button>
-            </div>
-          )}
-          <div className="flex items-center space-x-2 ml-auto">
+          <div className="flex items-center space-x-4">
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspo</h3>
+            {/* View mode toggle for videos */}
+            {filter === 'videos' && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-slate-600">View:</span>
+                <button
+                  onClick={() => setViewMode('playlists')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    viewMode === 'playlists'
+                      ? ''
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  style={viewMode === 'playlists' ? {
+                    backgroundColor: '#c1fcf6',
+                    color: '#49817b'
+                  } : {}}
+                >
+                  By Playlists
+                </button>
+                <button
+                  onClick={() => setViewMode('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    viewMode === 'all'
+                      ? ''
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  style={viewMode === 'all' ? {
+                    backgroundColor: '#c1fcf6',
+                    color: '#49817b'
+                  } : {}}
+                >
+                  All Videos
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -302,7 +324,14 @@ const Library = () => {
               PDFs
             </button>
             <PrimaryButton 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                if (hasReachedLimit) {
+                  alert('You\'ve reached the limit of 5 inspirations on the free plan. Please upgrade to Premium to add more.');
+                  return;
+                }
+                setIsAddModalOpen(true);
+              }}
+              disabled={hasReachedLimit}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -317,6 +346,9 @@ const Library = () => {
 
       {/* Grid Section */}
       <div className="bg-white p-6">
+        {hasReachedLimit && (
+          <UpgradeBanner itemType="inspirations" />
+        )}
         {loading && inspirations.length === 0 && !loadingPlaylists && (
           <LoadingState message="Loading inspirations..." />
         )}
@@ -417,14 +449,14 @@ const Library = () => {
         )}
         {!(filter === 'videos' && viewMode === 'playlists') && !loading && !error && (
           <>
-            {getVideosToDisplay().length === 0 ? (
+            {limitedInspirations.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-slate-500">No items found in this category.</p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {getVideosToDisplay().map((item) => (
+                  {limitedInspirations.map((item) => (
                     <HoverableCard
                       key={item.id}
                       className="group relative"

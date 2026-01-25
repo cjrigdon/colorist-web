@@ -66,7 +66,7 @@ const steps = [
   },
   {
     target: '[data-joyride="log-tab"]',
-    content: 'Log is your personal coloring journal. Track your coloring journey, document your process, and reflect on your creative work.',
+    content: 'Diary is your personal coloring journal. Track your coloring journey, document your process, and reflect on your creative work.',
     placement: 'right',
     route: '/log',
     floaterProps: {

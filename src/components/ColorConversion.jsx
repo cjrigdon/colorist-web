@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, brandsAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
@@ -40,6 +41,7 @@ const normalizeHex = (hex) => {
 };
 
 const ColorConversion = ({ user }) => {
+  const navigate = useNavigate();
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [sourceSet, setSourceSet] = useState(null);
   const [targetSets, setTargetSets] = useState([]);
@@ -92,12 +94,12 @@ const ColorConversion = ({ user }) => {
     fetchBrands();
   }, []);
 
-  // Reset two-color mix option when target sets change
+  // Reset two-color mix option when target sets change or if free plan
   useEffect(() => {
-    if (targetSets.length !== 1) {
+    if (targetSets.length !== 1 || isFreePlan) {
       setIncludeTwoColorMix(false);
     }
-  }, [targetSets.length]);
+  }, [targetSets.length, isFreePlan]);
 
   // Fetch comparison results when source and target sets change
   useEffect(() => {
@@ -432,7 +434,8 @@ const ColorConversion = ({ user }) => {
   };
 
   const handleTargetSizeSelect = (setSize) => {
-    if (targetSets.length < 5) {
+    const maxTargetSets = isFreePlan ? 1 : 5;
+    if (targetSets.length < maxTargetSets) {
       // Check if this set size is already selected
       const isAlreadySelected = targetSets.some(ts => ts.id === setSize.id);
       if (!isAlreadySelected) {
@@ -446,6 +449,16 @@ const ColorConversion = ({ user }) => {
         setTargetSets([...targetSets, setSize]);
         setError(null);
       }
+    } else if (isFreePlan && targetSets.length >= 1) {
+      // Free plan users trying to add more than 1 target set
+      setError('Free plans are limited to 1 target set. Upgrade to compare up to 5 target sets.');
+      // Reset target selection
+      setTargetStep('brand');
+      setTargetSelectedBrand(null);
+      setTargetSelectedSet(null);
+      setTargetSetsForBrand([]);
+      setTargetSizesForSet([]);
+      return;
     }
     // Reset target selection to allow adding more
     setTargetStep('brand');
@@ -682,7 +695,7 @@ const ColorConversion = ({ user }) => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-slate-800 font-venti">Target Sets</h3>
-              <span className="text-sm text-slate-500">{targetSets.length}/5 selected</span>
+              <span className="text-sm text-slate-500">{targetSets.length}/{isFreePlan ? 1 : 5} selected</span>
             </div>
             
             {targetSets.length > 0 && (
@@ -709,7 +722,30 @@ const ColorConversion = ({ user }) => {
               </div>
             )}
 
-            {targetSets.length < 5 && (
+            {/* Upgrade prompt for multiple target sets */}
+            {isFreePlan && targetSets.length === 1 && (
+              <div className="mb-3 p-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-pink-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-pink-900 mb-1">Upgrade to compare up to 5 target sets</p>
+                    <p className="text-xs text-pink-700 mb-2">Free plans are limited to 1 target set. Upgrade to unlock multiple set comparisons.</p>
+                    <button
+                      onClick={() => navigate('/subscription')}
+                      className="text-xs font-semibold text-pink-700 hover:text-pink-900 underline"
+                    >
+                      Upgrade Now →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {targetSets.length < (isFreePlan ? 1 : 5) && (
               <div className="space-y-3">
                 {targetStep !== 'brand' && (
                   <button
@@ -915,7 +951,17 @@ const ColorConversion = ({ user }) => {
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-red-600">{error}</p>
+            <div className="flex items-start justify-between">
+              <p className="text-sm text-red-600 flex-1">{error}</p>
+              {isFreePlan && error.includes('Free plans are limited') && (
+                <button
+                  onClick={() => navigate('/subscription')}
+                  className="ml-4 text-sm font-semibold text-pink-600 hover:text-pink-700 underline whitespace-nowrap"
+                >
+                  Upgrade Now →
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -943,7 +989,7 @@ const ColorConversion = ({ user }) => {
                   <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
                   <p className="text-sm text-slate-500 mt-1">{matches.length} source colors matched</p>
                 </div>
-                {targetSets.length === 1 && (
+                {targetSets.length === 1 && !isFreePlan && (
                   <div className="flex-1 flex justify-center items-center">
                     <label className="flex items-center cursor-pointer">
                       <input
@@ -958,17 +1004,35 @@ const ColorConversion = ({ user }) => {
                     </label>
                   </div>
                 )}
-                <div className="flex items-center">
-                  <button
-                    onClick={() => window.print()}
-                    className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-100 hover:shadow-md transition-all duration-200 flex items-center space-x-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    <span>Print</span>
-                  </button>
-                </div>
+                {!isFreePlan && (
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => window.print()}
+                      className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-100 hover:shadow-md transition-all duration-200 flex items-center space-x-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      <span>Print</span>
+                    </button>
+                  </div>
+                )}
+                {isFreePlan && (
+                  <div className="flex items-center">
+                    <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
+                      <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span className="text-sm text-pink-900 font-medium">Two-color mixes & Print</span>
+                      <button
+                        onClick={() => navigate('/subscription')}
+                        className="text-xs font-semibold text-pink-600 hover:text-pink-700 underline ml-2"
+                      >
+                        Upgrade to unlock
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 print-only hidden print:block">
@@ -1138,7 +1202,7 @@ const ColorConversion = ({ user }) => {
           <div className="bg-white p-12 text-center">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Target Sets Selected</h3>
-            <p className="text-slate-600">Add up to 5 target sets to compare colors</p>
+            <p className="text-slate-600">Add {isFreePlan ? '1' : 'up to 5'} target set{isFreePlan ? '' : 's'} to compare colors</p>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
+import PremiumFeaturesList from '../components/PremiumFeaturesList';
 
 const Subscription = () => {
   const navigate = useNavigate();
@@ -159,7 +160,7 @@ const Subscription = () => {
             </div>
             <div className="text-right">
               {subscription?.plan === 'paid' ? (
-                <p className="text-2xl font-bold text-slate-800">$0.99<span className="text-sm font-normal text-slate-600">/month</span></p>
+                <p className="text-2xl font-bold text-slate-800">$1.99<span className="text-sm font-normal text-slate-600">/month</span></p>
               ) : (
                 <p className="text-2xl font-bold text-slate-800">$0<span className="text-sm font-normal text-slate-600">/forever</span></p>
               )}
@@ -226,10 +227,15 @@ const Subscription = () => {
                   <p className="text-sm text-slate-600 ml-6">Full access to all features</p>
                 </div>
                 <div className="text-right ml-4">
-                  <div className="text-2xl font-bold text-slate-800">$0.99</div>
+                  <div className="text-2xl font-bold text-slate-800">$1.99</div>
                   <div className="text-xs text-slate-500">per month</div>
                 </div>
               </div>
+              {selectedPlan === 'paid' && (
+                <div className="mt-4 ml-6 pt-4 border-t border-slate-200">
+                  <PremiumFeaturesList compact={true} />
+                </div>
+              )}
             </div>
           </div>
         </div>

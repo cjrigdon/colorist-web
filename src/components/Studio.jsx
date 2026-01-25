@@ -20,17 +20,17 @@ const Studio = ({ activeSection = 'library', user }) => {
   const renderContent = () => {
     switch (activeSection) {
       case 'library':
-        return <Library />;
+        return <Library user={user} />;
       case 'pencils':
-        return <PencilInventory />;
+        return <PencilInventory user={user} />;
       case 'combos':
-        return <ColorCombos />;
+        return <ColorCombos user={user} />;
       case 'palettes':
-        return <ColorPalettes />;
+        return <ColorPalettes user={user} />;
       case 'books':
-        return <ColoringBooks />;
+        return <ColoringBooks user={user} />;
       default:
-        return <Library />;
+        return <Library user={user} />;
     }
   };
 

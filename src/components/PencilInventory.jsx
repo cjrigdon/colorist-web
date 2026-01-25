@@ -7,6 +7,7 @@ import AddPencilSetModal from './AddPencilSetModal';
 import ShoppingListGeneratorModal from './ShoppingListGeneratorModal';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
+import UpgradeBanner from './UpgradeBanner';
 
 // Component for individual set size item - displayed as a box
 const SetSizeItem = ({ setSize, onSelect }) => {
@@ -57,10 +58,14 @@ const SetSizeItem = ({ setSize, onSelect }) => {
   );
 };
 
-const PencilInventory = () => {
+const PencilInventory = ({ user }) => {
   const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isShoppingListModalOpen, setIsShoppingListModalOpen] = useState(false);
+
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
 
   // Transform function for pencil set sizes
   const transformPencilSetSizes = (data) => {
@@ -76,11 +81,21 @@ const PencilInventory = () => {
   };
 
   // Use infinite scroll hook to get user's set sizes (without pencils for performance)
-  const { items: setSizes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
+  const { items: allSetSizes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
     (page, perPage) => coloredPencilSetsAPI.getAll(page, perPage, true), // excludePencils = true
     transformPencilSetSizes,
     { perPage: 100 }
   );
+
+  // Limit items for free plan users
+  const setSizes = useMemo(() => {
+    if (isFreePlan) {
+      return allSetSizes.slice(0, FREE_PLAN_LIMIT);
+    }
+    return allSetSizes;
+  }, [allSetSizes, isFreePlan]);
+
+  const hasReachedLimit = isFreePlan && allSetSizes.length >= FREE_PLAN_LIMIT;
 
   // Group set sizes by brand and sort
   const groupedByBrand = useMemo(() => {
@@ -124,10 +139,6 @@ const PencilInventory = () => {
     navigate(`/studio/media/set-size/${setSizeId}`);
   };
 
-  if (loading && setSizes.length === 0) {
-    return <LoadingState message="Loading pencil sets..." />;
-  }
-
   if (error) {
     return <ErrorState message={error} />;
   }
@@ -138,8 +149,7 @@ const PencilInventory = () => {
         <div className="px-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-slate-800 font-venti">Colored Pencil Sets</h2>
-              <p className="text-sm text-slate-600 mt-1">Manage your colored pencil collection</p>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">Media</h3>
             </div>
             <div className="flex items-center gap-3">
               <button 
@@ -157,13 +167,28 @@ const PencilInventory = () => {
                 </svg>
               </button>
               <button 
-                onClick={() => setIsAddModalOpen(true)}
-                className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-                style={{
-                  backgroundColor: '#ea3663'
+                onClick={() => {
+                  if (hasReachedLimit) {
+                    alert('You\'ve reached the limit of 5 pencil sets on the free plan. Please upgrade to Premium to add more.');
+                    return;
+                  }
+                  setIsAddModalOpen(true);
                 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+                disabled={hasReachedLimit}
+                className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: hasReachedLimit ? '#cbd5e1' : '#ea3663'
+                }}
+                onMouseEnter={(e) => {
+                  if (!hasReachedLimit) {
+                    e.target.style.backgroundColor = '#d12a4f';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!hasReachedLimit) {
+                    e.target.style.backgroundColor = '#ea3663';
+                  }
+                }}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -175,9 +200,11 @@ const PencilInventory = () => {
         </div>
 
         {/* Sets grouped by brand */}
-        <div className="space-y-8">
-          {sortedBrandNames.length === 0 && !loading ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          {loading && setSizes.length === 0 ? (
+            <LoadingState message="Loading pencil sets..." />
+          ) : sortedBrandNames.length === 0 ? (
+            <div className="p-12 text-center">
               <div className="text-6xl mb-4">✏️</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets</h3>
               <p className="text-slate-600 mb-4">Get started by adding your first colored pencil set</p>
@@ -197,30 +224,36 @@ const PencilInventory = () => {
               </button>
             </div>
           ) : (
-            sortedBrandNames.map(brandName => {
-              const brandSets = groupedByBrand[brandName];
-              return (
-                <div key={brandName} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                  <h3 className="text-xl font-semibold text-slate-800 mb-4 font-venti border-b border-slate-200 pb-2">
-                    {brandName}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {brandSets.map(setSize => (
-                      <SetSizeItem
-                        key={setSize.id}
-                        setSize={setSize}
-                        onSelect={handleSetSizeClick}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })
+            <>
+              {hasReachedLimit && (
+                <UpgradeBanner itemType="pencil sets" />
+              )}
+              <div className="space-y-8">
+                {sortedBrandNames.map(brandName => {
+                  const brandSets = groupedByBrand[brandName];
+                  return (
+                    <div key={brandName}>
+                      <h3 className="text-xl font-semibold text-slate-800 mb-4 font-venti border-b border-slate-200 pb-2">
+                        {brandName}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {brandSets.map(setSize => (
+                          <SetSizeItem
+                            key={setSize.id}
+                            setSize={setSize}
+                            onSelect={handleSetSizeClick}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
-          
-          {/* Infinite scroll trigger */}
-          {loadingMore && <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />}
         </div>
+        {/* Infinite scroll trigger */}
+        {loadingMore && <InfiniteScrollLoader loadingMore={loadingMore} observerTarget={observerTarget} />}
       </div>
       
       <AddPencilSetModal

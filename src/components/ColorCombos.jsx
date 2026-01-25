@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { colorCombosAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorComboModal from './AddColorComboModal';
+import UpgradeBanner from './UpgradeBanner';
 
-const ColorCombos = () => {
+const ColorCombos = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -45,26 +46,61 @@ const ColorCombos = () => {
     });
   };
 
+  // Check if user has free plan
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  const FREE_PLAN_LIMIT = 5;
+
   // Use infinite scroll hook
-  const { items: combos, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
+  const { items: allCombos, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
     colorCombosAPI.getAll,
     transformCombos,
     { perPage: 40 }
   );
 
+  // Limit items for free plan users
+  const combos = useMemo(() => {
+    if (isFreePlan) {
+      return allCombos.slice(0, FREE_PLAN_LIMIT);
+    }
+    return allCombos;
+  }, [allCombos, isFreePlan]);
+
+  const hasReachedLimit = isFreePlan && allCombos.length >= FREE_PLAN_LIMIT;
+
   return (
     <>
       <div className="space-y-6">
+        {hasReachedLimit && (
+          <div className="px-4">
+            <UpgradeBanner itemType="color combos" />
+          </div>
+        )}
         <div className="px-4">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
             <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-            style={{
-              backgroundColor: '#ea3663'
+            onClick={() => {
+              if (hasReachedLimit) {
+                alert('You\'ve reached the limit of 5 color combos on the free plan. Please upgrade to Premium to add more.');
+                return;
+              }
+              setIsAddModalOpen(true);
             }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            disabled={hasReachedLimit}
+            className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: hasReachedLimit ? '#cbd5e1' : '#ea3663'
+            }}
+            onMouseEnter={(e) => {
+              if (!hasReachedLimit) {
+                e.target.style.backgroundColor = '#d12a4f';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!hasReachedLimit) {
+                e.target.style.backgroundColor = '#ea3663';
+              }
+            }}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

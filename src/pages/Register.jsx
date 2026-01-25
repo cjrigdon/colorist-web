@@ -380,7 +380,7 @@ export default function Register() {
                       <p className="text-sm text-slate-600 ml-6">Full access to all features</p>
                     </div>
                     <div className="text-right ml-4">
-                      <div className="text-2xl font-bold text-slate-800">$0.99</div>
+                      <div className="text-2xl font-bold text-slate-800">$1.99</div>
                       <div className="text-xs text-slate-500">per month</div>
                     </div>
                   </div>
