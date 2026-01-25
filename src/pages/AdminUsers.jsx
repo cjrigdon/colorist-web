@@ -16,7 +16,8 @@ const AdminUsers = () => {
     email: '',
     password: '',
     admin: false,
-    creator: false
+    creator: false,
+    subscription_plan: 'free'
   });
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +63,8 @@ const AdminUsers = () => {
       email: user.email || '',
       password: '', // Don't pre-fill password
       admin: user.admin === 1 || user.admin === true,
-      creator: user.creator === 1 || user.creator === true
+      creator: user.creator === 1 || user.creator === true,
+      subscription_plan: user.subscription_plan || 'free'
     });
     setShowModal(true);
   };
@@ -111,7 +113,8 @@ const AdminUsers = () => {
         email: '',
         password: '',
         admin: false,
-        creator: false
+        creator: false,
+        subscription_plan: 'free'
       });
       fetchUsers();
     } catch (err) {
@@ -137,7 +140,8 @@ const AdminUsers = () => {
       email: '',
       password: '',
       admin: false,
-      creator: false
+      creator: false,
+      subscription_plan: 'free'
     });
     setShowModal(true);
   };
@@ -185,6 +189,7 @@ const AdminUsers = () => {
               <tr className="border-b border-slate-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Name</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Email</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Subscription</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Admin</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Creator</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
@@ -197,6 +202,17 @@ const AdminUsers = () => {
                     {user.first_name} {user.last_name}
                   </td>
                   <td className="py-3 px-4 text-sm text-slate-800">{user.email}</td>
+                  <td className="py-3 px-4 text-center">
+                    {user.subscription_plan === 'paid' ? (
+                      <span className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg capitalize">
+                        {user.subscription_plan}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-medium text-slate-500 bg-slate-50 rounded-lg capitalize">
+                        {user.subscription_plan || 'free'}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 px-4 text-center">
                     {user.admin ? (
                       <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-lg">
@@ -326,6 +342,20 @@ const AdminUsers = () => {
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                     required={!editingUser}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Subscription Plan
+                  </label>
+                  <select
+                    name="subscription_plan"
+                    value={formData.subscription_plan}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="free">Free</option>
+                    <option value="paid">Paid</option>
+                  </select>
                 </div>
                 <div className="flex items-center space-x-6">
                   <label className="flex items-center space-x-2">

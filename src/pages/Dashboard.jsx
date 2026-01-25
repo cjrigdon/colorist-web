@@ -249,17 +249,22 @@ const Dashboard = () => {
             height: '72px'
           }}
         >
-          <img src="/logo300.png" alt="Colorist" className="h-10 w-10 flex-shrink-0" style={{ backgroundColor: 'transparent' }} />
-          <h1 
-            className={`text-2xl font-bold whitespace-nowrap transition-all duration-300 font-venti uppercase ${
-              sidebarCollapsed 
-                ? 'opacity-0 w-0 overflow-hidden' 
-                : 'opacity-100 w-auto'
-            }`}
-            style={{ color: '#ea3663' }}
+          <button
+            onClick={() => navigate('/studio/overview')}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
           >
-            Colorist
-          </h1>
+            <img src="/logo300.png" alt="Colorist" className="h-10 w-10 flex-shrink-0" style={{ backgroundColor: 'transparent' }} />
+            <h1 
+              className={`text-2xl font-bold whitespace-nowrap transition-all duration-300 font-venti uppercase ${
+                sidebarCollapsed 
+                  ? 'opacity-0 w-0 overflow-hidden' 
+                  : 'opacity-100 w-auto'
+              }`}
+              style={{ color: '#ea3663' }}
+            >
+              Colorist
+            </h1>
+          </button>
         </div>
 
         {/* Navigation Items */}

@@ -200,7 +200,7 @@ const PencilInventory = ({ user }) => {
         </div>
 
         {/* Sets grouped by brand */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white p-6">
           {loading && setSizes.length === 0 ? (
             <LoadingState message="Loading pencil sets..." />
           ) : sortedBrandNames.length === 0 ? (

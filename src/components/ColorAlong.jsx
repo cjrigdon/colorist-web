@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
@@ -195,7 +195,7 @@ const ColorAlong = ({ user }) => {
     }
   }, [searchParams, inspirations]);
 
-  // Fetch brands on mount
+  // Fetch brands on mount (for video set selection - system sets)
   useEffect(() => {
     const fetchBrands = async () => {
       try {
@@ -253,6 +253,46 @@ const ColorAlong = ({ user }) => {
 
     fetchUserPencilSets();
   }, []);
+
+  // Extract unique brands from user's set sizes for user set selection
+  const userBrands = useMemo(() => {
+    if (!userPencilSetSizes || userPencilSetSizes.length === 0) {
+      return [];
+    }
+
+    // Extract unique brands from user's set sizes
+    const brandMap = new Map();
+    userPencilSetSizes.forEach(setSize => {
+      const brand = setSize.set?.brand;
+      if (brand) {
+        // Handle both object and string brand formats
+        const brandId = typeof brand === 'object' && brand !== null ? brand.id : null;
+        const brandName = typeof brand === 'object' && brand !== null ? brand.name : (typeof brand === 'string' ? brand : null);
+        
+        if (brandId && brandName) {
+          // Use ID as key for object brands
+          if (!brandMap.has(brandId)) {
+            brandMap.set(brandId, {
+              id: brandId,
+              name: brandName
+            });
+          }
+        } else if (brandName && !Array.from(brandMap.values()).some(b => b.name === brandName)) {
+          // Fallback for string brands - use name as both id and key
+          brandMap.set(brandName, {
+            id: brandName,
+            name: brandName
+          });
+        }
+      }
+    });
+
+    return Array.from(brandMap.values()).sort((a, b) => {
+      const nameA = a.name || '';
+      const nameB = b.name || '';
+      return nameA.localeCompare(nameB);
+    });
+  }, [userPencilSetSizes]);
 
   // Video Set Selection Handlers
   const fetchVideoSetsForBrand = async (brandId) => {
@@ -355,22 +395,40 @@ const ColorAlong = ({ user }) => {
   const fetchUserSetsForBrand = async (brandId) => {
     try {
       setLoadingUserSets(true);
-      const params = new URLSearchParams({ 
-        page: '1', 
-        per_page: '100',
-        'filter[brand_id]': brandId.toString(),
-        exclude_pencils: 'true'
+      
+      // Filter user's set sizes to only those matching the selected brand
+      const brandSetSizes = userPencilSetSizes.filter(setSize => {
+        const brand = setSize.set?.brand;
+        if (!brand) return false;
+        
+        // Handle both object and string brand formats
+        const setBrandId = typeof brand === 'object' && brand !== null ? brand.id : null;
+        const setBrandName = typeof brand === 'object' && brand !== null ? brand.name : (typeof brand === 'string' ? brand : null);
+        
+        if (!setBrandName) return false;
+        
+        // Match by ID if available, otherwise by name
+        if (setBrandId) {
+          return setBrandId.toString() === brandId.toString();
+        }
+        return setBrandName === brandId.toString() || setBrandName === brandId;
       });
-      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
       
-      let setsData = [];
-      if (Array.isArray(data)) {
-        setsData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        setsData = data.data;
-      }
+      // Extract unique sets from the filtered set sizes
+      const setsMap = new Map();
+      brandSetSizes.forEach(setSize => {
+        const setId = setSize.set?.id;
+        if (setId && !setsMap.has(setId)) {
+          setsMap.set(setId, {
+            id: setId,
+            name: setSize.set?.name || 'Unknown',
+            brand: setSize.set?.brand || 'Unknown',
+            sizes_count: brandSetSizes.filter(ss => ss.set?.id === setId).length
+          });
+        }
+      });
       
-      const setsWithSizeCounts = setsData.map(set => ({
+      const setsWithSizeCounts = Array.from(setsMap.values()).map(set => ({
         ...set,
         sizeCount: set.sizes_count || 0
       }));
@@ -386,18 +444,14 @@ const ColorAlong = ({ user }) => {
   const fetchUserSizesForSet = async (setId) => {
     try {
       setLoadingUserSizes(true);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
-        setId: setId,
-        excludePencils: true
-      });
-      let sizesForThisSet = [];
-      if (Array.isArray(response)) {
-        sizesForThisSet = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        sizesForThisSet = response.data;
-      }
       
-      setUserSizesForSet(sizesForThisSet);
+      // Filter user's set sizes to only those matching the selected set
+      const setSizes = userPencilSetSizes.filter(setSize => {
+        const setSizeSetId = setSize.set?.id;
+        return setSizeSetId && setSizeSetId.toString() === setId.toString();
+      });
+      
+      setUserSizesForSet(setSizes);
     } catch (err) {
       console.error('Error fetching sizes for set:', err);
     } finally {
@@ -1195,13 +1249,13 @@ const ColorAlong = ({ user }) => {
                         {/* Step 1: Brand Selection */}
                         {userStep === 'brand' && (
                           <div className="border border-slate-200 rounded p-1.5 max-h-40 overflow-y-auto">
-                            {loadingBrands ? (
+                            {userPencilSetSizes.length === 0 ? (
                               <div className="text-center py-2 text-xs text-slate-500">Loading brands...</div>
-                            ) : brands.length === 0 ? (
+                            ) : userBrands.length === 0 ? (
                               <div className="text-center py-2 text-xs text-slate-500">No brands available</div>
                             ) : (
                               <div className="space-y-1">
-                                {brands.map((brand) => (
+                                {userBrands.map((brand) => (
                                   <button
                                     key={brand.id}
                                     onClick={() => handleUserBrandSelect(brand)}
@@ -1453,7 +1507,7 @@ const ColorAlong = ({ user }) => {
                         >
                           <div className="flex items-start gap-3">
                             {/* Video Color */}
-                            <div className="flex-1">
+                            <div className="w-1/2">
                               <p className="text-xs font-medium text-slate-600 mb-1">Video</p>
                               <div className="flex items-center gap-1.5">
                                 <div
@@ -1470,7 +1524,7 @@ const ColorAlong = ({ user }) => {
                             </div>
 
                             {/* Match Color - Handle both single and two-color mix */}
-                            <div className="flex-1">
+                            <div className="w-1/2">
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-xs font-medium text-slate-600">Your Match</p>
                                 <div className="flex items-center gap-1">
