@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
+import AdSpace from './AdSpace';
 
 // Color distance calculation using Euclidean distance in RGB space
 const colorDistance = (color1, color2) => {
@@ -54,10 +55,11 @@ const findClosestColor = (sourceColor, targetSet) => {
   return closest;
 };
 
-const ColorAlong = () => {
+const ColorAlong = ({ user }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [videoId, setVideoId] = useState('');
   const [videoSetId, setVideoSetId] = useState(null);
   const [userSetId, setUserSetId] = useState(null);
@@ -962,7 +964,7 @@ const ColorAlong = () => {
     >
       {/* Pencil Set Selection and Video Selection Section */}
       <div
-        className="grid grid-cols-1 lg:grid-cols-4 gap-2"
+        className={`grid gap-2 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]' : 'grid-cols-1 lg:grid-cols-4'}`}
         style={{
           height: 'calc(100vh - 72px)',
           minHeight: '600px'
@@ -1821,6 +1823,12 @@ const ColorAlong = () => {
             </div>
           )}
         </div>
+        {/* Ad Space on Right Side for Free Plan */}
+        {isFreePlan && (
+          <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24">
+            <AdSpace width={160} height={600} />
+          </div>
+        )}
       </div>
 
       {/* Success Message */}

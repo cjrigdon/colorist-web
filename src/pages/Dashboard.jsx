@@ -14,6 +14,7 @@ import EditPencilSet from './EditPencilSet';
 import EditColorCombo from './EditColorCombo';
 import EditColorPalette from './EditColorPalette';
 import EditBook from './EditBook';
+import SetSizeDetail from './SetSizeDetail';
 import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
 import AdminPencils from './AdminPencils';
@@ -56,7 +57,8 @@ const Dashboard = () => {
     activeTab = 'studio';
     if (pathname.includes('/overview')) activeStudioSection = 'overview';
     else if (pathname.includes('/inspiration')) activeStudioSection = 'library';
-    else if (pathname.includes('/media')) activeStudioSection = 'pencils';
+    // Check for /media but not /media/set-size/ (more specific check)
+    else if (pathname.includes('/media') && !pathname.includes('/media/set-size/')) activeStudioSection = 'pencils';
     else if (pathname.includes('/combos')) activeStudioSection = 'combos';
     else if (pathname.includes('/palettes')) activeStudioSection = 'palettes';
     else if (pathname.includes('/books')) activeStudioSection = 'books';
@@ -131,6 +133,11 @@ const Dashboard = () => {
     if (pathname.includes('/edit/book/')) {
       return <EditBook />;
     }
+    
+    // Check for set size detail page
+    if (pathname.includes('/studio/media/set-size/')) {
+      return <SetSizeDetail />;
+    }
 
     // Check admin access
     if (pathname.includes('/admin/')) {
@@ -151,14 +158,18 @@ const Dashboard = () => {
 
     switch (activeTab) {
       case 'studio':
+        // Check for set size detail page before rendering Studio
+        if (pathname.includes('/studio/media/set-size/')) {
+          return <SetSizeDetail />;
+        }
         if (activeStudioSection === 'overview') {
           return <StudioOverview />;
         }
-        return <Studio activeSection={activeStudioSection} />;
+        return <Studio activeSection={activeStudioSection} user={user} />;
       case 'conversion':
-        return <ColorConversion />;
+        return <ColorConversion user={user} />;
       case 'coloralong':
-        return <ColorAlong />;
+        return <ColorAlong user={user} />;
       case 'log':
         return <ColoristLog />;
       case 'admin':

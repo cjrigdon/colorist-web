@@ -4,8 +4,9 @@ import PencilInventory from './PencilInventory';
 import ColorCombos from './ColorCombos';
 import ColorPalettes from './ColorPalettes';
 import ColoringBooks from './ColoringBooks';
+import AdSpace from './AdSpace';
 
-const Studio = ({ activeSection = 'library' }) => {
+const Studio = ({ activeSection = 'library', user }) => {
   const sections = [
     { id: 'library', label: 'Inspiration', icon: '📚' },
     { id: 'pencils', label: 'Pencils', icon: '✏️' },
@@ -13,6 +14,8 @@ const Studio = ({ activeSection = 'library' }) => {
     { id: 'palettes', label: 'Palettes', icon: '🌈' },
     { id: 'books', label: 'Books', icon: '📖' },
   ];
+
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -33,6 +36,12 @@ const Studio = ({ activeSection = 'library' }) => {
 
   return (
     <div className="space-y-6">
+      {/* Ad Space at Top for Free Plan */}
+      {isFreePlan && (
+        <div className="flex justify-center w-full">
+          <AdSpace width={728} height={90} />
+        </div>
+      )}
       {/* Content */}
       <div>{renderContent()}</div>
     </div>

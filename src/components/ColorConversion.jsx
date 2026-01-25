@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, brandsAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
+import AdSpace from './AdSpace';
 
 const getMatchQualityColor = (quality) => {
   switch (quality) {
@@ -38,7 +39,8 @@ const normalizeHex = (hex) => {
   return hex;
 };
 
-const ColorConversion = () => {
+const ColorConversion = ({ user }) => {
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [sourceSet, setSourceSet] = useState(null);
   const [targetSets, setTargetSets] = useState([]);
   const [error, setError] = useState(null);
@@ -480,7 +482,9 @@ const ColorConversion = () => {
     <div className="space-y-6">
       {/* Selection Section */}
       <div className="bg-white p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_auto]' : 'grid-cols-1 lg:grid-cols-2'}`}>
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Source Set Selection */}
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-3">
@@ -900,6 +904,13 @@ const ColorConversion = () => {
               </div>
             )}
           </div>
+          </div>
+          {/* Ad Space on Right Side for Free Plan */}
+          {isFreePlan && (
+            <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24">
+              <AdSpace width={160} height={600} />
+            </div>
+          )}
         </div>
         {/* Error Message */}
         {error && (

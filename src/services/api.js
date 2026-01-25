@@ -254,8 +254,11 @@ export const brandsAPI = {
 };
 
 export const coloredPencilSetsAPI = {
-  getAll: (page = 1, perPage = 5) => {
+  getAll: (page = 1, perPage = 5, excludePencils = true) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    if (excludePencils) {
+      params.append('exclude_pencils', 'true');
+    }
     return apiGet(`/colored-pencil-set-sizes?${params.toString()}`, true);
   },
   getAllSets: (page = 1, perPage = 100) => {
