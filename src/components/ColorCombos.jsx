@@ -113,8 +113,17 @@ const ColorCombos = ({ user }) => {
         {/* Combos Grid Section */}
         <div className="bg-white p-6">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-slate-500">Loading combos...</div>
+            <div className="bg-white p-12 text-center">
+              <div className="modern-loader mb-4">
+                <div className="loader-ring">
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Combos...</h3>
+              <p className="text-slate-600">Fetching your color combinations</p>
             </div>
           ) : error ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">

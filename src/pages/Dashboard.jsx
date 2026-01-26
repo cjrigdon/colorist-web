@@ -170,7 +170,7 @@ const Dashboard = () => {
       case 'conversion':
         return <ColorConversion user={user} />;
       case 'coloralong':
-        return <ColorAlong user={user} />;
+        return <ColorAlong user={user} onInspirationClick={() => setSidebarCollapsed(true)} />;
       case 'log':
         // Check if user has paid subscription
         const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
@@ -455,7 +455,23 @@ const Dashboard = () => {
             className={`max-w-full mx-auto ${activeTab === 'coloralong' ? 'py-0 h-full' : 'py-8'}`}
             data-joyride="studio-overview"
           >
-            {renderContent()}
+            {loadingUser ? (
+              <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                  <div className="modern-loader mb-4">
+                    <div className="loader-ring">
+                      <div className="loader-ring-segment"></div>
+                      <div className="loader-ring-segment"></div>
+                      <div className="loader-ring-segment"></div>
+                      <div className="loader-ring-segment"></div>
+                    </div>
+                  </div>
+                  <p className="text-slate-600">Loading...</p>
+                </div>
+              </div>
+            ) : (
+              renderContent()
+            )}
           </div>
         </main>
       </div>

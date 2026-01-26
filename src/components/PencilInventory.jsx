@@ -202,7 +202,18 @@ const PencilInventory = ({ user }) => {
         {/* Sets grouped by brand */}
         <div className="bg-white p-6">
           {loading && setSizes.length === 0 ? (
-            <LoadingState message="Loading pencil sets..." />
+            <div className="bg-white p-12 text-center">
+              <div className="modern-loader mb-4">
+                <div className="loader-ring">
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                  <div className="loader-ring-segment"></div>
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Pencil Sets...</h3>
+              <p className="text-slate-600">Fetching your colored pencil sets</p>
+            </div>
           ) : sortedBrandNames.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-6xl mb-4">✏️</div>

@@ -36,59 +36,99 @@ body {
 
 /* Print Styles for Color Conversion */
 @media print {
-  body * {
-    visibility: hidden;
+  /* Hide everything by default when printing via browser print (Ctrl+P / Cmd+P) */
+  body:not(.allow-print) * {
+    visibility: hidden !important;
   }
   
-  .print-section,
-  .print-section * {
-    visibility: visible;
+  /* When allow-print class is on body (triggered by print button), hide everything EXCEPT the conversion chart */
+  body.allow-print * {
+    visibility: hidden !important;
   }
   
-  .print-section {
+  /* Only show the conversion chart (print-section) when printing via print button */
+  body.allow-print .print-section,
+  body.allow-print .print-section * {
+    visibility: visible !important;
+  }
+  
+  body.allow-print .print-section {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
   }
   
-  .no-print {
+  body.allow-print .no-print {
     display: none !important;
+    visibility: hidden !important;
   }
   
-  .print-only {
+  body.allow-print .print-only {
     display: block !important;
+    visibility: visible !important;
   }
   
-  table {
+  /* Force background colors to print */
+  body.allow-print .print-section * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  body.allow-print .print-section table {
     page-break-inside: auto;
+    display: table !important;
   }
   
-  tr {
+  body.allow-print .print-section tr {
     page-break-inside: avoid;
     page-break-after: auto;
+    display: table-row !important;
   }
   
-  thead {
-    display: table-header-group;
+  body.allow-print .print-section thead {
+    display: table-header-group !important;
   }
   
-  tfoot {
-    display: table-footer-group;
+  body.allow-print .print-section tbody {
+    display: table-row-group !important;
   }
   
-  .print-section .bg-slate-50 {
+  body.allow-print .print-section tfoot {
+    display: table-footer-group !important;
+  }
+  
+  body.allow-print .print-section td {
+    display: table-cell !important;
+  }
+  
+  body.allow-print .print-section th {
+    display: table-cell !important;
+  }
+  
+  body.allow-print .print-section .bg-slate-50 {
     background-color: white !important;
   }
   
-  .print-section .rounded-xl,
-  .print-section .rounded-2xl {
+  body.allow-print .print-section .rounded-xl,
+  body.allow-print .print-section .rounded-2xl {
     border-radius: 0 !important;
   }
   
-  .print-section .shadow-sm,
-  .print-section .shadow-lg {
+  body.allow-print .print-section .shadow-sm,
+  body.allow-print .print-section .shadow-lg {
     box-shadow: none !important;
+  }
+  
+  /* Ensure color swatches are visible in print */
+  body.allow-print .print-section .color-swatch {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    display: block !important;
   }
 }
 

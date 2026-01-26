@@ -350,7 +350,18 @@ const Library = ({ user }) => {
           <UpgradeBanner itemType="inspirations" />
         )}
         {loading && inspirations.length === 0 && !loadingPlaylists && (
-          <LoadingState message="Loading inspirations..." />
+          <div className="bg-white p-12 text-center">
+            <div className="modern-loader mb-4">
+              <div className="loader-ring">
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Inspirations...</h3>
+            <p className="text-slate-600">Fetching your inspiration library</p>
+          </div>
         )}
         {error && inspirations.length === 0 && playlists.length === 0 && !loading && (
           <ErrorState error={error} />
@@ -358,7 +369,18 @@ const Library = ({ user }) => {
         {filter === 'videos' && viewMode === 'playlists' && !loading && !error && (
           <>
             {loadingPlaylists ? (
-              <LoadingState message="Loading playlists..." />
+              <div className="bg-white p-12 text-center">
+                <div className="modern-loader mb-4">
+                  <div className="loader-ring">
+                    <div className="loader-ring-segment"></div>
+                    <div className="loader-ring-segment"></div>
+                    <div className="loader-ring-segment"></div>
+                    <div className="loader-ring-segment"></div>
+                  </div>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Playlists...</h3>
+                <p className="text-slate-600">Fetching your playlists</p>
+              </div>
             ) : playlists.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-slate-500">No playlists found.</p>

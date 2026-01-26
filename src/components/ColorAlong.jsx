@@ -55,7 +55,7 @@ const findClosestColor = (sourceColor, targetSet) => {
   return closest;
 };
 
-const ColorAlong = ({ user }) => {
+const ColorAlong = ({ user, onInspirationClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -149,8 +149,12 @@ const ColorAlong = ({ user }) => {
     if (location.state?.video) {
       setSelectedVideo(location.state.video);
       setVideoId(location.state.video.id || '');
+      // Close the left navigation when video is loaded from location state
+      if (onInspirationClick) {
+        onInspirationClick();
+      }
     }
-  }, [location.state]);
+  }, [location.state, onInspirationClick]);
 
   // Get video/image from query string parameters
   useEffect(() => {
@@ -175,6 +179,10 @@ const ColorAlong = ({ user }) => {
         setVideoId(videoParam);
         setSelectedVideo({ id: videoParam, title: 'Video' });
       }
+      // Close the left navigation when video is loaded from URL
+      if (onInspirationClick) {
+        onInspirationClick();
+      }
     } else if (imageParam) {
       // Load image from query parameter
       // Try to find it in loaded inspirations first
@@ -192,8 +200,12 @@ const ColorAlong = ({ user }) => {
       } else {
         setSelectedImage({ id: imageParam });
       }
+      // Close the left navigation when image is loaded from URL
+      if (onInspirationClick) {
+        onInspirationClick();
+      }
     }
-  }, [searchParams, inspirations]);
+  }, [searchParams, inspirations, onInspirationClick]);
 
   // Fetch brands on mount (for video set selection - system sets)
   useEffect(() => {
@@ -997,6 +1009,10 @@ const ColorAlong = ({ user }) => {
       });
       setSelectedVideo(null);
       setVideoId('');
+    }
+    // Close the left navigation when an inspiration is clicked
+    if (onInspirationClick) {
+      onInspirationClick();
     }
   };
 

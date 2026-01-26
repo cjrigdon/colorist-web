@@ -101,6 +101,21 @@ const ColorConversion = ({ user }) => {
     }
   }, [targetSets.length, isFreePlan]);
 
+  // Handle print events to manage allow-print class
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      document.body.classList.remove('allow-print');
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+      // Cleanup: remove class on unmount
+      document.body.classList.remove('allow-print');
+    };
+  }, []);
+
   // Fetch comparison results when source and target sets change
   useEffect(() => {
     const fetchMatches = async () => {
@@ -495,9 +510,9 @@ const ColorConversion = ({ user }) => {
     <div className="space-y-6">
       {/* Selection Section */}
       <div className="bg-white p-4">
-        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_auto]' : 'grid-cols-1 lg:grid-cols-2'}`}>
+        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_auto]' : 'grid-cols-1'}`}>
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1.3fr] gap-4">
           {/* Source Set Selection */}
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-3">
@@ -983,7 +998,7 @@ const ColorConversion = ({ user }) => {
 
         {/* Results Section */}
         {!loadingMatches && matches.length > 0 && (
-            <div className="mt-6 bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="print-section mt-6 bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-6 border-b border-slate-200 flex items-center justify-between no-print">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
@@ -1007,7 +1022,13 @@ const ColorConversion = ({ user }) => {
                 {!isFreePlan && (
                   <div className="flex items-center">
                     <button
-                      onClick={() => window.print()}
+                      onClick={() => {
+                        // Add allow-print class to body to enable printing
+                        document.body.classList.add('allow-print');
+                        // Trigger print dialog
+                        window.print();
+                        // The afterprint event will remove the class
+                      }}
                       className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-sm font-medium hover:bg-slate-100 hover:shadow-md transition-all duration-200 flex items-center space-x-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1057,7 +1078,7 @@ const ColorConversion = ({ user }) => {
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
                           <div
-                            className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                            className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                             style={{ backgroundColor: sourceColor.hex }}
                           ></div>
                           <div>
@@ -1103,7 +1124,7 @@ const ColorConversion = ({ user }) => {
                                 {/* Mixed color swatch */}
                                 <div className="flex items-center space-x-3">
                                   <div
-                                    className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                                    className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                     style={{ backgroundColor: match.mixed_hex }}
                                     title={`Mixed: ${match.mixed_hex}`}
                                   ></div>
@@ -1122,7 +1143,7 @@ const ColorConversion = ({ user }) => {
                                 {/* Color 1 */}
                                 <div className="flex items-center space-x-2 pl-2 border-l-2 border-slate-200">
                                   <div
-                                    className="w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
+                                    className="color-swatch w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
                                     style={{ backgroundColor: match.color1.hex }}
                                   ></div>
                                   <div className="flex-1 min-w-0">
@@ -1137,7 +1158,7 @@ const ColorConversion = ({ user }) => {
                                 {/* Color 2 */}
                                 <div className="flex items-center space-x-2 pl-2 border-l-2 border-slate-200">
                                   <div
-                                    className="w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
+                                    className="color-swatch w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
                                     style={{ backgroundColor: match.color2.hex }}
                                   ></div>
                                   <div className="flex-1 min-w-0">
@@ -1159,7 +1180,7 @@ const ColorConversion = ({ user }) => {
                           <td key={setSize.id} className="px-6 py-4">
                             <div className="flex items-center space-x-3">
                               <div
-                                className="w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
+                                className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
                                 style={{ backgroundColor: match.hex }}
                               ></div>
                               <div className="flex-1 min-w-0">

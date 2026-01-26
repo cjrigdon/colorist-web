@@ -6,7 +6,6 @@ import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorPaletteModal from './AddColorPaletteModal';
 import PrimaryButton from './PrimaryButton';
 import HoverableCard from './HoverableCard';
-import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
@@ -76,7 +75,20 @@ const ColorPalettes = ({ user }) => {
         {hasReachedLimit && (
           <UpgradeBanner itemType="color palettes" />
         )}
-        {loading && <LoadingState message="Loading palettes..." />}
+        {loading && (
+          <div className="bg-white p-12 text-center">
+            <div className="modern-loader mb-4">
+              <div className="loader-ring">
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Palettes...</h3>
+            <p className="text-slate-600">Fetching your color palettes</p>
+          </div>
+        )}
         {error && <ErrorState error={error} className="mb-6" />}
         {!loading && !error && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -94,7 +94,20 @@ const ColoringBooks = ({ user }) => {
         {hasReachedLimit && (
           <UpgradeBanner itemType="books" />
         )}
-        {loading && <LoadingState message="Loading books..." />}
+        {loading && (
+          <div className="bg-white p-12 text-center">
+            <div className="modern-loader mb-4">
+              <div className="loader-ring">
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+                <div className="loader-ring-segment"></div>
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Books...</h3>
+            <p className="text-slate-600">Fetching your coloring books</p>
+          </div>
+        )}
         {error && <ErrorState error={error} className="mb-6" />}
         {!loading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
