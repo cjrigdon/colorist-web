@@ -272,6 +272,9 @@ export const coloredPencilSetsAPI = {
     }
     if (options.excludePencils) {
       params.append('exclude_pencils', 'true');
+    } else {
+      // Explicitly include pencils when not excluded
+      params.append('include', 'pencils');
     }
     if (options.setId) {
       params.append('filter[colored_pencil_set_id]', options.setId.toString());

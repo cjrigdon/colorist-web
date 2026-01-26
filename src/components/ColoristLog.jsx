@@ -1,9 +1,137 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
+import BookDropdown from './BookDropdown';
+import InspirationDropdown from './InspirationDropdown';
 import AddPencilSetModal from './AddPencilSetModal';
-import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
+import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI, brandsAPI } from '../services/api';
+import { apiGet } from '../services/api';
+
+// Brand button component with thumbnail
+const BrandButton = ({ brand, thumbnailUrl, onClick }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center p-3 border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-all"
+    >
+      {thumbnailUrl && !imageError ? (
+        <img 
+          src={thumbnailUrl} 
+          alt={brand.name}
+          className="w-16 h-16 object-contain mb-2"
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div 
+          className="w-16 h-16 flex items-center justify-center mb-2 rounded"
+          style={{ backgroundColor: '#f1f5f9' }}
+        >
+          <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        </div>
+      )}
+      <span className="text-sm text-slate-700 text-center">{brand.name}</span>
+    </button>
+  );
+};
+
+// Size button component with thumbnail and overlay
+const SizeButton = ({ size, onSelectSet, onSelectPencils, isSelected = false }) => {
+  const [imageError, setImageError] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const thumbnail = size.thumb || size.set?.thumb;
+  const thumbnailUrl = thumbnail 
+    ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+    : null;
+  
+  return (
+    <div 
+      className="relative flex flex-col items-center"
+      onMouseEnter={() => !isSelected && setShowOverlay(true)}
+      onMouseLeave={() => setShowOverlay(false)}
+    >
+      <button
+        type="button"
+        className={`flex flex-col items-center p-3 border-2 rounded-lg transition-all w-full ${
+          isSelected
+            ? 'border-slate-800 bg-slate-100 shadow-md'
+            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+        }`}
+      >
+        {thumbnailUrl && !imageError ? (
+          <img 
+            src={thumbnailUrl} 
+            alt={size.name || `${size.count || 0}-piece set`}
+            className="w-20 h-20 object-cover rounded mb-2"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div 
+            className="w-20 h-20 flex items-center justify-center mb-2 rounded"
+            style={{ backgroundColor: '#f1f5f9' }}
+          >
+            <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </div>
+        )}
+        <span className={`text-sm text-center ${isSelected ? 'text-slate-900 font-semibold' : 'text-slate-700'}`}>
+          {size.name || `${size.count || 0}-piece set`}
+        </span>
+      </button>
+      
+      {/* Overlay with selection options - only show if not selected */}
+      {showOverlay && !isSelected && (
+        <div className="absolute inset-0 bg-black bg-opacity-60 rounded-lg flex items-center justify-center z-10">
+          <div className="flex flex-col space-y-2 px-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOverlay(false);
+                onSelectSet();
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-white rounded transition-colors"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              Select Set
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOverlay(false);
+                onSelectPencils();
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-white rounded transition-colors"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
+            >
+              Select Pencils
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Selected indicator overlay */}
+      {isSelected && (
+        <div className="absolute top-1 right-1 bg-slate-800 text-white rounded-full p-1 z-10">
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ColoristLog = () => {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -19,19 +147,37 @@ const ColoristLog = () => {
     inspiration: '',
     book: '',
     pencilSet: '',
-    palette: '',
+    pencils: [], // Array of individual pencil IDs
+    palettes: [],
     combos: [],
     notes: ''
   });
+  const [showPaletteList, setShowPaletteList] = useState(false);
+  const [pencilSelectionMode, setPencilSelectionMode] = useState('set'); // 'set' or 'individual'
+  const [selectedSetForPencils, setSelectedSetForPencils] = useState(null);
+  const [pencilsForSet, setPencilsForSet] = useState([]);
+  const [loadingPencils, setLoadingPencils] = useState(false);
 
   // API data states
   const [inspirations, setInspirations] = useState([]);
+  // Books are now loaded lazily in BookDropdown component, but we still need books state for displaying entries
   const [books, setBooks] = useState([]);
   const [pencilSets, setPencilSets] = useState([]);
   const [palettes, setPalettes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [loadingFormData, setLoadingFormData] = useState(false);
   const [showAddSetModal, setShowAddSetModal] = useState(false);
+  
+  // Multi-step pencil set selection state
+  const [pencilSetStep, setPencilSetStep] = useState('brand'); // 'brand', 'set', 'size'
+  const [brands, setBrands] = useState([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [setsForBrand, setSetsForBrand] = useState([]);
+  const [loadingSets, setLoadingSets] = useState(false);
+  const [selectedSet, setSelectedSet] = useState(null);
+  const [sizesForSet, setSizesForSet] = useState([]);
+  const [loadingSizes, setLoadingSizes] = useState(false);
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
@@ -50,6 +196,8 @@ const ColoristLog = () => {
           inspirationsData = inspirationsResponse.data;
         }
         // Extract data property if present (inspiration API returns {type, data, created_at})
+        // Note: Inspirations are now loaded lazily in InspirationDropdown component when the dropdown is opened
+        // But we still need to load inspirations for displaying entries
         const extractedInspirations = inspirationsData.map(item => {
           if (item.data) {
             return { ...item.data, type: item.type };
@@ -58,7 +206,8 @@ const ColoristLog = () => {
         });
         setInspirations(extractedInspirations);
 
-        // Fetch books
+        // Books are now loaded lazily in BookDropdown component when the dropdown is opened
+        // But we still need to load books for displaying entries
         const booksResponse = await booksAPI.getAll(1, 1000);
         let booksData = [];
         if (Array.isArray(booksResponse)) {
@@ -111,15 +260,155 @@ const ColoristLog = () => {
     fetchRelatedData();
   }, []);
 
-  // Fetch form data when form opens (for form dropdowns)
-  // Note: Data is already loaded on mount, this just ensures it's available for the form
+  // Fetch brands when form opens
   useEffect(() => {
-    if (!showEntryForm) return;
+    if (!showEntryForm || brands.length > 0) return;
     
-    // Data should already be loaded from the mount effect, so just set loading to false
-    // If data isn't loaded yet, it will be available soon from the mount effect
-    setLoadingFormData(false);
-  }, [showEntryForm]);
+    const fetchBrands = async () => {
+      try {
+        setLoadingBrands(true);
+        const response = await brandsAPI.getAll(1, 100);
+        let brandsData = [];
+        if (Array.isArray(response)) {
+          brandsData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          brandsData = response.data;
+        }
+        setBrands(brandsData);
+      } catch (error) {
+        console.error('Error fetching brands:', error);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+    
+    fetchBrands();
+  }, [showEntryForm, brands.length]);
+
+  // Fetch sets for selected brand
+  const fetchSetsForBrand = async (brandId) => {
+    try {
+      setLoadingSets(true);
+      const params = new URLSearchParams({ 
+        page: '1', 
+        per_page: '100',
+        'filter[brand_id]': brandId.toString(),
+        'filter[is_system]': '1',
+        exclude_pencils: 'true'
+      });
+      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
+      
+      let setsData = [];
+      if (Array.isArray(data)) {
+        setsData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        setsData = data.data;
+      }
+      
+      setSetsForBrand(setsData);
+    } catch (error) {
+      console.error('Error fetching sets for brand:', error);
+    } finally {
+      setLoadingSets(false);
+    }
+  };
+
+  // Fetch sizes for selected set
+  const fetchSizesForSet = async (setId) => {
+    try {
+      setLoadingSizes(true);
+      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
+        setId: setId,
+        excludePencils: false  // Include pencils so we can use them directly
+      });
+      
+      let sizesData = [];
+      if (Array.isArray(response)) {
+        sizesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        sizesData = response.data;
+      }
+      
+      setSizesForSet(sizesData);
+    } catch (error) {
+      console.error('Error fetching sizes for set:', error);
+    } finally {
+      setLoadingSizes(false);
+    }
+  };
+
+  // Fetch pencils for a set size
+  const fetchPencilsForSet = useCallback(async (sizeId, size) => {
+    if (!sizeId) {
+      setPencilsForSet([]);
+      return;
+    }
+    
+    try {
+      setLoadingPencils(true);
+      
+      // First, try to find the size in sizesForSet (most reliable source)
+      const sizeFromList = sizesForSet.find(s => s.id.toString() === sizeId.toString());
+      if (sizeFromList) {
+        console.log(`Found size ${sizeId} in sizesForSet, checking for pencils...`);
+        if (sizeFromList.pencils && Array.isArray(sizeFromList.pencils)) {
+          console.log(`Found ${sizeFromList.pencils.length} pencils in sizesForSet for size ${sizeId}`);
+          setPencilsForSet(sizeFromList.pencils);
+          setLoadingPencils(false);
+          return;
+        } else {
+          console.log(`Size ${sizeId} found but pencils array is missing or empty`);
+        }
+      }
+      
+      // Second, check if the size object passed directly has pencils
+      if (size && size.pencils && Array.isArray(size.pencils)) {
+        console.log(`Found ${size.pencils.length} pencils in size object for size ${sizeId}`);
+        setPencilsForSet(size.pencils);
+        setLoadingPencils(false);
+        return;
+      }
+      
+      // If pencils are not in cached data, they might not be loaded by the API
+      // In this case, we should use the set ID to get all pencils for the set
+      // (Note: This is a limitation - we can't get size-specific pencils without them being in the relationship)
+      const setId = size?.set?.id || size?.colored_pencil_set_id || sizeFromList?.set?.id || sizeFromList?.colored_pencil_set_id;
+      if (setId) {
+        console.log(`Pencils not found for size ${sizeId}, fetching all pencils for set ${setId} as fallback`);
+        const response = await coloredPencilSetsAPI.getPencils(setId);
+        
+        let pencilsData = [];
+        if (Array.isArray(response)) {
+          pencilsData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          pencilsData = response.data;
+        }
+        
+        console.log(`Fallback returned ${pencilsData.length} pencils for set ${setId}`);
+        setPencilsForSet(pencilsData);
+      } else {
+        console.warn(`No set ID found for size ${sizeId}, setting empty pencils`);
+        setPencilsForSet([]);
+      }
+    } catch (error) {
+      console.error('Error fetching pencils for set size:', error);
+      setPencilsForSet([]);
+    } finally {
+      setLoadingPencils(false);
+    }
+  }, [sizesForSet]);
+
+  // Automatically fetch pencils when selectedSetForPencils changes
+  useEffect(() => {
+    if (selectedSetForPencils && selectedSetForPencils.sizeId) {
+      // Clear previous pencils first to show loading state
+      setPencilsForSet([]);
+      console.log('useEffect triggered: fetching pencils for size', selectedSetForPencils.sizeId);
+      fetchPencilsForSet(selectedSetForPencils.sizeId, selectedSetForPencils.size);
+    } else if (!selectedSetForPencils) {
+      setPencilsForSet([]);
+    }
+  }, [selectedSetForPencils?.sizeId, selectedSetForPencils?.size, fetchPencilsForSet]);
 
   // Get entries for selected date (or all most recent if no date selected)
   useEffect(() => {
@@ -147,7 +436,9 @@ const ColoristLog = () => {
           inspiration_id: entry.inspiration_id,
           book_id: entry.book_id,
           pencilSet_id: entry.colored_pencil_set_id,
-          palette_id: entry.color_palette_id,
+          pencils: entry.pencils || [],
+          palette_id: entry.color_palette_id, // Keep for backward compatibility
+          palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
           combos: entry.combos || [],
           notes: entry.notes || '',
           // Related objects will be looked up at render time
@@ -215,47 +506,98 @@ const ColoristLog = () => {
       inspiration: '',
       book: '',
       pencilSet: '',
-      palette: '',
+      pencils: [],
+      palettes: [],
       combos: [],
       notes: ''
     });
+    setShowPaletteList(false);
+    setPencilSetStep('brand');
+    setSelectedBrand(null);
+    setSelectedSet(null);
+    setSetsForBrand([]);
+    setSizesForSet([]);
+    setPencilSelectionMode('set');
+    setSelectedSetForPencils(null);
+    setPencilsForSet([]);
     setShowEntryForm(true);
   };
 
-  const handleEditEntry = (entry) => {
+  const handleEditEntry = async (entry) => {
     setEditingEntry(entry);
     setFormData({
       date: entry.date,
       inspiration: entry.inspiration_id ? entry.inspiration_id.toString() : '',
       book: entry.book_id ? entry.book_id.toString() : '',
       pencilSet: entry.pencilSet_id ? entry.pencilSet_id.toString() : '',
-      palette: entry.palette_id ? entry.palette_id.toString() : '',
+      pencils: entry.pencils ? entry.pencils.map(id => id.toString()) : [],
+      palettes: entry.palettes ? entry.palettes.map(id => id.toString()) : (entry.palette_id ? [entry.palette_id.toString()] : []),
       combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
       notes: entry.notes || ''
     });
+    setShowPaletteList(false);
+    setPencilSetStep('brand');
+    setSelectedBrand(null);
+    setSelectedSet(null);
+    setSetsForBrand([]);
+    setSizesForSet([]);
+    setPencilSelectionMode(entry.pencils && entry.pencils.length > 0 ? 'individual' : 'set');
+    setSelectedSetForPencils(null);
+    setPencilsForSet([]);
+    
+    // If editing and has individual pencils, we'd need to load the set info
+    // For now, just reset to brand selection
+    
     setShowEntryForm(true);
   };
 
 
   const handleSaveEntry = async () => {
     try {
+      // Get the set ID from the size ID if a set is selected
+      let coloredPencilSetId = null;
+      if (pencilSelectionMode === 'set' && formData.pencilSet) {
+        // formData.pencilSet contains the size ID, we need to get the set ID
+        const selectedSize = sizesForSet.find(s => s.id.toString() === formData.pencilSet.toString());
+        if (selectedSize) {
+          coloredPencilSetId = selectedSize.set?.id || selectedSize.colored_pencil_set_id;
+        } else {
+          // Fallback: try to find in pencilSets (though this might not have the right structure)
+          const foundSet = pencilSets.find(ps => ps.id.toString() === formData.pencilSet.toString());
+          if (foundSet) {
+            coloredPencilSetId = foundSet.id;
+          }
+        }
+      }
+      
       // Prepare data for API
       const entryData = {
         date: formData.date,
         inspiration: formData.inspiration || null,
-        pencilSet: formData.pencilSet || null,
+        colored_pencil_set_id: coloredPencilSetId,
+        pencils: pencilSelectionMode === 'individual' ? formData.pencils.map(id => parseInt(id)) : [],
         book: formData.book || null,
-        palette: formData.palette || null,
+        palettes: formData.palettes.map(id => parseInt(id)),
         combos: formData.combos.map(id => parseInt(id)),
         notes: formData.notes || null
       };
 
-      // Remove null/empty string values (but keep empty arrays for combos)
+      // Remove null/empty string values (but keep empty arrays for combos, palettes, and pencils)
       Object.keys(entryData).forEach(key => {
-        if (key !== 'combos' && (entryData[key] === null || entryData[key] === '')) {
+        if (key !== 'combos' && key !== 'palettes' && key !== 'pencils' && (entryData[key] === null || entryData[key] === '')) {
           delete entryData[key];
         }
       });
+      
+      // Remove pencils if empty array and set is selected
+      if (pencilSelectionMode === 'set' && entryData.pencils.length === 0) {
+        delete entryData.pencils;
+      }
+      
+      // Remove colored_pencil_set_id if pencils are selected individually
+      if (pencilSelectionMode === 'individual' && entryData.pencils.length > 0) {
+        delete entryData.colored_pencil_set_id;
+      }
 
       let savedEntry;
       if (editingEntry) {
@@ -283,7 +625,9 @@ const ColoristLog = () => {
         inspiration_id: entry.inspiration_id,
         book_id: entry.book_id,
         pencilSet_id: entry.colored_pencil_set_id,
-        palette_id: entry.color_palette_id,
+        pencils: entry.pencils || [],
+        palette_id: entry.color_palette_id, // Keep for backward compatibility
+        palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
         combos: entry.combos || [],
         notes: entry.notes || '',
         inspiration: null,
@@ -300,6 +644,10 @@ const ColoristLog = () => {
 
       setShowEntryForm(false);
       setEditingEntry(null);
+      setShowPaletteList(false);
+      setPencilSelectionMode('set');
+      setSelectedSetForPencils(null);
+      setPencilsForSet([]);
     } catch (error) {
       console.error('Error saving entry:', error);
       alert('Failed to save entry. Please try again.');
@@ -332,7 +680,9 @@ const ColoristLog = () => {
         inspiration_id: entry.inspiration_id,
         book_id: entry.book_id,
         pencilSet_id: entry.colored_pencil_set_id,
-        palette_id: entry.color_palette_id,
+        pencils: entry.pencils || [],
+        palette_id: entry.color_palette_id, // Keep for backward compatibility
+        palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
         combos: entry.combos || [],
         notes: entry.notes || '',
         inspiration: null,
@@ -393,6 +743,71 @@ const ColoristLog = () => {
     const dateStr = formatDate(date);
     return datesWithEntries.includes(dateStr);
   };
+
+  // Filter combos to only show those that use pencils from the selected pencil set or individual pencils
+  const filteredCombos = useMemo(() => {
+    const matchingCombos = new Set();
+    
+    // Check if individual pencils are selected - filter combos that contain any of those pencils
+    if (formData.pencils.length > 0) {
+      const selectedPencilIds = formData.pencils.map(id => parseInt(id));
+      combos.forEach(combo => {
+        if (!combo.pencils || !Array.isArray(combo.pencils)) {
+          return;
+        }
+        // Check if combo contains any of the selected pencils
+        const hasSelectedPencil = combo.pencils.some(pencil => {
+          const pencilId = pencil.id;
+          return selectedPencilIds.includes(pencilId);
+        });
+        if (hasSelectedPencil) {
+          matchingCombos.add(combo.id);
+        }
+      });
+    }
+    
+    // Check if set is selected - filter by set ID
+    if (formData.pencilSet) {
+      let setId = null;
+      
+      // First try to find the size in sizesForSet (most reliable)
+      const selectedSizeFromSizes = sizesForSet.find(size => size.id.toString() === formData.pencilSet);
+      if (selectedSizeFromSizes) {
+        setId = selectedSizeFromSizes.set?.id || selectedSizeFromSizes.colored_pencil_set_id || selectedSet?.id;
+      } else {
+        // Fallback: try to find in pencilSets
+        const selectedSize = pencilSets.find(ps => ps.id.toString() === formData.pencilSet);
+        if (selectedSize) {
+          setId = selectedSize.set?.id || selectedSize.colored_pencil_set_id;
+        } else if (selectedSet) {
+          // Last resort: use selectedSet if available
+          setId = selectedSet.id;
+        }
+      }
+      
+      if (setId) {
+        combos.forEach(combo => {
+          // Check if combo has pencils and if any pencil belongs to the selected set
+          if (!combo.pencils || !Array.isArray(combo.pencils)) {
+            return;
+          }
+          
+          const hasPencilFromSet = combo.pencils.some(pencil => {
+            // Check if pencil has colored_pencil_set_id matching selected set
+            const pencilSetId = pencil.colored_pencil_set_id || pencil.set?.id || pencil.colored_pencil_set?.id;
+            return pencilSetId === setId;
+          });
+          
+          if (hasPencilFromSet) {
+            matchingCombos.add(combo.id);
+          }
+        });
+      }
+    }
+    
+    // Return combos that match either condition
+    return combos.filter(combo => matchingCombos.has(combo.id));
+  }, [combos, formData.pencilSet, formData.pencils, pencilSelectionMode, pencilSets, sizesForSet, selectedSet]);
 
   return (
     <div className="space-y-6">
@@ -587,7 +1002,8 @@ const ColoristLog = () => {
               const inspiration = entry.inspiration_id ? inspirations.find(i => i.id === entry.inspiration_id) : null;
               const book = entry.book_id ? books.find(b => b.id === entry.book_id) : null;
               const pencilSet = entry.pencilSet_id ? pencilSets.find(p => p.id === entry.pencilSet_id) : null;
-              const palette = entry.palette_id ? palettes.find(p => p.id === entry.palette_id) : null;
+              // Support both old single palette_id and new palettes array
+              const entryPalettes = entry.palettes || (entry.palette_id ? [entry.palette_id] : []);
               
               return (
               <div
@@ -614,10 +1030,22 @@ const ColoristLog = () => {
                           ✏️ {pencilSet.name} {pencilSet.brand ? `(${pencilSet.brand})` : ''}
                         </span>
                       )}
-                      {palette && (
+                      {entry.pencils && entry.pencils.length > 0 && (
                         <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          🌈 {palette.name || palette.title || `Palette ${entry.palette_id}`}
+                          ✏️ {entry.pencils.length} individual pencil{entry.pencils.length !== 1 ? 's' : ''}
                         </span>
+                      )}
+                      {entryPalettes && entryPalettes.length > 0 && (
+                        <>
+                          {entryPalettes.map((paletteId, idx) => {
+                            const palette = palettes.find(p => p.id === paletteId);
+                            return palette ? (
+                              <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                                🌈 {palette.name || palette.title || `Palette ${paletteId}`}
+                              </span>
+                            ) : null;
+                          })}
+                        </>
                       )}
                       {entry.combos && entry.combos.length > 0 && (
                         <>
@@ -664,8 +1092,8 @@ const ColoristLog = () => {
 
       {/* Entry Form Modal */}
       {showEntryForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-50 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ margin: 0, padding: 0 }}>
+          <div className="bg-slate-50 rounded-2xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto m-4">
             <div className="p-6 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-slate-800 font-venti">
@@ -705,16 +1133,7 @@ const ColoristLog = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">Inspiration</label>
-                      <DropdownMenu
-                        options={inspirations.map(item => {
-                          const id = item.id;
-                          const title = item.title || item.name || `Inspiration ${id}`;
-                          const type = item.type;
-                          return {
-                            value: id.toString(),
-                            label: `${type === 'video' ? '📺' : '🖼️'} ${title}`
-                          };
-                        })}
+                      <InspirationDropdown
                         value={formData.inspiration}
                         onChange={(value) => setFormData({ ...formData, inspiration: value })}
                         placeholder="Select inspiration..."
@@ -723,60 +1142,279 @@ const ColoristLog = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">Book</label>
-                      <DropdownMenu
-                        options={books.map(book => ({
-                          value: book.id.toString(),
-                          label: book.title || book.name || `Book ${book.id}`
-                        }))}
+                      <BookDropdown
                         value={formData.book}
                         onChange={(value) => setFormData({ ...formData, book: value })}
                         placeholder="Select book..."
                       />
                     </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-slate-700">Pencil Set</label>
-                        <button
-                          type="button"
-                          onClick={() => setShowAddSetModal(true)}
-                          className="text-xs text-slate-600 hover:text-slate-800 underline"
-                        >
-                          Add New Set
-                        </button>
-                      </div>
-                      <DropdownMenu
-                        options={pencilSets.map(set => ({
-                          value: set.id.toString(),
-                          label: `${set.name} ${set.brand ? `(${set.brand})` : ''}`
-                        }))}
-                        value={formData.pencilSet}
-                        onChange={(value) => setFormData({ ...formData, pencilSet: value })}
-                        placeholder="Select pencil set..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">Color Palette</label>
-                      <DropdownMenu
-                        options={palettes.map(palette => ({
-                          value: palette.id.toString(),
-                          label: palette.name || palette.title || `Palette ${palette.id}`
-                        }))}
-                        value={formData.palette}
-                        onChange={(value) => setFormData({ ...formData, palette: value })}
-                        placeholder="Select palette..."
-                      />
-                    </div>
                   </div>
 
+                  {/* Pencil Set Selection - Full Width */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Color Combos</label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2">
-                      {combos.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-2">No color combos available</p>
-                      ) : (
-                        combos.map(combo => (
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700">Pencil Set</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddSetModal(true)}
+                        className="text-xs text-slate-600 hover:text-slate-800 underline"
+                      >
+                        Add New Set
+                      </button>
+                    </div>
+                    
+                    {/* Multi-step selection: Brand → Set → Size */}
+                    {pencilSetStep === 'brand' && (
+                      <div className="space-y-2">
+                        {loadingBrands ? (
+                          <p className="text-sm text-slate-500">Loading brands...</p>
+                        ) : (
+                          <div className="w-full max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {brands.map(brand => {
+                                const thumbnail = brand.thumbnail;
+                                const thumbnailUrl = thumbnail 
+                                  ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
+                                  : null;
+                                
+                                return (
+                                  <BrandButton
+                                    key={brand.id}
+                                    brand={brand}
+                                    thumbnailUrl={thumbnailUrl}
+                                    onClick={() => {
+                                      setSelectedBrand(brand);
+                                      setPencilSetStep('set');
+                                      fetchSetsForBrand(brand.id);
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {pencilSetStep === 'set' && selectedBrand && (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPencilSetStep('brand');
+                              setSelectedBrand(null);
+                              setSetsForBrand([]);
+                            }}
+                            className="text-xs text-slate-600 hover:text-slate-800"
+                          >
+                            ← Back
+                          </button>
+                          <span className="text-xs text-slate-500">Brand: {selectedBrand.name}</span>
+                        </div>
+                        {loadingSets ? (
+                          <p className="text-sm text-slate-500">Loading sets...</p>
+                        ) : (
+                          <div className="w-full max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                            <div className="space-y-2">
+                              {setsForBrand.map(set => (
+                                <button
+                                  key={set.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSet(set);
+                                    setPencilSetStep('size');
+                                    fetchSizesForSet(set.id);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                                >
+                                  {set.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {pencilSetStep === 'size' && selectedSet && (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPencilSetStep('set');
+                              setSelectedSet(null);
+                              setSizesForSet([]);
+                              setPencilSelectionMode('set');
+                              setSelectedSetForPencils(null);
+                              setPencilsForSet([]);
+                            }}
+                            className="text-xs text-slate-600 hover:text-slate-800"
+                          >
+                            ← Back
+                          </button>
+                          <span className="text-xs text-slate-500">Set: {selectedSet.name}</span>
+                        </div>
+                        {loadingSizes ? (
+                          <p className="text-sm text-slate-500">Loading sizes...</p>
+                        ) : (
+                          <div className="w-full max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {sizesForSet.map(size => {
+                                const sizeId = size.id.toString();
+                                const setId = size.set?.id || size.colored_pencil_set_id || selectedSet.id;
+                                const isSelected = formData.pencilSet === sizeId && pencilSelectionMode === 'set';
+                                
+                                return (
+                                  <SizeButton
+                                    key={size.id}
+                                    size={size}
+                                    isSelected={isSelected}
+                                    onSelectSet={() => {
+                                      // Select entire set
+                                      const validComboIds = combos
+                                        .filter(combo => {
+                                          if (!combo.pencils || !Array.isArray(combo.pencils)) return false;
+                                          return combo.pencils.some(pencil => {
+                                            const pencilSetId = pencil.colored_pencil_set_id || pencil.set?.id || pencil.colored_pencil_set?.id;
+                                            return pencilSetId === setId;
+                                          });
+                                        })
+                                        .map(combo => combo.id.toString());
+                                      
+                                      setFormData({ 
+                                        ...formData, 
+                                        pencilSet: sizeId,
+                                        pencils: [],
+                                        combos: formData.combos.filter(id => validComboIds.includes(id))
+                                      });
+                                      setPencilSelectionMode('set');
+                                      setSelectedSetForPencils(null);
+                                      setPencilsForSet([]);
+                                    }}
+                                    onSelectPencils={() => {
+                                      // Show individual pencil selection
+                                      // The useEffect will automatically fetch pencils when selectedSetForPencils changes
+                                      setSelectedSetForPencils({ sizeId, setId, size });
+                                      setPencilSelectionMode('individual');
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Individual Pencil Selection */}
+                    {selectedSetForPencils && pencilSelectionMode === 'individual' && (
+                      <div className="space-y-2 mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-slate-700">Select Individual Pencils</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSetForPencils(null);
+                              setPencilsForSet([]);
+                              setPencilSelectionMode('set');
+                              setFormData({ ...formData, pencils: [] });
+                            }}
+                            className="text-xs text-slate-600 hover:text-slate-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        
+                        <div className="w-full max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                          {loadingPencils ? (
+                            <p className="text-sm text-slate-500 text-center py-4">Loading pencils...</p>
+                          ) : pencilsForSet.length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-4">No pencils available</p>
+                          ) : (
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                              {pencilsForSet.map(pencil => {
+                                const hexColor = pencil.color?.hex || pencil.hex_code || '#000000';
+                                const colorName = pencil.color_name || pencil.color?.name || `Color ${pencil.color_number || ''}`;
+                                const isSelected = formData.pencils.includes(pencil.id.toString());
+                                
+                                return (
+                                  <button
+                                    key={pencil.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const pencilId = pencil.id.toString();
+                                      let updatedPencils;
+                                      
+                                      if (isSelected) {
+                                        updatedPencils = formData.pencils.filter(id => id !== pencilId);
+                                      } else {
+                                        updatedPencils = [...formData.pencils, pencilId];
+                                      }
+                                      
+                                      // Filter combos that contain any of the selected pencils
+                                      const validComboIds = combos
+                                        .filter(combo => {
+                                          if (!combo.pencils || !Array.isArray(combo.pencils)) return false;
+                                          return combo.pencils.some(comboPencil => {
+                                            const comboPencilId = comboPencil.id;
+                                            return updatedPencils.map(id => parseInt(id)).includes(comboPencilId);
+                                          });
+                                        })
+                                        .map(combo => combo.id.toString());
+                                      
+                                      setFormData({
+                                        ...formData,
+                                        pencilSet: '', // Clear set selection when selecting individual pencils
+                                        pencils: updatedPencils,
+                                        combos: formData.combos.filter(id => validComboIds.includes(id))
+                                      });
+                                    }}
+                                    className={`flex flex-col items-center p-2 border-2 rounded-lg transition-all ${
+                                      isSelected
+                                        ? 'border-slate-800 bg-slate-100'
+                                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                    title={colorName}
+                                  >
+                                    <div
+                                      className="w-12 h-12 rounded mb-1 border border-slate-300"
+                                      style={{ backgroundColor: hexColor }}
+                                    />
+                                    <span className="text-xs text-slate-700 text-center truncate w-full">
+                                      {pencil.color_number || ''}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {formData.pencilSet && pencilSetStep === 'brand' && pencilSelectionMode === 'set' && (
+                      <div className="mt-2 text-xs text-slate-600">
+                        Selected: {(() => {
+                          // Try to find the selected size in pencilSets for display
+                          const selected = pencilSets.find(ps => ps.id.toString() === formData.pencilSet);
+                          return selected ? `${selected.name} ${selected.brand ? `(${selected.brand})` : ''}` : 'Set selected';
+                        })()}
+                      </div>
+                    )}
+                    {formData.pencils.length > 0 && pencilSelectionMode === 'individual' && (
+                      <div className="mt-2 text-xs text-slate-600">
+                        Selected: {formData.pencils.length} individual pencil{formData.pencils.length !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {filteredCombos.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Color Combos</label>
+                      <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2">
+                        {filteredCombos.map(combo => (
                           <label key={combo.id} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
                             <input
                               type="checkbox"
@@ -800,9 +1438,60 @@ const ColoristLog = () => {
                               {combo.name || combo.title || `Combo ${combo.id}`}
                             </span>
                           </label>
-                        ))
-                      )}
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700">Color Palettes</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowPaletteList(!showPaletteList)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg border-2 border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-800 transition-colors"
+                        style={{ borderColor: showPaletteList ? '#ea3663' : undefined }}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
+                    {showPaletteList && (
+                      <div className="w-full max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
+                        {palettes.length === 0 ? (
+                          <p className="text-sm text-slate-400 text-center py-2">No color palettes available</p>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {palettes.map(palette => (
+                              <label key={palette.id} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.palettes.includes(palette.id.toString())}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFormData({
+                                        ...formData,
+                                        palettes: [...formData.palettes, palette.id.toString()]
+                                      });
+                                    } else {
+                                      setFormData({
+                                        ...formData,
+                                        palettes: formData.palettes.filter(id => id !== palette.id.toString())
+                                      });
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500"
+                                />
+                                <span className="text-sm text-slate-700">
+                                  {palette.name || palette.title || `Palette ${palette.id}`}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
