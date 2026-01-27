@@ -314,6 +314,77 @@ export const booksAPI = {
   detachFromUser: (id) => apiDelete(`/books/${id}/detach`, true)
 };
 
+export const bookPagesAPI = {
+  getAll: (page = 1, perPage = 15, filters = {}) => {
+    const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null) {
+        params.append(`filter[${key}]`, filters[key].toString());
+      }
+    });
+    return apiGet(`/book-pages?${params.toString()}`, true);
+  },
+  getById: (id) => apiGet(`/book-pages/${id}`, true),
+  create: (bookPage) => {
+    // Handle file uploads with FormData
+    if (bookPage.images && bookPage.images.length > 0 && bookPage.images[0] instanceof File) {
+      const formData = new FormData();
+      formData.append('book_id', bookPage.book_id);
+      formData.append('name', bookPage.name);
+      if (bookPage.number) formData.append('number', bookPage.number);
+      if (bookPage.notes) formData.append('notes', bookPage.notes);
+      if (bookPage.colored_pencil_set_ids) {
+        bookPage.colored_pencil_set_ids.forEach(id => formData.append('colored_pencil_set_ids[]', id));
+      }
+      if (bookPage.colored_pencil_ids) {
+        bookPage.colored_pencil_ids.forEach(id => formData.append('colored_pencil_ids[]', id));
+      }
+      bookPage.images.forEach(file => formData.append('images[]', file));
+      
+      return fetch(`${API_BASE_URL}/book-pages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Accept': 'application/json',
+        },
+        body: formData
+      }).then(handleResponse);
+    }
+    return apiPost('/book-pages', bookPage, true);
+  },
+  update: (id, bookPage) => {
+    // Handle file uploads with FormData
+    if (bookPage.images && bookPage.images.length > 0 && bookPage.images[0] instanceof File) {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('name', bookPage.name);
+      if (bookPage.number !== undefined) formData.append('number', bookPage.number || '');
+      if (bookPage.notes !== undefined) formData.append('notes', bookPage.notes || '');
+      if (bookPage.colored_pencil_set_ids) {
+        bookPage.colored_pencil_set_ids.forEach(id => formData.append('colored_pencil_set_ids[]', id));
+      }
+      if (bookPage.colored_pencil_ids) {
+        bookPage.colored_pencil_ids.forEach(id => formData.append('colored_pencil_ids[]', id));
+      }
+      if (bookPage.file_ids) {
+        bookPage.file_ids.forEach(fileId => formData.append('file_ids[]', fileId));
+      }
+      bookPage.images.forEach(file => formData.append('images[]', file));
+      
+      return fetch(`${API_BASE_URL}/book-pages/${id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Accept': 'application/json',
+        },
+        body: formData
+      }).then(handleResponse);
+    }
+    return apiPut(`/book-pages/${id}`, bookPage, true);
+  },
+  delete: (id) => apiDelete(`/book-pages/${id}`, true)
+};
+
 export const inspirationAPI = {
   getAll: (page = 1, perPage = 40) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });

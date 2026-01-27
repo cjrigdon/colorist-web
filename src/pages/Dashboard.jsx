@@ -15,6 +15,7 @@ import EditPencilSet from './EditPencilSet';
 import EditColorCombo from './EditColorCombo';
 import EditColorPalette from './EditColorPalette';
 import EditBook from './EditBook';
+import EditBookPage from './EditBookPage';
 import SetSizeDetail from './SetSizeDetail';
 import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
@@ -133,6 +134,9 @@ const Dashboard = () => {
     }
     if (pathname.includes('/edit/book/')) {
       return <EditBook />;
+    }
+    if (pathname.includes('/edit/book-page')) {
+      return <EditBookPage />;
     }
     
     // Check for set size detail page

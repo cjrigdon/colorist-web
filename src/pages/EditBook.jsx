@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { booksAPI } from '../services/api';
+import { booksAPI, bookPagesAPI } from '../services/api';
 
 const EditBook = () => {
   const location = useLocation();
@@ -27,6 +27,8 @@ const EditBook = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [bookPages, setBookPages] = useState([]);
+  const [loadingPages, setLoadingPages] = useState(false);
 
   useEffect(() => {
     // Early return if no ID
@@ -72,6 +74,28 @@ const EditBook = () => {
     };
 
     fetchData();
+  }, [id]);
+
+  // Fetch book pages when book ID is available
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    const fetchPages = async () => {
+      try {
+        setLoadingPages(true);
+        const response = await bookPagesAPI.getAll(1, 100, { book_id: id });
+        const pagesData = response.data || response;
+        setBookPages(Array.isArray(pagesData) ? pagesData : []);
+      } catch (err) {
+        console.error('Error loading book pages:', err);
+      } finally {
+        setLoadingPages(false);
+      }
+    };
+
+    fetchPages();
   }, [id]);
 
   const handleSubmit = async (e) => {
@@ -154,6 +178,22 @@ const EditBook = () => {
       // Reset if file input is cleared
       setSelectedFile(null);
       setFilePreview(null);
+    }
+  };
+
+  const handleDeletePage = async (pageId) => {
+    if (!window.confirm('Are you sure you want to delete this page?')) {
+      return;
+    }
+
+    try {
+      await bookPagesAPI.delete(pageId);
+      // Refresh pages list
+      const response = await bookPagesAPI.getAll(1, 100, { book_id: id });
+      const pagesData = response.data || response;
+      setBookPages(Array.isArray(pagesData) ? pagesData : []);
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Failed to delete page');
     }
   };
 
@@ -341,6 +381,110 @@ const EditBook = () => {
           </div>
         </form>
       </div>
+
+      {/* Book Pages Section */}
+      {id && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-800 font-venti mb-1">
+                Book Pages
+              </h3>
+              <p className="text-sm text-slate-600">
+                Manage pages for this coloring book
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/edit/book-page?book_id=${id}`)}
+              className="px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = '#d12a4f')}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = '#ea3663')}
+            >
+              + Add Page
+            </button>
+          </div>
+
+          {loadingPages ? (
+            <div className="text-center py-8 text-slate-500">Loading pages...</div>
+          ) : bookPages.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <p className="mb-4">No pages yet. Create your first page!</p>
+              <button
+                type="button"
+                onClick={() => navigate(`/edit/book-page?book_id=${id}`)}
+                className="px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors"
+                style={{ backgroundColor: '#ea3663' }}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = '#d12a4f')}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = '#ea3663')}
+              >
+                + Add First Page
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {bookPages.map((page) => (
+                <div
+                  key={page.id}
+                  className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h4 className="font-medium text-slate-800">
+                        {page.name}
+                      </h4>
+                      {page.number && (
+                        <span className="text-sm text-slate-500">
+                          (Page {page.number})
+                        </span>
+                      )}
+                    </div>
+                    {page.notes && (
+                      <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+                        {page.notes}
+                      </p>
+                    )}
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                      {page.colored_pencil_sets?.length > 0 && (
+                        <span>
+                          {page.colored_pencil_sets.length} set{page.colored_pencil_sets.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {page.colored_pencils?.length > 0 && (
+                        <span>
+                          {page.colored_pencils.length} pencil{page.colored_pencils.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {page.files?.length > 0 && (
+                        <span>
+                          {page.files.length} image{page.files.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/edit/book-page/${page.id}`)}
+                      className="px-3 py-1.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium hover:bg-white transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePage(page.id)}
+                      className="px-3 py-1.5 text-red-700 bg-red-50 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
