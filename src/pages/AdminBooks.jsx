@@ -26,10 +26,22 @@ const AdminBooks = () => {
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'system'
   const [hideCustom, setHideCustom] = useState(true);
   const [populatingFromIsbn, setPopulatingFromIsbn] = useState(false);
+  const [isbnError, setIsbnError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchBooks();
-  }, [page, filter, hideCustom]);
+  }, [page, filter, hideCustom, debouncedSearchQuery]);
 
   const fetchBooks = async () => {
     try {
@@ -42,6 +54,10 @@ const AdminBooks = () => {
         params.is_approved = '1';
       } else if (filter === 'system') {
         params.is_system = 'true';
+      }
+      // Add search parameter if search query exists
+      if (debouncedSearchQuery && debouncedSearchQuery.trim()) {
+        params.search = debouncedSearchQuery.trim();
       }
       const response = await adminAPI.books.getAll(page, perPage, params);
       // Handle Laravel pagination response structure
@@ -70,7 +86,14 @@ const AdminBooks = () => {
         // For now, keeping all books since there's no is_custom field
       }
       
-      setBooks(booksData);
+      // Sort books alphabetically by title
+      const sortedBooks = [...booksData].sort((a, b) => {
+        const titleA = (a.title || '').toLowerCase();
+        const titleB = (b.title || '').toLowerCase();
+        return titleA.localeCompare(titleB);
+      });
+      
+      setBooks(sortedBooks);
     } catch (err) {
       setError(err.message || 'Failed to load books');
     } finally {
@@ -90,6 +113,8 @@ const AdminBooks = () => {
       image: book.image || '',
       imageFile: null
     });
+    setIsbnError(null);
+    setError(null);
     setShowModal(true);
   };
 
@@ -105,6 +130,8 @@ const AdminBooks = () => {
       image: '',
       imageFile: null
     });
+    setIsbnError(null);
+    setError(null);
     setShowModal(true);
   };
 
@@ -117,6 +144,7 @@ const AdminBooks = () => {
     try {
       setSaving(true);
       setError(null);
+      setIsbnError(null);
       
       const dataToSend = {
         title: formData.title,
@@ -140,7 +168,13 @@ const AdminBooks = () => {
       setShowModal(false);
       fetchBooks();
     } catch (err) {
-      setError(err.data?.message || 'Failed to save book');
+      // Check if error is related to ISBN
+      const errorMessage = err.data?.message || 'Failed to save book';
+      if (errorMessage.toLowerCase().includes('isbn')) {
+        setIsbnError(errorMessage);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setSaving(false);
     }
@@ -190,12 +224,13 @@ const AdminBooks = () => {
 
   const handlePopulateFromIsbn = async () => {
     if (!formData.isbn || !formData.isbn.trim()) {
-      setError('Please enter an ISBN number first');
+      setIsbnError('Please enter an ISBN number first');
       return;
     }
 
     try {
       setPopulatingFromIsbn(true);
+      setIsbnError(null);
       setError(null);
       const bookData = await adminAPI.books.populateFromIsbn(formData.isbn.trim());
       
@@ -212,7 +247,7 @@ const AdminBooks = () => {
         imageFile: null // Clear any selected file since we got an image from API
       });
     } catch (err) {
-      setError(err.data?.message || err.message || 'Failed to populate book data from ISBN');
+      setIsbnError(err.data?.message || err.message || 'Failed to populate book data from ISBN');
     } finally {
       setPopulatingFromIsbn(false);
     }
@@ -236,6 +271,43 @@ const AdminBooks = () => {
           {error}
         </div>
       )}
+
+      {/* Search */}
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1); // Reset to first page when search changes
+            }}
+            placeholder="Search by title or author..."
+            className="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+          />
+          <svg
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setPage(1);
+              }}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="mb-4 flex items-center space-x-3">
@@ -426,7 +498,11 @@ const AdminBooks = () => {
                   {editingBook ? 'Edit Book' : 'Add System Book'}
                 </h3>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setIsbnError(null);
+                    setError(null);
+                  }}
                   className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -516,8 +592,13 @@ const AdminBooks = () => {
                   <input
                     type="text"
                     value={formData.isbn}
-                    onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    onChange={(e) => {
+                      setFormData({ ...formData, isbn: e.target.value });
+                      setIsbnError(null);
+                    }}
+                    className={`flex-1 px-4 py-2 border rounded-lg text-slate-800 ${
+                      isbnError ? 'border-red-300' : 'border-slate-300'
+                    }`}
                     placeholder="Enter ISBN (10 or 13 digits)"
                   />
                   <button
@@ -531,9 +612,16 @@ const AdminBooks = () => {
                     {populatingFromIsbn ? 'Loading...' : 'Populate from ISBN'}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  Enter an ISBN and click "Populate from ISBN" to automatically fill in book details from Open Library
-                </p>
+                {isbnError && (
+                  <p className="mt-2 text-sm text-red-600">
+                    {isbnError}
+                  </p>
+                )}
+                {!isbnError && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Enter an ISBN and click "Populate from ISBN" to automatically fill in book details from Open Library
+                  </p>
+                )}
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { brandsAPI, coloredPencilSetsAPI, apiGet } from '../services/api';
 
 // Brand button component with thumbnail
@@ -105,6 +105,8 @@ const PencilSelector = ({
     console.log('PencilSelector setIds:', value.setIds);
   }, [value]);
   const [pencilSetStep, setPencilSetStep] = useState('brand'); // 'brand', 'set', 'size'
+  const [userSetSizes, setUserSetSizes] = useState([]);
+  const [loadingUserSets, setLoadingUserSets] = useState(false);
   const [brands, setBrands] = useState([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState(null);
@@ -114,28 +116,113 @@ const PencilSelector = ({
   const [sizesForSet, setSizesForSet] = useState([]);
   const [loadingSizes, setLoadingSizes] = useState(false);
 
-  // Fetch brands on mount
+  // Fetch user's set sizes on mount
   useEffect(() => {
-    const fetchBrands = async () => {
+    const fetchUserSetSizes = async () => {
       try {
-        setLoadingBrands(true);
-        const response = await brandsAPI.getAll(1, 100);
-        let brandsData = [];
+        setLoadingUserSets(true);
+        // Get all user's set sizes (this endpoint filters by user automatically)
+        const response = await coloredPencilSetsAPI.getAll(1, 1000, true); // excludePencils = true
+        
+        console.log('PencilSelector - API response:', response);
+        console.log('PencilSelector - Response type:', typeof response);
+        console.log('PencilSelector - Is array:', Array.isArray(response));
+        console.log('PencilSelector - Has data property:', response?.data);
+        console.log('PencilSelector - Data is array:', Array.isArray(response?.data));
+        
+        let setSizesData = [];
         if (Array.isArray(response)) {
-          brandsData = response;
-        } else if (response.data && Array.isArray(response.data)) {
-          brandsData = response.data;
+          setSizesData = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          setSizesData = response.data;
+        } else if (response && typeof response === 'object') {
+          // Try to extract data from various possible structures
+          if (Array.isArray(response.items)) {
+            setSizesData = response.items;
+          } else if (Array.isArray(response.results)) {
+            setSizesData = response.results;
+          }
         }
-        setBrands(brandsData);
+        
+        console.log('PencilSelector - Extracted setSizesData:', setSizesData);
+        console.log('PencilSelector - Set sizes count:', setSizesData.length);
+        
+        setUserSetSizes(setSizesData);
       } catch (error) {
-        console.error('Error fetching brands:', error);
+        console.error('Error fetching user set sizes:', error);
+        console.error('Error details:', error.data || error.message);
+        setUserSetSizes([]);
       } finally {
-        setLoadingBrands(false);
+        setLoadingUserSets(false);
       }
     };
     
-    fetchBrands();
+    fetchUserSetSizes();
   }, []);
+
+  // Extract unique brands from user's set sizes
+  const userBrands = useMemo(() => {
+    const brandMap = new Map();
+    userSetSizes.forEach(setSize => {
+      // Try brand_data first (object with id), then fall back to brand (string) or colored_pencil_set
+      const brand = setSize.set?.brand_data || 
+                    setSize.set?.brand || 
+                    setSize.colored_pencil_set?.brand_data ||
+                    setSize.colored_pencil_set?.brand;
+      
+      // Handle both object (with id) and string (brand name) formats
+      if (brand) {
+        let brandId, brandName, brandThumbnail;
+        
+        if (typeof brand === 'object' && brand.id) {
+          // Brand is an object with id
+          brandId = brand.id;
+          brandName = brand.name;
+          brandThumbnail = brand.thumbnail;
+        } else if (typeof brand === 'string') {
+          // Brand is a string (legacy format), use the string as both id and name
+          // We need to find or create a brand entry
+          brandId = brand;
+          brandName = brand;
+          brandThumbnail = null;
+        }
+        
+        if (brandId && !brandMap.has(brandId)) {
+          brandMap.set(brandId, {
+            id: brandId,
+            name: brandName || brandId,
+            thumbnail: brandThumbnail || null
+          });
+        }
+      }
+    });
+    return Array.from(brandMap.values());
+  }, [userSetSizes]);
+
+  // Extract unique sets from user's set sizes
+  const userSets = useMemo(() => {
+    const setMap = new Map();
+    userSetSizes.forEach(setSize => {
+      const set = setSize.set || setSize.colored_pencil_set;
+      if (set && set.id) {
+        if (!setMap.has(set.id)) {
+          setMap.set(set.id, set);
+        }
+      }
+    });
+    const sets = Array.from(setMap.values());
+    console.log('PencilSelector - Extracted userSets:', sets);
+    console.log('PencilSelector - User sets count:', sets.length);
+    return sets;
+  }, [userSetSizes]);
+
+  // Update brands when user brands are available
+  useEffect(() => {
+    if (userBrands.length > 0) {
+      setBrands(userBrands);
+      setLoadingBrands(false);
+    }
+  }, [userBrands]);
 
   // Auto-navigate to show selected sizes when value changes and has selections
   useEffect(() => {
@@ -175,50 +262,30 @@ const PencilSelector = ({
         setSelectedBrand(brand);
         setPencilSetStep('set');
         
-        // Fetch sets for this brand (inline to avoid dependency issues)
-        try {
-          setLoadingSets(true);
-          const params = new URLSearchParams({ 
-            page: '1', 
-            per_page: '100',
-            'filter[brand_id]': brand.id.toString(),
-            'filter[is_system]': '1',
-            exclude_pencils: 'true'
-          });
-          const setsData = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
-          
-          let setsDataArray = [];
-          if (Array.isArray(setsData)) {
-            setsDataArray = setsData;
-          } else if (setsData.data && Array.isArray(setsData.data)) {
-            setsDataArray = setsData.data;
-          }
-          
-          setSetsForBrand(setsDataArray);
+          // Fetch sets for this brand from user's sets
+          try {
+            setLoadingSets(true);
+            const filteredSets = userSets.filter(set => {
+              const setBrandId = set.brand?.id || set.brand_id;
+              return setBrandId && String(setBrandId) === String(brand.id);
+            });
+            setSetsForBrand(filteredSets);
           
           // Find the set in the fetched sets
-          const set = setsDataArray.find(s => s.id === setData.id || String(s.id) === String(setData.id));
+          const set = filteredSets.find(s => s.id === setData.id || String(s.id) === String(setData.id));
           if (set) {
             // Navigate to the set
             setSelectedSet(set);
             setPencilSetStep('size');
             
-            // Fetch sizes for this set (inline to avoid dependency issues)
-            try {
-              setLoadingSizes(true);
-              const sizesResponse = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
-                setId: set.id,
-                excludePencils: false
-              });
-              
-              let sizesData = [];
-              if (Array.isArray(sizesResponse)) {
-                sizesData = sizesResponse;
-              } else if (sizesResponse.data && Array.isArray(sizesResponse.data)) {
-                sizesData = sizesResponse.data;
-              }
-              
-              setSizesForSet(sizesData);
+              // Fetch sizes for this set from user's set sizes
+              try {
+                setLoadingSizes(true);
+                const filteredSizes = userSetSizes.filter(setSize => {
+                  const sizeSetId = setSize.set?.id || setSize.colored_pencil_set?.id || setSize.colored_pencil_set_id;
+                  return sizeSetId && String(sizeSetId) === String(set.id);
+                });
+                setSizesForSet(filteredSizes);
             } catch (sizeError) {
               console.error('Error fetching sizes for set:', sizeError);
             } finally {
@@ -235,60 +302,42 @@ const PencilSelector = ({
       }
     };
 
-    autoNavigateToSelectedSizes();
-  }, [value.sizeIds, value.setIds, pencilSetStep, brands.length, selectedBrand, selectedSet]);
+        autoNavigateToSelectedSizes();
+      }, [value.sizeIds, value.setIds, pencilSetStep, brands.length, selectedBrand, selectedSet, userSets, userSetSizes]);
 
-  // Fetch sets for selected brand
-  const fetchSetsForBrand = async (brandId) => {
+  // Fetch sets for selected brand from user's set sizes
+  const fetchSetsForBrand = useCallback(async (brandId) => {
     try {
       setLoadingSets(true);
-      const params = new URLSearchParams({ 
-        page: '1', 
-        per_page: '100',
-        'filter[brand_id]': brandId.toString(),
-        'filter[is_system]': '1',
-        exclude_pencils: 'true'
+      // Filter user sets by brand
+      const filteredSets = userSets.filter(set => {
+        const setBrandId = set.brand?.id || set.brand_id;
+        return setBrandId && String(setBrandId) === String(brandId);
       });
-      const data = await apiGet(`/colored-pencil-sets?${params.toString()}`, true);
-      
-      let setsData = [];
-      if (Array.isArray(data)) {
-        setsData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        setsData = data.data;
-      }
-      
-      setSetsForBrand(setsData);
+      setSetsForBrand(filteredSets);
     } catch (error) {
       console.error('Error fetching sets for brand:', error);
     } finally {
       setLoadingSets(false);
     }
-  };
+  }, [userSets]);
 
-  // Fetch sizes for selected set
-  const fetchSizesForSet = async (setId) => {
+  // Fetch sizes for selected set from user's set sizes
+  const fetchSizesForSet = useCallback(async (setId) => {
     try {
       setLoadingSizes(true);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
-        setId: setId,
-        excludePencils: false
+      // Filter user set sizes by set ID
+      const filteredSizes = userSetSizes.filter(setSize => {
+        const sizeSetId = setSize.set?.id || setSize.colored_pencil_set?.id || setSize.colored_pencil_set_id;
+        return sizeSetId && String(sizeSetId) === String(setId);
       });
-      
-      let sizesData = [];
-      if (Array.isArray(response)) {
-        sizesData = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        sizesData = response.data;
-      }
-      
-      setSizesForSet(sizesData);
+      setSizesForSet(filteredSizes);
     } catch (error) {
       console.error('Error fetching sizes for set:', error);
     } finally {
       setLoadingSizes(false);
     }
-  };
+  }, [userSetSizes]);
 
 
   const handleSetSelect = (size) => {
@@ -375,13 +424,17 @@ const PencilSelector = ({
       <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
       
       {/* Multi-step selection: Brand → Set → Size */}
-      {pencilSetStep === 'brand' && (
-        <div className="space-y-2 min-h-[235px]">
-          {loadingBrands ? (
-            <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 flex items-center justify-center">
-              <p className="text-sm text-slate-500">Loading brands...</p>
-            </div>
-          ) : (
+          {pencilSetStep === 'brand' && (
+            <div className="space-y-2 min-h-[235px]">
+              {loadingUserSets || loadingBrands ? (
+                <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 flex items-center justify-center">
+                  <p className="text-sm text-slate-500">Loading brands...</p>
+                </div>
+              ) : brands.length === 0 ? (
+                <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 flex items-center justify-center">
+                  <p className="text-sm text-slate-500">No pencil sets found. Add sets to your inventory first.</p>
+                </div>
+              ) : (
             <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {brands.map(brand => {

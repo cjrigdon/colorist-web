@@ -311,7 +311,8 @@ export const booksAPI = {
   update: (id, book) => apiPut(`/books/${id}`, book, true),
   delete: (id) => apiDelete(`/books/${id}`, true),
   attachToUser: (id) => apiPost(`/books/${id}/attach`, {}, true),
-  detachFromUser: (id) => apiDelete(`/books/${id}/detach`, true)
+  detachFromUser: (id) => apiDelete(`/books/${id}/detach`, true),
+  populateFromIsbn: (isbn) => apiPost('/books/populate-from-isbn', { isbn }, true)
 };
 
 export const bookPagesAPI = {

@@ -54,12 +54,18 @@ const ColoringBooks = ({ user }) => {
     { perPage: 40 }
   );
 
-  // Limit items for free plan users
+  // Limit items for free plan users and sort alphabetically by title
   const books = useMemo(() => {
+    let sortedBooks = [...allBooks].sort((a, b) => {
+      const titleA = (a.title || '').toLowerCase();
+      const titleB = (b.title || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+    
     if (isFreePlan) {
-      return allBooks.slice(0, FREE_PLAN_LIMIT);
+      return sortedBooks.slice(0, FREE_PLAN_LIMIT);
     }
-    return allBooks;
+    return sortedBooks;
   }, [allBooks, isFreePlan]);
 
   const hasReachedLimit = isFreePlan && allBooks.length >= FREE_PLAN_LIMIT;

@@ -20,6 +20,7 @@ const SetSizeItem = ({ setSize, onSelect }) => {
 
   const displayName = setSize.name || `${setSize.count}-piece set`;
   const setName = setSize.set?.name || 'Unknown';
+  const brandName = setSize.brandName || setSize.set?.brand?.name || setSize.set?.brand || 'Unknown';
 
   return (
     <button
@@ -30,7 +31,7 @@ const SetSizeItem = ({ setSize, onSelect }) => {
         {thumbnailUrl && !imageError ? (
           <img 
             src={thumbnailUrl} 
-            alt={`${setSize.set?.brand?.name || setSize.set?.brand || 'Unknown'} ${setName}`}
+            alt={`${brandName} ${setName}`}
             className="w-full h-32 object-cover rounded-lg mb-3"
             onError={() => setImageError(true)}
           />
@@ -45,6 +46,7 @@ const SetSizeItem = ({ setSize, onSelect }) => {
           </div>
         )}
         <div className="flex-1">
+          <p className="text-xs text-slate-500 mb-1 line-clamp-1">{brandName}</p>
           <h4 className="font-medium text-slate-800 mb-1 line-clamp-2">{setName}</h4>
           <p className="text-sm text-slate-600 mb-2 line-clamp-1">
             {displayName}
@@ -76,7 +78,9 @@ const PencilInventory = ({ user }) => {
       // Ensure brand name is accessible
       brandName: setSize.set?.brand?.name || setSize.set?.brand || 'Unknown',
       // Ensure set name is accessible
-      setName: setSize.set?.name || 'Unknown'
+      setName: setSize.set?.name || 'Unknown',
+      // Ensure media_type is accessible
+      mediaType: setSize.set?.media_type || null
     }));
   };
 
@@ -97,8 +101,8 @@ const PencilInventory = ({ user }) => {
 
   const hasReachedLimit = isFreePlan && allSetSizes.length >= FREE_PLAN_LIMIT;
 
-  // Group set sizes by brand and sort
-  const groupedByBrand = useMemo(() => {
+  // Group set sizes by media_type and sort
+  const groupedByMediaType = useMemo(() => {
     if (!setSizes || setSizes.length === 0) {
       return {};
     }
@@ -106,23 +110,29 @@ const PencilInventory = ({ user }) => {
     const grouped = {};
     
     setSizes.forEach(setSize => {
-      const brandName = setSize.brandName || 'Unknown';
-      if (!grouped[brandName]) {
-        grouped[brandName] = [];
+      const mediaType = setSize.mediaType || 'Unspecified';
+      if (!grouped[mediaType]) {
+        grouped[mediaType] = [];
       }
-      grouped[brandName].push(setSize);
+      grouped[mediaType].push(setSize);
     });
 
-    // Sort each brand's sets: first by set name, then by count
-    Object.keys(grouped).forEach(brandName => {
-      grouped[brandName].sort((a, b) => {
-        // First sort by set name
+    // Sort each media_type's sets: first by brand, then by set name, then by count
+    Object.keys(grouped).forEach(mediaType => {
+      grouped[mediaType].sort((a, b) => {
+        // First sort by brand name
+        const brandA = a.brandName || '';
+        const brandB = b.brandName || '';
+        if (brandA !== brandB) {
+          return brandA.localeCompare(brandB);
+        }
+        // Then sort by set name
         const nameA = a.setName || '';
         const nameB = b.setName || '';
         if (nameA !== nameB) {
           return nameA.localeCompare(nameB);
         }
-        // Then sort by count
+        // Finally sort by count (size)
         return (a.count || 0) - (b.count || 0);
       });
     });
@@ -130,10 +140,10 @@ const PencilInventory = ({ user }) => {
     return grouped;
   }, [setSizes]);
 
-  // Get sorted brand names
-  const sortedBrandNames = useMemo(() => {
-    return Object.keys(groupedByBrand).sort((a, b) => a.localeCompare(b));
-  }, [groupedByBrand]);
+  // Get sorted media_type names
+  const sortedMediaTypes = useMemo(() => {
+    return Object.keys(groupedByMediaType).sort((a, b) => a.localeCompare(b));
+  }, [groupedByMediaType]);
 
   const handleSetSizeClick = (setSizeId) => {
     navigate(`/studio/media/set-size/${setSizeId}`);
@@ -214,7 +224,7 @@ const PencilInventory = ({ user }) => {
               <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Pencil Sets...</h3>
               <p className="text-slate-600">Fetching your colored pencil sets</p>
             </div>
-          ) : sortedBrandNames.length === 0 ? (
+          ) : sortedMediaTypes.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-6xl mb-4">✏️</div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets</h3>
@@ -240,15 +250,15 @@ const PencilInventory = ({ user }) => {
                 <UpgradeBanner itemType="pencil sets" />
               )}
               <div className="space-y-8">
-                {sortedBrandNames.map(brandName => {
-                  const brandSets = groupedByBrand[brandName];
+                {sortedMediaTypes.map(mediaType => {
+                  const mediaTypeSets = groupedByMediaType[mediaType];
                   return (
-                    <div key={brandName}>
+                    <div key={mediaType}>
                       <h3 className="text-xl font-semibold text-slate-800 mb-4 font-venti border-b border-slate-200 pb-2">
-                        {brandName}
+                        {mediaType}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {brandSets.map(setSize => (
+                        {mediaTypeSets.map(setSize => (
                           <SetSizeItem
                             key={setSize.id}
                             setSize={setSize}
