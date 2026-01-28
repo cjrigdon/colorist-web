@@ -1051,7 +1051,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                   {/* Video Set Selection */}
                   <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5 mb-8">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Video Set</h4>
+                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Used In Video</h4>
                       {videoSetId && (
                         <button
                           onClick={() => {
@@ -1218,7 +1218,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                   {/* User Set Selection */}
                   <div className="bg-slate-75 shadow-sm border border-slate-200 p-1.5">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Your Set</h4>
+                      <h4 className="text-xs font-semibold text-slate-800 font-venti">Your Pencil Set</h4>
                       {userSetId && (
                         <button
                           onClick={() => {
@@ -1756,11 +1756,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       <button
                         key={`${inspiration.type}-${inspiration.id}`}
                         onClick={() => handleInspirationSelect(inspiration)}
-                        className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left"
+                        className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left p-0 flex flex-col"
                         onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
                         onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
                       >
-                        <div className="relative aspect-video bg-slate-100">
+                        <div className="relative aspect-video bg-slate-100 overflow-hidden">
                           {inspiration.type === 'video' ? (
                             <>
                               <img
