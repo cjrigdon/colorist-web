@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { colorCombosAPI } from '../services/api';
+import { colorCombosAPI, coloredPencilSetsAPI } from '../services/api';
+import ColorSelector from '../components/ColorSelector';
+import DropdownMenu from '../components/DropdownMenu';
 
 const EditColorCombo = () => {
   const location = useLocation();
@@ -19,6 +21,72 @@ const EditColorCombo = () => {
     title: '',
     image: ''
   });
+  const [allPencils, setAllPencils] = useState([]);
+  const [availablePencils, setAvailablePencils] = useState([]);
+  const [selectedPencilIds, setSelectedPencilIds] = useState([]);
+  const [pencilSets, setPencilSets] = useState([]);
+  const [selectedSetFilter, setSelectedSetFilter] = useState('');
+  const [loadingColors, setLoadingColors] = useState(false);
+
+  const fetchAllPencils = async () => {
+    try {
+      setLoadingColors(true);
+      
+      // Get user's pencil sets
+      const setsResponse = await coloredPencilSetsAPI.getAll(1, 100, false); // include pencils
+      
+      // Handle paginated response structure
+      let sets = [];
+      if (Array.isArray(setsResponse)) {
+        sets = setsResponse;
+      } else if (setsResponse.data && Array.isArray(setsResponse.data)) {
+        sets = setsResponse.data;
+      }
+      
+      setPencilSets(sets);
+      
+      // Collect all pencils from user's sets
+      const allPencilsList = [];
+      
+      for (const set of sets) {
+        if (set.pencils && Array.isArray(set.pencils) && set.pencils.length > 0) {
+          set.pencils.forEach(pencil => {
+            if (pencil && pencil.color) {
+              // Include the pencil with its set information for filtering
+              allPencilsList.push({
+                ...pencil,
+                setSizeId: set.id,
+                setData: set.set || set.colored_pencil_set
+              });
+            }
+          });
+        }
+      }
+      
+      setAllPencils(allPencilsList);
+      setAvailablePencils(allPencilsList);
+    } catch (err) {
+      console.error('Error fetching pencils:', err);
+      setError('Failed to load available colors.');
+    } finally {
+      setLoadingColors(false);
+    }
+  };
+
+  const filterPencils = () => {
+    if (!selectedSetFilter) {
+      // No filter selected, show all pencils
+      setAvailablePencils(allPencils);
+      return;
+    }
+
+    // Filter pencils to only those in the selected set
+    const filtered = allPencils.filter(pencil => 
+      pencil.setSizeId.toString() === selectedSetFilter
+    );
+
+    setAvailablePencils(filtered);
+  };
 
   useEffect(() => {
     // Early return if no ID
@@ -51,6 +119,16 @@ const EditColorCombo = () => {
           title: (data.title !== null && data.title !== undefined) ? String(data.title) : '',
           image: (data.image !== null && data.image !== undefined) ? String(data.image) : ''
         }));
+
+        // Set selected pencil IDs from the combo
+        if (data.pencils && Array.isArray(data.pencils)) {
+          setSelectedPencilIds(data.pencils.map(pencil => pencil.id.toString()));
+        } else {
+          setSelectedPencilIds([]);
+        }
+
+        // Fetch all available pencils
+        await fetchAllPencils();
       } catch (err) {
         setError(err.message || err.data?.message || 'Failed to load color combo');
       } finally {
@@ -61,13 +139,20 @@ const EditColorCombo = () => {
     fetchData();
   }, [id]);
 
+  useEffect(() => {
+    filterPencils();
+  }, [selectedSetFilter, allPencils]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
 
     try {
-      await colorCombosAPI.update(id, formData);
+      await colorCombosAPI.update(id, {
+        ...formData,
+        pencils: selectedPencilIds.map(id => parseInt(id))
+      });
       navigate(-1);
     } catch (err) {
       setError(err.message || 'Failed to update color combo');
@@ -155,6 +240,51 @@ const EditColorCombo = () => {
                 />
               </div>
             )}
+          </div>
+
+          <div className="min-h-[400px]">
+            <ColorSelector
+              items={availablePencils}
+              selectedIds={selectedPencilIds}
+              loading={loadingColors}
+              mode="pencils"
+              allowAddColor={true}
+              maxSelection={null}
+              selectionLabel="Select Colors"
+              filterComponent={
+                <DropdownMenu
+                  label="Filter by Pencil Set (optional)"
+                  options={[
+                    { value: '', label: 'All Colors' },
+                    ...pencilSets.map((set) => {
+                      // Handle different response structures - the set relationship might be 'set' or 'colored_pencil_set'
+                      const setData = set.set || set.colored_pencil_set || {};
+                      const brand = setData.brand || '';
+                      const name = setData.name || '';
+                      const count = set.count || (set.pencils ? set.pencils.length : 0);
+                      const label = brand && name 
+                        ? `${brand} ${name} (${count} colors)`
+                        : name 
+                          ? `${name} (${count} colors)`
+                          : `Set ${set.id} (${count} colors)`;
+                      return {
+                        value: set.id.toString(),
+                        label: label
+                      };
+                    })
+                  ]}
+                  value={selectedSetFilter}
+                  onChange={(value) => setSelectedSetFilter(value)}
+                  placeholder="All Colors"
+                />
+              }
+              onSelectionChange={setSelectedPencilIds}
+              onColorAdded={(newColor) => {
+                // Note: New colors won't appear in the list until they're added to a pencil set
+                setError('Color added successfully! Note: You\'ll need to add this color to a pencil set before it can be used in a combo.');
+              }}
+              emptyMessage={selectedSetFilter ? 'No colors found in the selected pencil set.' : 'No colors available.'}
+            />
           </div>
 
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">

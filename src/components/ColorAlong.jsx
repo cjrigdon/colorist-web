@@ -1045,11 +1045,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           <div className="h-full flex flex-col overflow-hidden">
             {/* Pencil Set Selection Section */}
             {(!videoSetId || !userSetId) && (
-              <div className="bg-white p-2 flex-shrink-0 border-b border-slate-200 overflow-y-auto max-h-[calc(100vh-200px)]">
-                <h3 className="text-xs font-semibold text-slate-800 mb-1.5 font-venti">Pencil Sets</h3>
+              <div className="bg-white p-3 flex-shrink-0 border-b border-slate-200 overflow-y-auto max-h-[calc(100vh-200px)]">
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Pencil Sets</label>
                 <div className="space-y-1.5">
                   {/* Video Set Selection */}
-                  <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5">
+                  <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5 mb-8">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="text-xs font-semibold text-slate-800 font-venti">Video Set</h4>
                       {videoSetId && (
@@ -1216,7 +1216,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                   </div>
 
                   {/* User Set Selection */}
-                  <div className="bg-slate-50 shadow-sm border border-slate-200 p-1.5">
+                  <div className="bg-slate-75 shadow-sm border border-slate-200 p-1.5">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="text-xs font-semibold text-slate-800 font-venti">Your Set</h4>
                       {userSetId && (
