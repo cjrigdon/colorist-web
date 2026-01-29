@@ -357,15 +357,24 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       // Clear container
       playerContainer.innerHTML = '';
 
+      // Get container dimensions
+      const containerWidth = playerContainer.offsetWidth || playerContainer.clientWidth || 640;
+      const containerHeight = playerContainer.offsetHeight || playerContainer.clientHeight || 360;
+
       // Create a div for the player
       const playerId = `youtube-player-${selectedVideo.id}-${Date.now()}`;
       const playerDiv = document.createElement('div');
       playerDiv.id = playerId;
+      playerDiv.style.width = '100%';
+      playerDiv.style.height = '100%';
+      playerDiv.style.display = 'block';
       playerContainer.appendChild(playerDiv);
 
       try {
         const player = new window.YT.Player(playerId, {
           videoId: selectedVideo.id,
+          width: containerWidth,
+          height: containerHeight,
           playerVars: {
             autoplay: 0,
             controls: 1,
@@ -2051,7 +2060,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             <div className="h-full flex flex-col">
               <div className="flex-1 bg-slate-900 overflow-hidden" style={{ minHeight: '600px' }}>
                 {youtubeApiLoaded ? (
-                  <div id="youtube-player-container" className="w-full h-full"></div>
+                  <div id="youtube-player-container" className="w-full h-full" style={{ width: '100%', height: '100%', display: 'block' }}></div>
                 ) : (
                   (() => {
                     const savedProgress = getVideoProgress(selectedVideo.id);
