@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
@@ -144,6 +144,46 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [savingJournal, setSavingJournal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // YouTube progress tracking
+  const youtubePlayerRef = useRef(null);
+  const youtubeApiReadyRef = useRef(false);
+  const progressSaveIntervalRef = useRef(null);
+  const [youtubeApiLoaded, setYoutubeApiLoaded] = useState(false);
+
+  // Helper functions for video progress
+  const getVideoProgressKey = (videoId) => `youtube_progress_${videoId}`;
+  
+  const saveVideoProgress = (videoId, currentTime) => {
+    if (!videoId || !currentTime) return;
+    try {
+      const progressData = {
+        currentTime: Math.floor(currentTime),
+        timestamp: Date.now()
+      };
+      localStorage.setItem(getVideoProgressKey(videoId), JSON.stringify(progressData));
+    } catch (error) {
+      console.error('Error saving video progress:', error);
+    }
+  };
+
+  const getVideoProgress = (videoId) => {
+    if (!videoId) return null;
+    try {
+      const saved = localStorage.getItem(getVideoProgressKey(videoId));
+      if (saved) {
+        const progressData = JSON.parse(saved);
+        // Only use progress if it's less than 24 hours old
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        if (progressData.timestamp > oneDayAgo && progressData.currentTime > 5) {
+          return progressData.currentTime;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading video progress:', error);
+    }
+    return null;
+  };
+
   // Get video from location state if navigating from Library
   useEffect(() => {
     if (location.state?.video) {
@@ -229,6 +269,168 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
     fetchBrands();
   }, []);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    // Check if API is already loaded
+    if (window.YT && window.YT.Player) {
+      youtubeApiReadyRef.current = true;
+      setYoutubeApiLoaded(true);
+      return;
+    }
+
+    // Set up callback first (before script loads)
+    const originalCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      youtubeApiReadyRef.current = true;
+      setYoutubeApiLoaded(true);
+      // Call original callback if it exists
+      if (originalCallback && typeof originalCallback === 'function') {
+        originalCallback();
+      }
+    };
+
+    // Check if script is already being loaded
+    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      // Wait for it to load
+      const checkInterval = setInterval(() => {
+        if (window.YT && window.YT.Player) {
+          youtubeApiReadyRef.current = true;
+          setYoutubeApiLoaded(true);
+          clearInterval(checkInterval);
+        }
+      }, 100);
+      return () => clearInterval(checkInterval);
+    }
+
+    // Load the script
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    tag.async = true;
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    if (firstScriptTag && firstScriptTag.parentNode) {
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    } else {
+      document.head.appendChild(tag);
+    }
+  }, []);
+
+  // Initialize YouTube player when video is selected
+  useEffect(() => {
+    if (!selectedVideo || !selectedVideo.id) {
+      return;
+    }
+
+    // Clean up previous player
+    if (youtubePlayerRef.current) {
+      try {
+        youtubePlayerRef.current.destroy();
+      } catch (error) {
+        // Player might already be destroyed
+      }
+      youtubePlayerRef.current = null;
+    }
+
+    // Clear any existing progress save interval
+    if (progressSaveIntervalRef.current) {
+      clearInterval(progressSaveIntervalRef.current);
+      progressSaveIntervalRef.current = null;
+    }
+
+    // If API is not ready, use fallback iframe (handled in render)
+    if (!youtubeApiReadyRef.current) {
+      return;
+    }
+
+    // Get saved progress
+    const savedProgress = getVideoProgress(selectedVideo.id);
+    
+    // Wait a bit for the container to be rendered
+    const initPlayer = () => {
+      const playerContainer = document.getElementById('youtube-player-container');
+      if (!playerContainer) {
+        // Retry after a short delay
+        setTimeout(initPlayer, 100);
+        return;
+      }
+
+      // Clear container
+      playerContainer.innerHTML = '';
+
+      // Create a div for the player
+      const playerId = `youtube-player-${selectedVideo.id}-${Date.now()}`;
+      const playerDiv = document.createElement('div');
+      playerDiv.id = playerId;
+      playerContainer.appendChild(playerDiv);
+
+      try {
+        const player = new window.YT.Player(playerId, {
+          videoId: selectedVideo.id,
+          playerVars: {
+            autoplay: 0,
+            controls: 1,
+            rel: 0,
+            modestbranding: 1,
+            ...(savedProgress ? { start: savedProgress } : {})
+          },
+          events: {
+            onReady: (event) => {
+              youtubePlayerRef.current = event.target;
+              // Start tracking progress
+              progressSaveIntervalRef.current = setInterval(() => {
+                if (youtubePlayerRef.current) {
+                  try {
+                    const currentTime = youtubePlayerRef.current.getCurrentTime();
+                    if (currentTime && currentTime > 0) {
+                      saveVideoProgress(selectedVideo.id, currentTime);
+                    }
+                  } catch (error) {
+                    console.error('Error getting video progress:', error);
+                  }
+                }
+              }, 5000); // Save every 5 seconds
+            },
+            onStateChange: (event) => {
+              // Save progress when video is paused or ended
+              if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+                if (youtubePlayerRef.current) {
+                  try {
+                    const currentTime = youtubePlayerRef.current.getCurrentTime();
+                    if (currentTime && currentTime > 0) {
+                      saveVideoProgress(selectedVideo.id, currentTime);
+                    }
+                  } catch (error) {
+                    console.error('Error saving video progress:', error);
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error creating YouTube player:', error);
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    setTimeout(initPlayer, 100);
+
+    // Cleanup function
+    return () => {
+      if (progressSaveIntervalRef.current) {
+        clearInterval(progressSaveIntervalRef.current);
+        progressSaveIntervalRef.current = null;
+      }
+      if (youtubePlayerRef.current) {
+        try {
+          youtubePlayerRef.current.destroy();
+        } catch (error) {
+          // Player might already be destroyed
+        }
+        youtubePlayerRef.current = null;
+      }
+    };
+  }, [selectedVideo, youtubeApiLoaded]);
 
   // Fetch user's pencil sets for Your Set dropdown (keep for journal entry)
   useEffect(() => {
@@ -1848,17 +2050,29 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           ) : (
             <div className="h-full flex flex-col">
               <div className="flex-1 bg-slate-900 overflow-hidden" style={{ minHeight: '600px' }}>
-                <iframe
-                  width="100%"
-                  height="100%"
-                  src={`https://www.youtube.com/embed/${selectedVideo.id}`}
-                  title={selectedVideo.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full"
-                  style={{ display: 'block' }}
-                ></iframe>
+                {youtubeApiLoaded ? (
+                  <div id="youtube-player-container" className="w-full h-full"></div>
+                ) : (
+                  (() => {
+                    const savedProgress = getVideoProgress(selectedVideo.id);
+                    const embedUrl = savedProgress 
+                      ? `https://www.youtube.com/embed/${selectedVideo.id}?start=${savedProgress}`
+                      : `https://www.youtube.com/embed/${selectedVideo.id}`;
+                    return (
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={embedUrl}
+                        title={selectedVideo.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full"
+                        style={{ display: 'block' }}
+                      ></iframe>
+                    );
+                  })()
+                )}
               </div>
               <div className="flex items-center justify-between p-2 flex-shrink-0 bg-white border-t border-slate-200">
                 <div>
