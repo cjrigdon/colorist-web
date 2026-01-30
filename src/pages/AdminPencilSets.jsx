@@ -17,6 +17,7 @@ const AdminPencilSets = () => {
     name: '',
     origin_country: '',
     type: '',
+    media_type: '',
     shopping_link: '',
     water_soluable: false,
     open_stock: false,
@@ -93,6 +94,7 @@ const AdminPencilSets = () => {
       name: set.name || '',
       origin_country: set.origin_country || '',
       type: set.type || '',
+      media_type: set.media_type || '',
       shopping_link: set.shopping_link || '',
       water_soluable: set.water_soluable || false,
       open_stock: set.open_stock || false,
@@ -221,6 +223,7 @@ const AdminPencilSets = () => {
         name: '',
         origin_country: '',
         type: '',
+        media_type: '',
         shopping_link: '',
         water_soluable: false,
         open_stock: false,
@@ -257,6 +260,7 @@ const AdminPencilSets = () => {
       name: '',
       origin_country: '',
       type: '',
+      media_type: '',
       shopping_link: '',
       water_soluable: false,
       open_stock: false,
@@ -578,6 +582,18 @@ const AdminPencilSets = () => {
                     type="text"
                     name="type"
                     value={formData.type}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Media Type
+                  </label>
+                  <input
+                    type="text"
+                    name="media_type"
+                    value={formData.media_type}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                   />
