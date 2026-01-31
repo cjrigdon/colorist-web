@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { booksAPI, bookPagesAPI } from '../services/api';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 const EditBook = () => {
   const location = useLocation();
@@ -29,6 +30,9 @@ const EditBook = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [bookPages, setBookPages] = useState([]);
   const [loadingPages, setLoadingPages] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [bookData, setBookData] = useState(null);
 
   useEffect(() => {
     // Early return if no ID
@@ -66,6 +70,9 @@ const EditBook = () => {
           isbn: (data.isbn !== null && data.isbn !== undefined) ? String(data.isbn) : '',
           image: (data.image !== null && data.image !== undefined) ? String(data.image) : ''
         }));
+        
+        // Store book data to check if it's system or user-specific
+        setBookData(data);
       } catch (err) {
         setError(err.message || err.data?.message || 'Failed to load book');
       } finally {
@@ -197,9 +204,34 @@ const EditBook = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    setDeleting(true);
+    setError(null);
+    
+    try {
+      // Backend handles system vs user-specific logic automatically
+      await booksAPI.delete(id);
+      navigate(-1);
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Failed to delete book');
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
+        <div className="modern-loader mb-4">
+          <div className="loader-ring">
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+          </div>
+        </div>
         <div className="text-slate-500 mb-2">Loading book...</div>
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
@@ -211,9 +243,10 @@ const EditBook = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="mb-6">
+    <div className="max-w-4xl mx-auto">
+      {/* Header Section */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
           <h2 className="text-2xl font-semibold text-slate-800 font-venti mb-2">
             Edit Coloring Book
           </h2>
@@ -221,14 +254,52 @@ const EditBook = () => {
             Update the details for this coloring book
           </p>
         </div>
+        {/* Action Buttons Group */}
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={deleting}
+            className="px-6 py-2.5 text-red-700 bg-red-50 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              const form = document.getElementById('edit-book-form');
+              if (form) {
+                form.requestSubmit();
+              }
+            }}
+            disabled={saving || uploadingFile}
+            className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#ea3663' }}
+            onMouseEnter={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#d12a4f')}
+            onMouseLeave={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#ea3663')}
+          >
+            {uploadingFile ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
 
+      {/* White Container */}
+      <div className="bg-white shadow-sm p-6">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="edit-book-form" onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Title
@@ -359,26 +430,6 @@ const EditBook = () => {
               </div>
             )}
           </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || uploadingFile}
-              className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#ea3663' }}
-              onMouseEnter={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#d12a4f')}
-              onMouseLeave={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#ea3663')}
-            >
-              {uploadingFile ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
         </form>
       </div>
 
@@ -485,6 +536,14 @@ const EditBook = () => {
           )}
         </div>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        itemName={formData.title || 'Coloring Book'}
+        itemType="book"
+      />
     </div>
   );
 };

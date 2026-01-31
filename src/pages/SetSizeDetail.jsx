@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { coloredPencilSetsAPI, coloredPencilsAPI } from '../services/api';
-import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 
 const SetSizeDetail = () => {
@@ -147,7 +146,19 @@ const SetSizeDetail = () => {
   };
 
   if (loading) {
-    return <LoadingState message="Loading set details..." />;
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="modern-loader mb-4">
+          <div className="loader-ring">
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+          </div>
+        </div>
+        <div className="text-slate-500 mb-2">Loading set details...</div>
+      </div>
+    );
   }
 
   if (error) {
@@ -184,10 +195,10 @@ const SetSizeDetail = () => {
       </div>
 
       {/* Pencils Grid */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div className="bg-white shadow-sm p-6">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-800 font-venti">Pencil Colors</h3>
-          <p className="text-sm text-slate-600 mt-1">Click on inventory to edit</p>
+          <h3 className="text-lg font-semibold text-slate-800 font-venti">Inventory</h3>
+          <p className="text-sm text-slate-600 mt-1">Click on inventory count to edit</p>
         </div>
         
         {pencils.length === 0 ? (

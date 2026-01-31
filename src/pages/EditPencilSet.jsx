@@ -89,15 +89,23 @@ const EditPencilSet = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-slate-500">Loading...</div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="modern-loader mb-4">
+          <div className="loader-ring">
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+          </div>
+        </div>
+        <div className="text-slate-500 mb-2">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div className="bg-white shadow-sm p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-slate-800 font-venti mb-2">
             Edit Pencil Set

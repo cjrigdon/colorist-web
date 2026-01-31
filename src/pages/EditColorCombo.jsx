@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { colorCombosAPI, coloredPencilSetsAPI } from '../services/api';
 import ColorSelector from '../components/ColorSelector';
 import DropdownMenu from '../components/DropdownMenu';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 const EditColorCombo = () => {
   const location = useLocation();
@@ -27,6 +28,8 @@ const EditColorCombo = () => {
   const [pencilSets, setPencilSets] = useState([]);
   const [selectedSetFilter, setSelectedSetFilter] = useState('');
   const [loadingColors, setLoadingColors] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAllPencils = async () => {
     try {
@@ -53,10 +56,12 @@ const EditColorCombo = () => {
           set.pencils.forEach(pencil => {
             if (pencil && pencil.color) {
               // Include the pencil with its set information for filtering
+              // Create a unique key combining pencil ID and setSizeId to avoid duplicate keys
               allPencilsList.push({
                 ...pencil,
                 setSizeId: set.id,
-                setData: set.set || set.colored_pencil_set
+                setData: set.set || set.colored_pencil_set,
+                uniqueKey: `${pencil.id}-${set.id}` // Unique identifier for React keys
               });
             }
           });
@@ -169,9 +174,33 @@ const EditColorCombo = () => {
     }));
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    setDeleting(true);
+    setError(null);
+    
+    try {
+      await colorCombosAPI.delete(id);
+      navigate(-1);
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Failed to delete color combo');
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
+        <div className="modern-loader mb-4">
+          <div className="loader-ring">
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+            <div className="loader-ring-segment"></div>
+          </div>
+        </div>
         <div className="text-slate-500 mb-2">Loading color combo...</div>
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
@@ -183,9 +212,10 @@ const EditColorCombo = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="mb-6">
+    <div className="max-w-4xl mx-auto">
+      {/* Header Section */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
           <h2 className="text-2xl font-semibold text-slate-800 font-venti mb-2">
             Edit Color Combo
           </h2>
@@ -193,14 +223,52 @@ const EditColorCombo = () => {
             Update the details for this color combination
           </p>
         </div>
+        {/* Action Buttons Group */}
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={deleting}
+            className="px-6 py-2.5 text-red-700 bg-red-50 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              const form = document.getElementById('edit-color-combo-form');
+              if (form) {
+                form.requestSubmit();
+              }
+            }}
+            disabled={saving}
+            className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#ea3663' }}
+            onMouseEnter={(e) => !saving && (e.target.style.backgroundColor = '#d12a4f')}
+            onMouseLeave={(e) => !saving && (e.target.style.backgroundColor = '#ea3663')}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
 
+      {/* White Container */}
+      <div className="bg-white shadow-sm p-6">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="edit-color-combo-form" onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Title
@@ -286,28 +354,16 @@ const EditColorCombo = () => {
               emptyMessage={selectedSetFilter ? 'No colors found in the selected pencil set.' : 'No colors available.'}
             />
           </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#ea3663' }}
-              onMouseEnter={(e) => !saving && (e.target.style.backgroundColor = '#d12a4f')}
-              onMouseLeave={(e) => !saving && (e.target.style.backgroundColor = '#ea3663')}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
         </form>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        itemName={formData.title || 'Color Combo'}
+        itemType="color combo"
+      />
     </div>
   );
 };

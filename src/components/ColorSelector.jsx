@@ -63,6 +63,12 @@ const ColorSelector = ({
     return item.id.toString();
   };
 
+  // Get unique key for item (for React keys)
+  const getItemKey = (item) => {
+    // Use uniqueKey if available (for cases where same item appears multiple times)
+    return item.uniqueKey || item.id.toString();
+  };
+
   const handleAddNewColor = async () => {
     if (!newColorHex || !/^#?[0-9A-Fa-f]{6}$/.test(newColorHex.replace('#', ''))) {
       setError('Please enter a valid hex color (e.g., #FF5733)');
@@ -257,6 +263,7 @@ const ColorSelector = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {filteredItems.map((item) => {
               const itemId = getItemId(item);
+              const itemKey = getItemKey(item);
               const color = getColorFromItem(item);
               const displayName = getDisplayName(item);
               const hex = getHex(item);
@@ -265,7 +272,7 @@ const ColorSelector = ({
 
               return (
                 <label
-                  key={item.id}
+                  key={itemKey}
                   className={`flex items-center space-x-2 p-2 rounded cursor-pointer transition-colors ${
                     isSelected
                       ? 'bg-slate-200 border-2 border-slate-300'

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { colorPalettesAPI } from '../services/api';
+import { colorPalettesAPI, userAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorPaletteModal from './AddColorPaletteModal';
@@ -9,11 +9,17 @@ import HoverableCard from './HoverableCard';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const ColorPalettes = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [paletteToDelete, setPaletteToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [togglingFavorite, setTogglingFavorite] = useState(null);
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -35,15 +41,92 @@ const ColorPalettes = ({ user }) => {
     { perPage: 40 }
   );
 
+  // Sort palettes alphabetically by title
+  const sortedPalettes = useMemo(() => {
+    return [...allPalettes].sort((a, b) => {
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [allPalettes]);
+
   // Limit items for free plan users
   const palettes = useMemo(() => {
     if (isFreePlan) {
-      return allPalettes.slice(0, FREE_PLAN_LIMIT);
+      return sortedPalettes.slice(0, FREE_PLAN_LIMIT);
     }
-    return allPalettes;
-  }, [allPalettes, isFreePlan]);
+    return sortedPalettes;
+  }, [sortedPalettes, isFreePlan]);
 
   const hasReachedLimit = isFreePlan && allPalettes.length >= FREE_PLAN_LIMIT;
+  // Fetch user favorites
+  const fetchFavorites = useCallback(async () => {
+    try {
+      const userId = user?.id;
+      if (!userId) return;
+      
+      const response = await userAPI.getFavorites(userId);
+      if (response && Array.isArray(response)) {
+        const favoriteIds = new Set();
+        response.forEach(fav => {
+          if (fav.favoritable_type === 'App\\Models\\ColorPalette') {
+            favoriteIds.add(fav.favoritable_id);
+          }
+        });
+        setFavorites(favoriteIds);
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  const handleToggleFavorite = async (paletteId, e) => {
+    e.stopPropagation();
+    if (togglingFavorite === paletteId) return;
+    
+    setTogglingFavorite(paletteId);
+    try {
+      const result = await colorPalettesAPI.toggleFavorite(paletteId);
+      
+      // Update favorites state
+      setFavorites(prev => {
+        const newFavorites = new Set(prev);
+        if (result.is_favorited) {
+          newFavorites.add(paletteId);
+        } else {
+          newFavorites.delete(paletteId);
+        }
+        return newFavorites;
+      });
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      alert(err.data?.message || err.message || 'Failed to update favorite');
+    } finally {
+      setTogglingFavorite(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!paletteToDelete) return;
+    
+    setDeleting(true);
+    
+    try {
+      await colorPalettesAPI.delete(paletteToDelete.id);
+      await refetch();
+      setShowDeleteModal(false);
+      setPaletteToDelete(null);
+    } catch (err) {
+      console.error('Error deleting palette:', err);
+      alert(err.data?.message || err.message || 'Failed to delete color palette');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -96,7 +179,37 @@ const ColorPalettes = ({ user }) => {
               <HoverableCard
                 key={palette.id}
                 onClick={() => palette.id && navigate(`/edit/color-palette/${palette.id}`)}
+                className="relative"
               >
+            {/* Delete Button - Top Right */}
+            {/* Favorite and Delete Buttons - Top Right */}
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+              <button
+                onClick={(e) => handleToggleFavorite(palette.id, e)}
+                className={`p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full transition-all shadow-sm ${
+                  favorites.has(palette.id) ? 'text-red-500' : 'text-slate-600 hover:text-red-500'
+                }`}
+                title={favorites.has(palette.id) ? 'Remove from favorites' : 'Add to favorites'}
+                disabled={togglingFavorite === palette.id}
+              >
+                <svg className="w-4 h-4" fill={favorites.has(palette.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPaletteToDelete({ id: palette.id, title: palette.title });
+                  setShowDeleteModal(true);
+                }}
+                className="p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full text-slate-600 hover:text-red-600 transition-all shadow-sm"
+                title="Delete color palette"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             {/* Color Strip */}
             <div className="flex h-24">
               {palette.colors && palette.colors.length > 0 ? (
@@ -161,9 +274,18 @@ const ColorPalettes = ({ user }) => {
           setIsAddModalOpen(false);
         }}
       />
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setPaletteToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        itemName={paletteToDelete?.title || 'Color Palette'}
+        itemType="color palette"
+      />
     </div>
   );
 };
 
 export default ColorPalettes;
-

@@ -35,8 +35,8 @@ const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
       setLoadingColors(true);
       setLoadingSets(true);
       
-      // Get user's pencil sets
-      const setsResponse = await coloredPencilSetsAPI.getAll(1, 100);
+      // Get user's pencil sets - pass false to include pencils
+      const setsResponse = await coloredPencilSetsAPI.getAll(1, 100, false);
       
       // Handle paginated response structure
       let sets = [];
@@ -60,10 +60,12 @@ const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
           set.pencils.forEach(pencil => {
             if (pencil && pencil.color) {
               // Include the pencil with its set information for filtering
+              // Create a unique key combining pencil ID and setSizeId to avoid duplicate keys
               allPencilsList.push({
                 ...pencil,
                 setSizeId: set.id,
-                setData: set.set || set.colored_pencil_set
+                setData: set.set || set.colored_pencil_set,
+                uniqueKey: `${pencil.id}-${set.id}` // Unique identifier for React keys
               });
             }
           });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { inspirationAPI, playlistsAPI } from '../services/api';
+import { inspirationAPI, playlistsAPI, videosAPI, filesAPI, userAPI } from '../services/api';
 import AddInspirationModal from './AddInspirationModal';
 import PrimaryButton from './PrimaryButton';
 import HoverableCard from './HoverableCard';
@@ -8,6 +8,7 @@ import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import VideoThumbnail from './VideoThumbnail';
 import UpgradeBanner from './UpgradeBanner';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const Library = ({ user }) => {
   const navigate = useNavigate();
@@ -24,6 +25,11 @@ const Library = ({ user }) => {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const observerTarget = useRef(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [togglingFavorite, setTogglingFavorite] = useState(null);
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -36,9 +42,13 @@ const Library = ({ user }) => {
 
   // Transform API response to component format
   const transformItem = (item) => {
+    // Ensure id is a number for consistent comparison with favorites
+    const id = Number(item.id);
+    const normalizedId = !isNaN(id) ? id : item.id;
+    
     if (item.type === 'video') {
       return {
-        id: item.id,
+        id: normalizedId,
         type: 'video',
         title: item.title || 'Untitled Video',
         thumbnail: item.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
@@ -51,7 +61,7 @@ const Library = ({ user }) => {
       const isImage = item.mime_type?.startsWith('image/');
       
       return {
-        id: item.id,
+        id: normalizedId,
         type: isPdf ? 'pdf' : (isImage ? 'image' : 'file'),
         title: item.title || 'Untitled File',
         thumbnail: item.thumbnail_path || item.path || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
@@ -73,19 +83,25 @@ const Library = ({ user }) => {
       const playlistsData = Array.isArray(response) ? response : (response.data || []);
       
       // Transform playlists and their videos
-      const transformedPlaylists = playlistsData.map(playlist => ({
-        id: playlist.id,
-        title: playlist.title || 'Untitled Playlist',
-        thumbnail: playlist.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
-        videos: (playlist.videos || []).map(video => ({
-          id: video.id,
-          type: 'video',
-          title: video.title || 'Untitled Video',
-          thumbnail: video.thumb || `https://img.youtube.com/vi/${video.embed_id}/hqdefault.jpg`,
-          videoId: video.embed_id,
-          embedId: video.embed_id,
-        }))
-      }));
+      const transformedPlaylists = playlistsData.map(playlist => {
+        const playlistId = Number(playlist.id);
+        return {
+          id: !isNaN(playlistId) ? playlistId : playlist.id,
+          title: playlist.title || 'Untitled Playlist',
+          thumbnail: playlist.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
+          videos: (playlist.videos || []).map(video => {
+            const videoId = Number(video.id);
+            return {
+              id: !isNaN(videoId) ? videoId : video.id,
+              type: 'video',
+              title: video.title || 'Untitled Video',
+              thumbnail: video.thumb || `https://img.youtube.com/vi/${video.embed_id}/hqdefault.jpg`,
+              videoId: video.embed_id,
+              embedId: video.embed_id,
+            };
+          })
+        };
+      });
 
       setPlaylists(transformedPlaylists);
     } catch (err) {
@@ -134,10 +150,84 @@ const Library = ({ user }) => {
     }
   }, []);
 
+  // Fetch user favorites
+  const fetchFavorites = useCallback(async () => {
+    try {
+      const userId = user?.id;
+      if (!userId) return;
+      
+      if (!userAPI.getFavorites) {
+        setFavorites(new Set());
+        return;
+      }
+      
+      const response = await userAPI.getFavorites(userId);
+      
+      // Handle different response structures - be more flexible
+      let favoritesData = [];
+      
+      // Check if response is directly an array
+      if (Array.isArray(response)) {
+        favoritesData = response;
+      } 
+      // Check if response has a data property that's an array
+      else if (response?.data && Array.isArray(response.data)) {
+        favoritesData = response.data;
+      }
+      // Check if response is array-like (has length property)
+      else if (response && typeof response === 'object' && 'length' in response && typeof response.length === 'number') {
+        // Convert array-like object to array
+        favoritesData = Array.from(response);
+      }
+      // Last resort: try to use response directly if it exists
+      else if (response) {
+        favoritesData = response;
+      }
+      
+      // Ensure favoritesData is actually an array
+      if (!Array.isArray(favoritesData)) {
+        favoritesData = Array.isArray(favoritesData) ? favoritesData : (favoritesData ? [favoritesData] : []);
+      }
+      
+      if (favoritesData.length > 0) {
+        const favoriteIds = new Set();
+        favoritesData.forEach(fav => {
+          // Check for both possible type formats and use flexible matching
+          const isVideo = fav.favoritable_type === 'App\\Models\\Video' || 
+                        fav.favoritable_type === 'App\Models\Video' ||
+                        fav.favoritable_type?.includes('Video');
+          const isFile = fav.favoritable_type === 'App\\Models\\File' || 
+                        fav.favoritable_type === 'App\Models\File' ||
+                        fav.favoritable_type?.includes('File');
+          
+          if (fav.favoritable_id !== undefined && fav.favoritable_id !== null) {
+            // Convert to number to ensure type consistency
+            const id = Number(fav.favoritable_id);
+            if (!isNaN(id)) {
+              if (isVideo) {
+                favoriteIds.add(`video-${id}`);
+              } else if (isFile) {
+                favoriteIds.add(`file-${id}`);
+              }
+            }
+          }
+        });
+        setFavorites(favoriteIds);
+      } else {
+        // If no favorites found, set empty Set
+        setFavorites(new Set());
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err);
+      setFavorites(new Set());
+    }
+  }, [user]);
+
   // Initial fetch
   useEffect(() => {
     fetchInspirations(1, false);
-  }, [fetchInspirations]);
+    fetchFavorites();
+  }, [fetchInspirations, fetchFavorites]);
 
   // Fetch playlists when filter is videos
   useEffect(() => {
@@ -183,15 +273,83 @@ const Library = ({ user }) => {
         return true;
       });
 
+  // Sort inspirations alphabetically by title
+  const sortedInspirations = useMemo(() => {
+    return [...filteredInspirations].sort((a, b) => {
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [filteredInspirations]);
+
   // Limit items for free plan users
   const limitedInspirations = useMemo(() => {
     if (isFreePlan) {
-      return filteredInspirations.slice(0, FREE_PLAN_LIMIT);
+      return sortedInspirations.slice(0, FREE_PLAN_LIMIT);
     }
-    return filteredInspirations;
-  }, [filteredInspirations, isFreePlan]);
+    return sortedInspirations;
+  }, [sortedInspirations, isFreePlan]);
 
   const hasReachedLimit = isFreePlan && inspirations.length >= FREE_PLAN_LIMIT;
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+    
+    setDeleting(true);
+    setError(null);
+    
+    try {
+      if (itemToDelete.type === 'video') {
+        await videosAPI.delete(itemToDelete.id);
+      } else if (itemToDelete.type === 'file' || itemToDelete.type === 'image' || itemToDelete.type === 'pdf') {
+        await filesAPI.delete(itemToDelete.id);
+      }
+      
+      // Refresh the list
+      await fetchInspirations(1, false);
+      if (filter === 'videos') {
+        await fetchPlaylists();
+      }
+      
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Failed to delete item');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleToggleFavorite = async (item, e) => {
+    e.stopPropagation();
+    if (togglingFavorite === item.id) return;
+    
+    setTogglingFavorite(item.id);
+    try {
+      const isVideo = item.type === 'video';
+      const api = isVideo ? videosAPI : filesAPI;
+      const result = await api.toggleFavorite(item.id);
+      
+      // Update favorites state
+      // Convert item.id to number to ensure type consistency
+      const numericId = Number(item.id);
+      const favoriteKey = `${isVideo ? 'video' : 'file'}-${numericId}`;
+      setFavorites(prev => {
+        const newFavorites = new Set(prev);
+        if (result.is_favorited) {
+          newFavorites.add(favoriteKey);
+        } else {
+          newFavorites.delete(favoriteKey);
+        }
+        return newFavorites;
+      });
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      alert(err.data?.message || err.message || 'Failed to update favorite');
+    } finally {
+      setTogglingFavorite(null);
+    }
+  };
 
   // Get all videos from playlists for "all videos" view
   const allVideosFromPlaylists = playlists.flatMap(playlist => playlist.videos);
@@ -409,7 +567,7 @@ const Library = ({ user }) => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {playlist.videos.map((video) => (
                           <HoverableCard
-                            key={video.id}
+                            key={`playlist-${playlist.id}-video-${video.id}`}
                             className="group relative"
                           >
                             <VideoThumbnail
@@ -417,21 +575,49 @@ const Library = ({ user }) => {
                               alt={video.title}
                               className="group-hover:scale-105 transition-transform duration-300"
                             />
-                            {/* Hover Overlay with Buttons */}
-                            <div className="absolute inset-0 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-3">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/edit/inspiration/video/${video.id}`);
-                                }}
-                                className="w-40 px-4 py-2 bg-white text-slate-800 rounded-lg font-medium hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                                title="Edit"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                Edit
-                              </button>
+                      {/* Favorite and Delete Buttons - Top Right */}
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleToggleFavorite({ id: video.id, type: 'video' }, e)}
+                          className={`p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full transition-all shadow-sm ${
+                            favorites.has(`video-${Number(video.id)}`) ? 'text-red-500' : 'text-slate-600 hover:text-red-500'
+                          }`}
+                          title={favorites.has(`video-${Number(video.id)}`) ? 'Remove from favorites' : 'Add to favorites'}
+                          disabled={togglingFavorite === video.id}
+                        >
+                          <svg className="w-4 h-4" fill={favorites.has(`video-${Number(video.id)}`) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete({ id: video.id, type: 'video', title: video.title });
+                            setShowDeleteModal(true);
+                          }}
+                          className="p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full text-slate-600 hover:text-red-600 transition-all shadow-sm"
+                          title="Delete video"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      {/* Hover Overlay with Buttons */}
+                      <div className="absolute inset-0 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/edit/inspiration/video/${video.id}`);
+                          }}
+                          className="w-40 px-4 py-2 bg-white text-slate-800 rounded-lg font-medium hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                          title="Edit"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
                               <PrimaryButton
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -478,9 +664,9 @@ const Library = ({ user }) => {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {limitedInspirations.map((item) => (
+                  {limitedInspirations.map((item, index) => (
                     <HoverableCard
-                      key={item.id}
+                      key={`inspiration-${item.type}-${item.id}-${index}`}
                       className="group relative"
                     >
                       {item.type === 'video' ? (
@@ -506,6 +692,34 @@ const Library = ({ user }) => {
                           )}
                         </div>
                       )}
+                      {/* Favorite and Delete Buttons - Top Right */}
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleToggleFavorite(item, e)}
+                          className={`p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full transition-all shadow-sm ${
+                            favorites.has(`${item.type === 'video' ? 'video' : 'file'}-${Number(item.id)}`) ? 'text-red-500' : 'text-slate-600 hover:text-red-500'
+                          }`}
+                          title={favorites.has(`${item.type === 'video' ? 'video' : 'file'}-${Number(item.id)}`) ? 'Remove from favorites' : 'Add to favorites'}
+                          disabled={togglingFavorite === item.id}
+                        >
+                          <svg className="w-4 h-4" fill={favorites.has(`${item.type === 'video' ? 'video' : 'file'}-${Number(item.id)}`) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete({ id: item.id, type: item.type === 'video' ? 'video' : 'file', title: item.title });
+                            setShowDeleteModal(true);
+                          }}
+                          className="p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full text-slate-600 hover:text-red-600 transition-all shadow-sm"
+                          title={`Delete ${item.type}`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                       {/* Hover Overlay with Buttons */}
                       <div className="absolute inset-0 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-3">
                         <button
@@ -574,6 +788,16 @@ const Library = ({ user }) => {
           fetchInspirations(1, false);
           setIsAddModalOpen(false);
         }}
+      />
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        itemName={itemToDelete?.title || 'item'}
+        itemType={itemToDelete?.type || 'item'}
       />
     </div>
   );

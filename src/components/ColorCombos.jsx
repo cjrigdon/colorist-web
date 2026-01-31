@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { colorCombosAPI } from '../services/api';
+import { colorCombosAPI, userAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorComboModal from './AddColorComboModal';
 import UpgradeBanner from './UpgradeBanner';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const ColorCombos = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [comboToDelete, setComboToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [togglingFavorite, setTogglingFavorite] = useState(null);
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -57,15 +63,116 @@ const ColorCombos = ({ user }) => {
     { perPage: 40 }
   );
 
+  const hasReachedLimit = isFreePlan && allCombos.length >= FREE_PLAN_LIMIT;
+
+  // Fetch user favorites
+  const fetchFavorites = useCallback(async () => {
+    try {
+      const userId = user?.id;
+      if (!userId) return;
+      
+      const response = await userAPI.getFavorites(userId);
+      
+      // Handle different response structures
+      let favoritesData = [];
+      if (Array.isArray(response)) {
+        favoritesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        favoritesData = response.data;
+      }
+      
+      if (favoritesData.length > 0) {
+        const favoriteIds = new Set();
+        favoritesData.forEach(fav => {
+          // Check for both possible type formats and use flexible matching
+          const isColorCombo = fav.favoritable_type === 'App\\Models\\ColorCombo' || 
+                              fav.favoritable_type === 'App\Models\ColorCombo' ||
+                              fav.favoritable_type?.includes('ColorCombo');
+          
+          if (isColorCombo && fav.favoritable_id !== undefined && fav.favoritable_id !== null) {
+            // Convert to number to ensure type consistency
+            const id = Number(fav.favoritable_id);
+            if (!isNaN(id)) {
+              favoriteIds.add(id);
+            }
+          }
+        });
+        setFavorites(favoriteIds);
+      } else {
+        setFavorites(new Set());
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err);
+      setFavorites(new Set());
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  // Sort combos alphabetically by title
+  const sortedCombos = useMemo(() => {
+    return [...allCombos].sort((a, b) => {
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [allCombos]);
+
   // Limit items for free plan users
   const combos = useMemo(() => {
     if (isFreePlan) {
-      return allCombos.slice(0, FREE_PLAN_LIMIT);
+      return sortedCombos.slice(0, FREE_PLAN_LIMIT);
     }
-    return allCombos;
-  }, [allCombos, isFreePlan]);
+    return sortedCombos;
+  }, [sortedCombos, isFreePlan]);
 
-  const hasReachedLimit = isFreePlan && allCombos.length >= FREE_PLAN_LIMIT;
+  const handleToggleFavorite = async (comboId, e) => {
+    e.stopPropagation();
+    if (togglingFavorite === comboId) return;
+    
+    setTogglingFavorite(comboId);
+    try {
+      const result = await colorCombosAPI.toggleFavorite(comboId);
+      
+      // Update favorites state
+      // Convert comboId to number to ensure type consistency
+      const numericId = Number(comboId);
+      setFavorites(prev => {
+        const newFavorites = new Set(prev);
+        if (result.is_favorited) {
+          newFavorites.add(numericId);
+        } else {
+          newFavorites.delete(numericId);
+        }
+        return newFavorites;
+      });
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      alert(err.data?.message || err.message || 'Failed to update favorite');
+    } finally {
+      setTogglingFavorite(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!comboToDelete) return;
+    
+    setDeleting(true);
+    
+    try {
+      await colorCombosAPI.delete(comboToDelete.id);
+      await refetch();
+      setShowDeleteModal(false);
+      setComboToDelete(null);
+    } catch (err) {
+      console.error('Error deleting combo:', err);
+      alert(err.data?.message || err.message || 'Failed to delete color combo');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -134,12 +241,40 @@ const ColorCombos = ({ user }) => {
           {combos.map((combo) => (
             <div
               key={combo.id}
-              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all cursor-pointer"
+              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all cursor-pointer relative"
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
               onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               onClick={() => navigate(`/edit/color-combo/${combo.id}`)}
             >
-              <div className="mb-4">
+              {/* Favorite and Delete Buttons - Top Right */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                <button
+                  onClick={(e) => handleToggleFavorite(combo.id, e)}
+                  className={`p-2 rounded-full transition-colors ${
+                    favorites.has(Number(combo.id)) ? 'text-red-500' : 'text-slate-400 hover:text-red-500'
+                  }`}
+                  title={favorites.has(Number(combo.id)) ? 'Remove from favorites' : 'Add to favorites'}
+                  disabled={togglingFavorite === combo.id}
+                >
+                  <svg className="w-5 h-5" fill={favorites.has(Number(combo.id)) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setComboToDelete({ id: combo.id, title: combo.title });
+                    setShowDeleteModal(true);
+                  }}
+                  className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                  title="Delete color combo"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="mb-4 pr-8">
                 <h3 className="text-xl font-semibold text-slate-800 font-venti">{combo.title}</h3>
               </div>
 
@@ -210,6 +345,16 @@ const ColorCombos = ({ user }) => {
           refetch();
           setIsAddModalOpen(false);
         }}
+      />
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setComboToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        itemName={comboToDelete?.title || 'Color Combo'}
+        itemType="color combo"
       />
     </>
   );

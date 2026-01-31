@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { booksAPI } from '../services/api';
+import { booksAPI, userAPI } from '../services/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddBookModal from './AddBookModal';
@@ -10,11 +10,17 @@ import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 const ColoringBooks = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [favorites, setFavorites] = useState(new Set());
+  const [togglingFavorite, setTogglingFavorite] = useState(null);
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -29,18 +35,22 @@ const ColoringBooks = ({ user }) => {
   const transformBooks = (data) => {
     return data
       .filter(book => !book.archived)
-      .map(book => ({
-        id: book.id,
-        title: book.title || 'Untitled',
-        author: book.author || 'Unknown',
-        year_published: book.year_published || null,
-        cover: book.image || 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop',
-        progress: 0, // Not available in API
-        pages: 0, // Not available in API
-        completed: 0, // Not available in API
-        rating: 0, // Not available in API
-        tags: [], // Not available in API
-      }));
+      .map(book => {
+        // Ensure id is a number for consistent comparison with favorites
+        const id = Number(book.id);
+        return {
+          id: !isNaN(id) ? id : book.id,
+          title: book.title || 'Untitled',
+          author: book.author || 'Unknown',
+          year_published: book.year_published || null,
+          cover: book.image || 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop',
+          progress: 0, // Not available in API
+          pages: 0, // Not available in API
+          completed: 0, // Not available in API
+          rating: 0, // Not available in API
+          tags: [], // Not available in API
+        };
+      });
   };
 
   // Check if user has free plan
@@ -54,21 +64,117 @@ const ColoringBooks = ({ user }) => {
     { perPage: 40 }
   );
 
-  // Limit items for free plan users and sort alphabetically by title
-  const books = useMemo(() => {
-    let sortedBooks = [...allBooks].sort((a, b) => {
-      const titleA = (a.title || '').toLowerCase();
-      const titleB = (b.title || '').toLowerCase();
-      return titleA.localeCompare(titleB);
+  // Sort books alphabetically by title
+  const sortedBooks = useMemo(() => {
+    return [...allBooks].sort((a, b) => {
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
     });
-    
+  }, [allBooks]);
+
+  // Limit items for free plan users (after sorting)
+  const books = useMemo(() => {
     if (isFreePlan) {
       return sortedBooks.slice(0, FREE_PLAN_LIMIT);
     }
     return sortedBooks;
-  }, [allBooks, isFreePlan]);
+  }, [sortedBooks, isFreePlan]);
 
   const hasReachedLimit = isFreePlan && allBooks.length >= FREE_PLAN_LIMIT;
+
+  // Fetch user favorites
+  const fetchFavorites = useCallback(async () => {
+    try {
+      const userId = user?.id;
+      if (!userId) return;
+      
+      const response = await userAPI.getFavorites(userId);
+      
+      // Handle different response structures
+      let favoritesData = [];
+      if (Array.isArray(response)) {
+        favoritesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        favoritesData = response.data;
+      }
+      
+      if (favoritesData.length > 0) {
+        const favoriteIds = new Set();
+        favoritesData.forEach(fav => {
+          // Check for both possible type formats and use flexible matching
+          const isBook = fav.favoritable_type === 'App\\Models\\Book' || 
+                        fav.favoritable_type === 'App\Models\Book' ||
+                        fav.favoritable_type?.includes('Book');
+          
+          if (isBook && fav.favoritable_id !== undefined && fav.favoritable_id !== null) {
+            // Convert to number to ensure type consistency with book.id
+            const id = Number(fav.favoritable_id);
+            if (!isNaN(id)) {
+              favoriteIds.add(id);
+            }
+          }
+        });
+        setFavorites(favoriteIds);
+      } else {
+        // If no favorites found, set empty Set
+        setFavorites(new Set());
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err);
+      setFavorites(new Set());
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  const handleToggleFavorite = async (bookId, e) => {
+    e.stopPropagation();
+    if (togglingFavorite === bookId) return;
+    
+    setTogglingFavorite(bookId);
+    try {
+      const result = await booksAPI.toggleFavorite(bookId);
+      
+      // Update favorites state
+      // Convert bookId to number to ensure type consistency
+      const numericId = Number(bookId);
+      setFavorites(prev => {
+        const newFavorites = new Set(prev);
+        if (result.is_favorited) {
+          newFavorites.add(numericId);
+        } else {
+          newFavorites.delete(numericId);
+        }
+        return newFavorites;
+      });
+    } catch (err) {
+      console.error('Error toggling favorite:', err);
+      alert(err.data?.message || err.message || 'Failed to update favorite');
+    } finally {
+      setTogglingFavorite(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!bookToDelete) return;
+    
+    setDeleting(true);
+    
+    try {
+      await booksAPI.delete(bookToDelete.id);
+      await refetch();
+      setShowDeleteModal(false);
+      setBookToDelete(null);
+    } catch (err) {
+      console.error('Error deleting book:', err);
+      alert(err.data?.message || err.message || 'Failed to delete book');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -121,7 +227,36 @@ const ColoringBooks = ({ user }) => {
               <HoverableCard
                 key={book.id}
                 onClick={() => navigate(`/edit/book/${book.id}`)}
+                className="relative"
               >
+            {/* Favorite and Delete Buttons - Top Right */}
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+              <button
+                onClick={(e) => handleToggleFavorite(book.id, e)}
+                className={`p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full transition-all shadow-sm ${
+                  favorites.has(Number(book.id)) ? 'text-red-500' : 'text-slate-600 hover:text-red-500'
+                }`}
+                title={favorites.has(Number(book.id)) ? 'Remove from favorites' : 'Add to favorites'}
+                disabled={togglingFavorite === book.id}
+              >
+                <svg className="w-4 h-4" fill={favorites.has(Number(book.id)) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBookToDelete({ id: book.id, title: book.title });
+                  setShowDeleteModal(true);
+                }}
+                className="p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full text-slate-600 hover:text-red-600 transition-all shadow-sm"
+                title="Delete book"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             {/* Cover Image */}
             <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
               <img
@@ -229,6 +364,16 @@ const ColoringBooks = ({ user }) => {
           refetch();
           setIsAddModalOpen(false);
         }}
+      />
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setBookToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        itemName={bookToDelete?.title || 'Book'}
+        itemType="book"
       />
     </div>
   );

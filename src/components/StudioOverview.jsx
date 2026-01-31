@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI } from '../services/api';
+import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI, userAPI } from '../services/api';
 import HoverableCard from './HoverableCard';
 import UpgradeBanner from './UpgradeBanner';
 
 // Component for pencil set card with thumbnail support
-const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
+const PencilSetCard = ({ set, thumbnailUrl, onNavigate, isFavorite }) => {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -32,7 +32,14 @@ const PencilSetCard = ({ set, thumbnailUrl, onNavigate }) => {
           </svg>
         </div>
       )}
-      <h4 className="font-semibold text-slate-800 mb-1 text-sm">{set.set?.name || set.name}</h4>
+      <div className="flex items-center gap-1 mb-1">
+        <h4 className="font-semibold text-slate-800 text-sm">{set.set?.name || set.name}</h4>
+        {isFavorite && (
+          <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        )}
+      </div>
       <p className="text-xs text-slate-500 mb-2">{set.set?.brand || set.brand}</p>
       <p className="text-xs text-slate-600">{set.count || 0} pencils</p>
     </div>
@@ -71,6 +78,13 @@ const StudioOverview = ({ user }) => {
   const [paletteHasMore, setPaletteHasMore] = useState(true);
   const [palettesLoading, setPalettesLoading] = useState(true);
   const [palettesError, setPalettesError] = useState(null);
+  const [paletteFavorites, setPaletteFavorites] = useState(new Set());
+  
+  // Favorites state for all types
+  const [inspirationFavorites, setInspirationFavorites] = useState(new Set());
+  const [pencilSetFavorites, setPencilSetFavorites] = useState(new Set());
+  const [comboFavorites, setComboFavorites] = useState(new Set());
+  const [bookFavorites, setBookFavorites] = useState(new Set());
   
   // Books state
   const [books, setBooks] = useState([]);
@@ -257,6 +271,173 @@ const StudioOverview = ({ user }) => {
     fetchPalettes(1, false);
   }, [fetchPalettes]);
 
+
+  // Fetch all favorites
+  const fetchAllFavorites = useCallback(async () => {
+    try {
+      const userId = user?.id;
+      if (!userId) return;
+      
+      const response = await userAPI.getFavorites(userId);
+      
+      // Handle different response structures
+      let favoritesData = [];
+      if (Array.isArray(response)) {
+        favoritesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        favoritesData = response.data;
+      }
+      
+      if (favoritesData.length > 0) {
+        const inspirationFavs = new Set();
+        const pencilSetFavs = new Set();
+        const comboFavs = new Set();
+        const bookFavs = new Set();
+        const paletteFavs = new Set();
+        
+        favoritesData.forEach(fav => {
+          const id = Number(fav.favoritable_id);
+          if (isNaN(id)) return;
+          
+          const type = fav.favoritable_type || '';
+          
+          if (type.includes('Video') || type.includes('File')) {
+            const key = type.includes('Video') ? `video-${id}` : `file-${id}`;
+            inspirationFavs.add(key);
+          } else if (type.includes('ColoredPencilSet')) {
+            pencilSetFavs.add(id);
+          } else if (type.includes('ColorCombo')) {
+            comboFavs.add(id);
+          } else if (type.includes('Book')) {
+            bookFavs.add(id);
+          } else if (type.includes('ColorPalette')) {
+            paletteFavs.add(id);
+          }
+        });
+        
+        setInspirationFavorites(inspirationFavs);
+        setPencilSetFavorites(pencilSetFavs);
+        setComboFavorites(comboFavs);
+        setBookFavorites(bookFavs);
+        setPaletteFavorites(paletteFavs);
+      } else {
+        setInspirationFavorites(new Set());
+        setPencilSetFavorites(new Set());
+        setComboFavorites(new Set());
+        setBookFavorites(new Set());
+        setPaletteFavorites(new Set());
+      }
+    } catch (err) {
+      console.error('Error fetching favorites:', err);
+      setInspirationFavorites(new Set());
+      setPencilSetFavorites(new Set());
+      setComboFavorites(new Set());
+      setBookFavorites(new Set());
+      setPaletteFavorites(new Set());
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchAllFavorites();
+  }, [fetchAllFavorites]);
+
+  // Sort palettes: favorites first, then alphabetically by title
+  const sortedPalettes = useMemo(() => {
+    return [...palettes].sort((a, b) => {
+      // Convert to number to ensure type consistency
+      const aId = Number(a.id);
+      const bId = Number(b.id);
+      const aIsFavorite = !isNaN(aId) && paletteFavorites.has(aId);
+      const bIsFavorite = !isNaN(bId) && paletteFavorites.has(bId);
+      
+      // If one is favorite and the other isn't, favorite comes first
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Both are favorites or both aren't - sort alphabetically by title
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [palettes, paletteFavorites]);
+
+  // Sort inspirations: favorites first, then alphabetically by title
+  const sortedInspirations = useMemo(() => {
+    return [...inspirations].sort((a, b) => {
+      const aKey = `${a.type === 'video' ? 'video' : 'file'}-${Number(a.id)}`;
+      const bKey = `${b.type === 'video' ? 'video' : 'file'}-${Number(b.id)}`;
+      const aIsFavorite = inspirationFavorites.has(aKey);
+      const bIsFavorite = inspirationFavorites.has(bKey);
+      
+      // If one is favorite and the other isn't, favorite comes first
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Both are favorites or both aren't - sort alphabetically by title
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [inspirations, inspirationFavorites]);
+
+  // Sort pencil sets: favorites first, then alphabetically by name
+  const sortedPencilSets = useMemo(() => {
+    return [...pencilSets].sort((a, b) => {
+      // Get the ColoredPencilSet ID (not the set size ID)
+      const aSetId = Number(a.set?.id || a.colored_pencil_set?.id);
+      const bSetId = Number(b.set?.id || b.colored_pencil_set?.id);
+      const aIsFavorite = !isNaN(aSetId) && pencilSetFavorites.has(aSetId);
+      const bIsFavorite = !isNaN(bSetId) && pencilSetFavorites.has(bSetId);
+      
+      // If one is favorite and the other isn't, favorite comes first
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Both are favorites or both aren't - sort alphabetically by name
+      const aName = ((a.set?.name || a.name) || '').toLowerCase();
+      const bName = ((b.set?.name || b.name) || '').toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }, [pencilSets, pencilSetFavorites]);
+
+  // Sort combos: favorites first, then alphabetically by title
+  const sortedCombos = useMemo(() => {
+    return [...combos].sort((a, b) => {
+      const aId = Number(a.id);
+      const bId = Number(b.id);
+      const aIsFavorite = !isNaN(aId) && comboFavorites.has(aId);
+      const bIsFavorite = !isNaN(bId) && comboFavorites.has(bId);
+      
+      // If one is favorite and the other isn't, favorite comes first
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Both are favorites or both aren't - sort alphabetically by title
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [combos, comboFavorites]);
+
+  // Sort books: favorites first, then alphabetically by title
+  const sortedBooks = useMemo(() => {
+    return [...books].sort((a, b) => {
+      const aId = Number(a.id);
+      const bId = Number(b.id);
+      const aIsFavorite = !isNaN(aId) && bookFavorites.has(aId);
+      const bIsFavorite = !isNaN(bId) && bookFavorites.has(bId);
+      
+      // If one is favorite and the other isn't, favorite comes first
+      if (aIsFavorite && !bIsFavorite) return -1;
+      if (!aIsFavorite && bIsFavorite) return 1;
+      
+      // Both are favorites or both aren't - sort alphabetically by title
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+      return aTitle.localeCompare(bTitle);
+    });
+  }, [books, bookFavorites]);
+
   // Fetch books from API
   const fetchBooks = useCallback(async (page = 1, append = false) => {
     if (!append) {
@@ -393,6 +574,11 @@ const StudioOverview = ({ user }) => {
     return limitedItems.slice(currentIndex, currentIndex + 5);
   };
 
+  // Helper function to get visible palettes (uses sorted palettes)
+  const getVisiblePalettes = (currentIndex) => {
+    return getVisibleItems(sortedPalettes, currentIndex);
+  };
+
   // Helper function to check if carousel is needed
   const needsCarousel = (items, hasMore = false) => {
     return items.length > 5 || hasMore;
@@ -422,10 +608,10 @@ const StudioOverview = ({ user }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspo</h3>
           <div className="flex items-center space-x-4">
-            {needsCarousel(inspirations, inspirationHasMore) && (
+            {needsCarousel(sortedInspirations, inspirationHasMore) && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => navigateCarousel('prev', inspirationIndex, inspirations, setInspirationIndex, inspirationHasMore, inspirationPage, fetchInspirations)}
+                  onClick={() => navigateCarousel('prev', inspirationIndex, sortedInspirations, setInspirationIndex, inspirationHasMore, inspirationPage, fetchInspirations)}
                   disabled={inspirationIndex === 0}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -434,8 +620,8 @@ const StudioOverview = ({ user }) => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => navigateCarousel('next', inspirationIndex, inspirations, setInspirationIndex, inspirationHasMore, inspirationPage, fetchInspirations)}
-                  disabled={inspirationIndex >= Math.max(0, inspirations.length - 5) && !inspirationHasMore}
+                  onClick={() => navigateCarousel('next', inspirationIndex, sortedInspirations, setInspirationIndex, inspirationHasMore, inspirationPage, fetchInspirations)}
+                  disabled={inspirationIndex >= Math.max(0, sortedInspirations.length - 5) && !inspirationHasMore}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -474,7 +660,7 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{inspirationsError}</p>
           </div>
-        ) : inspirations.length === 0 ? (
+        ) : sortedInspirations.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🎨</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Inspiration Yet</h4>
@@ -494,7 +680,7 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(inspirations, inspirationIndex).map((item) => (
+            {getVisibleItems(sortedInspirations, inspirationIndex).map((item) => (
             <div
               key={item.id}
               className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all group relative"
@@ -571,7 +757,14 @@ const StudioOverview = ({ user }) => {
               <div className="p-3">
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-slate-800 mb-1 line-clamp-2 text-sm">{item.title}</h4>
+                    <div className="flex items-center gap-1 mb-1">
+                      <h4 className="font-medium text-slate-800 line-clamp-2 text-sm">{item.title}</h4>
+                      {inspirationFavorites.has(`${item.type === 'video' ? 'video' : 'file'}-${Number(item.id)}`) && (
+                        <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500 capitalize">{item.type}</p>
                   </div>
                 </div>
@@ -587,10 +780,10 @@ const StudioOverview = ({ user }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Media</h3>
           <div className="flex items-center space-x-4">
-            {needsCarousel(pencilSets, pencilSetHasMore) && (
+            {needsCarousel(sortedPencilSets, pencilSetHasMore) && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => navigateCarousel('prev', pencilSetIndex, pencilSets, setPencilSetIndex, pencilSetHasMore, pencilSetPage, fetchPencilSets)}
+                  onClick={() => navigateCarousel('prev', pencilSetIndex, sortedPencilSets, setPencilSetIndex, pencilSetHasMore, pencilSetPage, fetchPencilSets)}
                   disabled={pencilSetIndex === 0}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -599,8 +792,8 @@ const StudioOverview = ({ user }) => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => navigateCarousel('next', pencilSetIndex, pencilSets, setPencilSetIndex, pencilSetHasMore, pencilSetPage, fetchPencilSets)}
-                  disabled={pencilSetIndex >= Math.max(0, pencilSets.length - 5) && !pencilSetHasMore}
+                  onClick={() => navigateCarousel('next', pencilSetIndex, sortedPencilSets, setPencilSetIndex, pencilSetHasMore, pencilSetPage, fetchPencilSets)}
+                  disabled={pencilSetIndex >= Math.max(0, sortedPencilSets.length - 5) && !pencilSetHasMore}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -639,7 +832,7 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{pencilSetsError}</p>
           </div>
-        ) : pencilSets.length === 0 ? (
+        ) : sortedPencilSets.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">✏️</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets Yet</h4>
@@ -659,7 +852,7 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(pencilSets, pencilSetIndex).map((set) => {
+            {getVisibleItems(sortedPencilSets, pencilSetIndex).map((set) => {
               // Prioritize thumbnail from set size (colored_pencil_set_sizes.thumb), fallback to set thumb
               // Use set size thumb if it exists (even if it's a full URL), otherwise use set thumb
               const thumbnail = set.thumb ? set.thumb : (set.set?.thumb || null);
@@ -667,12 +860,16 @@ const StudioOverview = ({ user }) => {
                 ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
                 : null;
               
+              const setId = Number(set.set?.id || set.colored_pencil_set?.id);
+              const isFavorite = !isNaN(setId) && pencilSetFavorites.has(setId);
+              
               return (
                 <PencilSetCard
                   key={set.id}
                   set={set}
                   thumbnailUrl={thumbnailUrl}
                   onNavigate={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', selectedSetId: set.id } })}
+                  isFavorite={isFavorite}
                 />
               );
             })}
@@ -685,10 +882,10 @@ const StudioOverview = ({ user }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
           <div className="flex items-center space-x-4">
-            {needsCarousel(combos, comboHasMore) && (
+            {needsCarousel(sortedCombos, comboHasMore) && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => navigateCarousel('prev', comboIndex, combos, setComboIndex, comboHasMore, comboPage, fetchCombos)}
+                  onClick={() => navigateCarousel('prev', comboIndex, sortedCombos, setComboIndex, comboHasMore, comboPage, fetchCombos)}
                   disabled={comboIndex === 0}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -697,8 +894,8 @@ const StudioOverview = ({ user }) => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => navigateCarousel('next', comboIndex, combos, setComboIndex, comboHasMore, comboPage, fetchCombos)}
-                  disabled={comboIndex >= Math.max(0, combos.length - 5) && !comboHasMore}
+                  onClick={() => navigateCarousel('next', comboIndex, sortedCombos, setComboIndex, comboHasMore, comboPage, fetchCombos)}
+                  disabled={comboIndex >= Math.max(0, sortedCombos.length - 5) && !comboHasMore}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -737,7 +934,7 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{combosError}</p>
           </div>
-        ) : combos.length === 0 ? (
+        ) : sortedCombos.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🎨</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Combos Yet</h4>
@@ -757,7 +954,11 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(combos, comboIndex).map((combo) => (
+            {getVisibleItems(sortedCombos, comboIndex).map((combo) => {
+              const comboId = Number(combo.id);
+              const isFavorite = !isNaN(comboId) && comboFavorites.has(comboId);
+              
+              return (
               <div
                 key={combo.id}
                 className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all cursor-pointer"
@@ -774,10 +975,18 @@ const StudioOverview = ({ user }) => {
                     ></div>
                   ))}
                 </div>
-                <h4 className="font-semibold text-slate-800 mb-1 text-sm">{combo.title}</h4>
+                <div className="flex items-center gap-1 mb-1">
+                  <h4 className="font-semibold text-slate-800 text-sm">{combo.title}</h4>
+                  {isFavorite && (
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500"></p>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -787,10 +996,10 @@ const StudioOverview = ({ user }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
           <div className="flex items-center space-x-4">
-            {needsCarousel(palettes, paletteHasMore) && (
+            {needsCarousel(sortedPalettes, paletteHasMore) && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => navigateCarousel('prev', paletteIndex, palettes, setPaletteIndex, paletteHasMore, palettePage, fetchPalettes)}
+                  onClick={() => navigateCarousel('prev', paletteIndex, sortedPalettes, setPaletteIndex, paletteHasMore, palettePage, fetchPalettes)}
                   disabled={paletteIndex === 0}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -799,8 +1008,8 @@ const StudioOverview = ({ user }) => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => navigateCarousel('next', paletteIndex, palettes, setPaletteIndex, paletteHasMore, palettePage, fetchPalettes)}
-                  disabled={paletteIndex >= Math.max(0, palettes.length - 5) && !paletteHasMore}
+                  onClick={() => navigateCarousel('next', paletteIndex, sortedPalettes, setPaletteIndex, paletteHasMore, palettePage, fetchPalettes)}
+                  disabled={paletteIndex >= Math.max(0, sortedPalettes.length - 5) && !paletteHasMore}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -839,7 +1048,7 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{palettesError}</p>
           </div>
-        ) : palettes.length === 0 ? (
+        ) : sortedPalettes.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🌈</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Palettes Yet</h4>
@@ -859,7 +1068,11 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(palettes, paletteIndex).map((palette) => (
+            {getVisiblePalettes(paletteIndex).map((palette) => {
+              const paletteId = Number(palette.id);
+              const isFavorite = !isNaN(paletteId) && paletteFavorites.has(paletteId);
+              
+              return (
               <HoverableCard
                 key={palette.id}
                 onClick={() => navigate(`/edit/color-palette/${palette.id}`)}
@@ -882,7 +1095,14 @@ const StudioOverview = ({ user }) => {
                 {/* Content */}
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-slate-800 font-venti">{palette.title}</h3>
+                    <div className="flex items-center gap-1">
+                      <h3 className="text-lg font-semibold text-slate-800 font-venti">{palette.title}</h3>
+                      {isFavorite && (
+                        <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-slate-600 mb-4"></p>
                   {palette.base_color && (
@@ -895,7 +1115,8 @@ const StudioOverview = ({ user }) => {
                   )}
                 </div>
               </HoverableCard>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -905,10 +1126,10 @@ const StudioOverview = ({ user }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
           <div className="flex items-center space-x-4">
-            {needsCarousel(books, bookHasMore) && (
+            {needsCarousel(sortedBooks, bookHasMore) && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => navigateCarousel('prev', bookIndex, books, setBookIndex, bookHasMore, bookPage, fetchBooks)}
+                  onClick={() => navigateCarousel('prev', bookIndex, sortedBooks, setBookIndex, bookHasMore, bookPage, fetchBooks)}
                   disabled={bookIndex === 0}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -917,8 +1138,8 @@ const StudioOverview = ({ user }) => {
                   </svg>
                 </button>
                 <button
-                  onClick={() => navigateCarousel('next', bookIndex, books, setBookIndex, bookHasMore, bookPage, fetchBooks)}
-                  disabled={bookIndex >= Math.max(0, books.length - 5) && !bookHasMore}
+                  onClick={() => navigateCarousel('next', bookIndex, sortedBooks, setBookIndex, bookHasMore, bookPage, fetchBooks)}
+                  disabled={bookIndex >= Math.max(0, sortedBooks.length - 5) && !bookHasMore}
                   className="p-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -957,7 +1178,7 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{booksError}</p>
           </div>
-        ) : books.length === 0 ? (
+        ) : sortedBooks.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📖</div>
             <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Coloring Books Yet</h4>
@@ -977,7 +1198,11 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {getVisibleItems(books, bookIndex).map((book) => (
+            {getVisibleItems(sortedBooks, bookIndex).map((book) => {
+              const bookId = Number(book.id);
+              const isFavorite = !isNaN(bookId) && bookFavorites.has(bookId);
+              
+              return (
               <div
                 key={book.id}
                 className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group"
@@ -993,7 +1218,14 @@ const StudioOverview = ({ user }) => {
                   />
                 </div>
                 <div className="p-3">
-                  <h4 className="font-semibold text-slate-800 mb-1 line-clamp-2 text-sm">{book.title}</h4>
+                  <div className="flex items-center gap-1 mb-1">
+                    <h4 className="font-semibold text-slate-800 line-clamp-2 text-sm">{book.title}</h4>
+                    {isFavorite && (
+                      <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 mb-2">{book.author}</p>
                   {book.progress > 0 && (
                     <>
@@ -1011,7 +1243,8 @@ const StudioOverview = ({ user }) => {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

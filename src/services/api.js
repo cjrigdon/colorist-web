@@ -166,6 +166,7 @@ export const authAPI = {
 
 export const userAPI = {
   getProfile: () => apiGet('/user', true),
+  getFavorites: (userId) => apiGet(`/users/${userId}/favorites`, true),
   updateProfile: (userData) => {
     // Handle file upload for profile image
     // Check if profileImageFile exists and is a File object
@@ -228,7 +229,8 @@ export const colorPalettesAPI = {
   getById: (id) => apiGet(`/color-palettes/${id}`, true),
   create: (palette) => apiPost('/color-palettes', palette, true),
   update: (id, palette) => apiPut(`/color-palettes/${id}`, palette, true),
-  delete: (id) => apiDelete(`/color-palettes/${id}`, true)
+  delete: (id) => apiDelete(`/color-palettes/${id}`, true),
+  toggleFavorite: (id) => apiPost(`/color-palettes/${id}/favorite`, {}, true)
 };
 
 export const colorCombosAPI = {
@@ -239,7 +241,8 @@ export const colorCombosAPI = {
   getById: (id) => apiGet(`/color-combos/${id}`, true),
   create: (combo) => apiPost('/color-combos', combo, true),
   update: (id, combo) => apiPut(`/color-combos/${id}`, combo, true),
-  delete: (id) => apiDelete(`/color-combos/${id}`, true)
+  delete: (id) => apiDelete(`/color-combos/${id}`, true),
+  toggleFavorite: (id) => apiPost(`/color-combos/${id}/favorite`, {}, true)
 };
 
 export const brandsAPI = {
@@ -261,6 +264,7 @@ export const coloredPencilSetsAPI = {
     }
     return apiGet(`/colored-pencil-set-sizes?${params.toString()}`, true);
   },
+  toggleFavorite: (id) => apiPost(`/colored-pencil-sets/${id}/favorite`, {}, true),
   getAllSets: (page = 1, perPage = 100) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     return apiGet(`/colored-pencil-sets?${params.toString()}`, true);
@@ -312,7 +316,8 @@ export const booksAPI = {
   delete: (id) => apiDelete(`/books/${id}`, true),
   attachToUser: (id) => apiPost(`/books/${id}/attach`, {}, true),
   detachFromUser: (id) => apiDelete(`/books/${id}/detach`, true),
-  populateFromIsbn: (isbn) => apiPost('/books/populate-from-isbn', { isbn }, true)
+  populateFromIsbn: (isbn) => apiPost('/books/populate-from-isbn', { isbn }, true),
+  toggleFavorite: (id) => apiPost(`/books/${id}/favorite`, {}, true)
 };
 
 export const bookPagesAPI = {
@@ -398,7 +403,8 @@ export const videosAPI = {
   getById: (id) => apiGet(`/videos/${id}`, true),
   create: (video) => apiPost('/videos', video, true),
   update: (id, video) => apiPut(`/videos/${id}`, video, true),
-  delete: (id) => apiDelete(`/videos/${id}`, true)
+  delete: (id) => apiDelete(`/videos/${id}`, true),
+  toggleFavorite: (id) => apiPost(`/videos/${id}/favorite`, {}, true)
 };
 
 export const playlistsAPI = {
@@ -411,7 +417,8 @@ export const filesAPI = {
   getById: (id) => apiGet(`/files/${id}`, true),
   create: (file) => apiPost('/files', file, true),
   update: (id, file) => apiPut(`/files/${id}`, file, true),
-  delete: (id) => apiDelete(`/files/${id}`, true)
+  delete: (id) => apiDelete(`/files/${id}`, true),
+  toggleFavorite: (id) => apiPost(`/files/${id}/favorite`, {}, true)
 };
 
 export const journalEntriesAPI = {
