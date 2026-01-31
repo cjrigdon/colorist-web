@@ -13,32 +13,32 @@ const reportWebVitals = onPerfEntry => {
 };
 
 // Send web vitals to Sentry
-import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB }) => {
-  onCLS((metric) => {
+import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+  getCLS((metric) => {
     Sentry.metrics.distribution('web_vitals.cls', metric.value, {
       unit: 'none',
       tags: { id: metric.id, name: metric.name },
     });
   });
-  onFID((metric) => {
+  getFID((metric) => {
     Sentry.metrics.distribution('web_vitals.fid', metric.value, {
       unit: 'millisecond',
       tags: { id: metric.id, name: metric.name },
     });
   });
-  onFCP((metric) => {
+  getFCP((metric) => {
     Sentry.metrics.distribution('web_vitals.fcp', metric.value, {
       unit: 'millisecond',
       tags: { id: metric.id, name: metric.name },
     });
   });
-  onLCP((metric) => {
+  getLCP((metric) => {
     Sentry.metrics.distribution('web_vitals.lcp', metric.value, {
       unit: 'millisecond',
       tags: { id: metric.id, name: metric.name },
     });
   });
-  onTTFB((metric) => {
+  getTTFB((metric) => {
     Sentry.metrics.distribution('web_vitals.ttfb', metric.value, {
       unit: 'millisecond',
       tags: { id: metric.id, name: metric.name },
