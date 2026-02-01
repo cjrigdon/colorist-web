@@ -55,10 +55,10 @@ const Library = ({ user }) => {
         videoId: item.embed_id,
         embedId: item.embed_id,
       };
-    } else if (item.type === 'file') {
-      // Determine file type from mime_type
-      const isPdf = item.mime_type?.includes('pdf');
-      const isImage = item.mime_type?.startsWith('image/');
+    } else if (item.type === 'file' || item.type === 'image' || item.type === 'pdf') {
+      // Determine file type from mime_type or use the type from API
+      const isPdf = item.type === 'pdf' || item.mime_type?.includes('pdf');
+      const isImage = item.type === 'image' || item.mime_type?.startsWith('image/');
       
       return {
         id: normalizedId,
@@ -66,6 +66,7 @@ const Library = ({ user }) => {
         title: item.title || 'Untitled File',
         thumbnail: item.thumbnail_path || item.path || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
         path: item.path,
+        mime_type: item.mime_type,
       };
     }
     return null;
@@ -123,7 +124,19 @@ const Library = ({ user }) => {
       }
       setError(null);
 
-      const response = await inspirationAPI.getAll(page, 40);
+      // Determine type filter based on current filter state
+      const typeMap = {
+        'videos': 'video',
+        'images': 'image',
+        'pdfs': 'pdf',
+        'all': null
+      };
+      
+      const response = await inspirationAPI.getAll(page, 40, {
+        type: typeMap[filter],
+        sort: 'title',
+        sort_direction: 'asc'
+      });
       
       // Handle response format
       const items = response.data || [];
@@ -148,7 +161,7 @@ const Library = ({ user }) => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [filter]);
 
   // Fetch user favorites
   const fetchFavorites = useCallback(async () => {
@@ -223,7 +236,7 @@ const Library = ({ user }) => {
     }
   }, [user]);
 
-  // Initial fetch
+  // Initial fetch and refetch when filter changes
   useEffect(() => {
     fetchInspirations(1, false);
     fetchFavorites();
@@ -263,33 +276,10 @@ const Library = ({ user }) => {
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const FREE_PLAN_LIMIT = 5;
 
-  // Filter inspirations based on selected filter
-  const filteredInspirations = filter === 'all' 
-    ? inspirations 
-    : inspirations.filter(item => {
-        if (filter === 'videos') return item.type === 'video';
-        if (filter === 'images') return item.type === 'image';
-        if (filter === 'pdfs') return item.type === 'pdf';
-        return true;
-      });
-
-  // Sort inspirations alphabetically by title
-  const sortedInspirations = useMemo(() => {
-    return [...filteredInspirations].sort((a, b) => {
-      const aTitle = (a.title || '').toLowerCase();
-      const bTitle = (b.title || '').toLowerCase();
-      return aTitle.localeCompare(bTitle);
-    });
-  }, [filteredInspirations]);
-
-  // Limit items for free plan users
-  const limitedInspirations = useMemo(() => {
-    if (isFreePlan) {
-      return sortedInspirations.slice(0, FREE_PLAN_LIMIT);
-    }
-    return sortedInspirations;
-  }, [sortedInspirations, isFreePlan]);
-
+  // Inspirations are already filtered, sorted, and limited by the API
+  const limitedInspirations = inspirations;
+  
+  // Check limit from API response meta if available
   const hasReachedLimit = isFreePlan && inspirations.length >= FREE_PLAN_LIMIT;
 
   const handleDelete = async () => {

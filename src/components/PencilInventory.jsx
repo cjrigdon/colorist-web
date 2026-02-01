@@ -128,32 +128,35 @@ const PencilInventory = ({ user }) => {
     return items.map(setSize => ({
       ...setSize,
       // Ensure brand name is accessible
-      brandName: setSize.set?.brand?.name || setSize.set?.brand || 'Unknown',
+      brandName: setSize.set?.brand?.name || setSize.set?.brand || setSize.colored_pencil_set?.brand?.name || 'Unknown',
       // Ensure set name is accessible
-      setName: setSize.set?.name || 'Unknown',
+      setName: setSize.set?.name || setSize.colored_pencil_set?.name || 'Unknown',
       // Ensure media_type is accessible
-      mediaType: setSize.set?.media_type || null
+      mediaType: setSize.set?.media_type || setSize.colored_pencil_set?.media_type || null
     }));
   };
 
+  // Wrapper function to add grouping and sorting to API call
+  const fetchSetSizes = useCallback((page, perPage) => {
+    return coloredPencilSetsAPI.getAll(page, perPage, true, {
+      group_by: 'media_type',
+      sort: 'favorites_first,brand,set_name,count',
+      archived: false
+    });
+  }, []);
+
   // Use infinite scroll hook to get user's set sizes (without pencils for performance)
   const { items: allSetSizes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
-    (page, perPage) => coloredPencilSetsAPI.getAll(page, perPage, true), // excludePencils = true
+    fetchSetSizes,
     transformPencilSetSizes,
     { perPage: 100 }
   );
 
-  // Limit items for free plan users
-  const setSizes = useMemo(() => {
-    if (isFreePlan) {
-      return allSetSizes.slice(0, FREE_PLAN_LIMIT);
-    }
-    return allSetSizes;
-  }, [allSetSizes, isFreePlan]);
-
+  // Set sizes are already grouped, sorted, and limited by API
+  const setSizes = allSetSizes;
   const hasReachedLimit = isFreePlan && allSetSizes.length >= FREE_PLAN_LIMIT;
 
-  // Group set sizes by media_type and sort
+  // Group set sizes by media_type (API already sorted within groups)
   const groupedByMediaType = useMemo(() => {
     if (!setSizes || setSizes.length === 0) {
       return {};
@@ -167,36 +170,6 @@ const PencilInventory = ({ user }) => {
         grouped[mediaType] = [];
       }
       grouped[mediaType].push(setSize);
-    });
-
-    // Sort each media_type's sets: favorites first, then by brand, then by set name, then by count
-    Object.keys(grouped).forEach(mediaType => {
-      grouped[mediaType].sort((a, b) => {
-        // First check if either is a favorite
-        const aSetId = Number(a.set?.id || a.colored_pencil_set?.id);
-        const bSetId = Number(b.set?.id || b.colored_pencil_set?.id);
-        const aIsFavorite = !isNaN(aSetId) && favorites.has(aSetId);
-        const bIsFavorite = !isNaN(bSetId) && favorites.has(bSetId);
-        
-        // If one is favorite and the other isn't, favorite comes first
-        if (aIsFavorite && !bIsFavorite) return -1;
-        if (!aIsFavorite && bIsFavorite) return 1;
-        
-        // Both are favorites or both aren't - sort by brand name
-        const brandA = a.brandName || '';
-        const brandB = b.brandName || '';
-        if (brandA !== brandB) {
-          return brandA.localeCompare(brandB);
-        }
-        // Then sort by set name
-        const nameA = a.setName || '';
-        const nameB = b.setName || '';
-        if (nameA !== nameB) {
-          return nameA.localeCompare(nameB);
-        }
-        // Finally sort by count (size)
-        return (a.count || 0) - (b.count || 0);
-      });
     });
 
     return grouped;

@@ -222,8 +222,25 @@ export const colorsAPI = {
 };
 
 export const colorPalettesAPI = {
-  getAll: (page = 1, perPage = 5) => {
+  getAll: (page = 1, perPage = 5, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    
+    // Add filter parameters
+    if (filters.archived !== undefined) {
+      params.append('filter[archived]', filters.archived.toString());
+    }
+    
+    // Add sorting
+    if (filters.sort) {
+      params.append('sort', filters.sort);
+    } else {
+      params.append('sort', 'title');
+      params.append('sort_direction', 'asc');
+    }
+    if (filters.sort_direction) {
+      params.append('sort_direction', filters.sort_direction);
+    }
+    
     return apiGet(`/color-palettes?${params.toString()}`, true);
   },
   getById: (id) => apiGet(`/color-palettes/${id}`, true),
@@ -234,8 +251,25 @@ export const colorPalettesAPI = {
 };
 
 export const colorCombosAPI = {
-  getAll: (page = 1, perPage = 5) => {
+  getAll: (page = 1, perPage = 5, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    
+    // Add filter parameters
+    if (filters.archived !== undefined) {
+      params.append('filter[archived]', filters.archived.toString());
+    }
+    
+    // Add sorting
+    if (filters.sort) {
+      params.append('sort', filters.sort);
+    } else {
+      params.append('sort', 'title');
+      params.append('sort_direction', 'asc');
+    }
+    if (filters.sort_direction) {
+      params.append('sort_direction', filters.sort_direction);
+    }
+    
     return apiGet(`/color-combos?${params.toString()}`, true);
   },
   getById: (id) => apiGet(`/color-combos/${id}`, true),
@@ -257,11 +291,29 @@ export const brandsAPI = {
 };
 
 export const coloredPencilSetsAPI = {
-  getAll: (page = 1, perPage = 5, excludePencils = true) => {
+  getAll: (page = 1, perPage = 5, excludePencils = true, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     if (excludePencils) {
       params.append('exclude_pencils', 'true');
     }
+    
+    // Add filter parameters
+    if (filters.archived !== undefined) {
+      params.append('filter[archived]', filters.archived.toString());
+    }
+    
+    // Add grouping
+    if (filters.group_by) {
+      params.append('group_by', filters.group_by);
+    }
+    
+    // Add sorting
+    if (filters.sort) {
+      params.append('sort', filters.sort);
+    } else {
+      params.append('sort', 'favorites_first,brand,set_name,count');
+    }
+    
     return apiGet(`/colored-pencil-set-sizes?${params.toString()}`, true);
   },
   toggleFavorite: (id) => apiPost(`/colored-pencil-sets/${id}/favorite`, {}, true),
@@ -305,9 +357,18 @@ export const booksAPI = {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     Object.keys(additionalParams).forEach(key => {
       if (additionalParams[key] !== undefined && additionalParams[key] !== null) {
-        params.append(`filter[${key}]`, additionalParams[key].toString());
+        if (key === 'sort' || key === 'sort_direction') {
+          params.append(key, additionalParams[key].toString());
+        } else {
+          params.append(`filter[${key}]`, additionalParams[key].toString());
+        }
       }
     });
+    // Default sorting by title if not specified
+    if (!additionalParams.sort) {
+      params.append('sort', 'title');
+      params.append('sort_direction', 'asc');
+    }
     return apiGet(`/books?${params.toString()}`, true);
   },
   getById: (id) => apiGet(`/books/${id}`, true),
@@ -392,8 +453,33 @@ export const bookPagesAPI = {
 };
 
 export const inspirationAPI = {
-  getAll: (page = 1, perPage = 40) => {
+  getAll: (page = 1, perPage = 40, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    
+    // Add filter parameters
+    if (filters.type) {
+      params.append('filter[type]', filters.type);
+    }
+    if (filters.archived !== undefined) {
+      params.append('filter[archived]', filters.archived.toString());
+    }
+    
+    // Add sort parameters
+    if (filters.sort) {
+      params.append('sort', filters.sort);
+    }
+    if (filters.sort_direction) {
+      params.append('sort_direction', filters.sort_direction);
+    }
+    
+    // Add sorting
+    if (filters.sort) {
+      params.append('sort', filters.sort);
+    }
+    if (filters.sort_direction) {
+      params.append('sort_direction', filters.sort_direction);
+    }
+    
     return apiGet(`/inspiration?${params.toString()}`, true);
   }
 };

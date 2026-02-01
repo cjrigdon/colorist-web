@@ -34,30 +34,24 @@ const ColorPalettes = ({ user }) => {
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const FREE_PLAN_LIMIT = 5;
 
+  // Wrapper function to add sorting to API call
+  const fetchPalettes = useCallback((page, perPage) => {
+    return colorPalettesAPI.getAll(page, perPage, {
+      sort: 'title',
+      sort_direction: 'asc',
+      archived: false
+    });
+  }, []);
+
   // Use infinite scroll hook (no transformation needed for palettes)
   const { items: allPalettes, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
-    colorPalettesAPI.getAll,
+    fetchPalettes,
     null,
     { perPage: 40 }
   );
 
-  // Sort palettes alphabetically by title
-  const sortedPalettes = useMemo(() => {
-    return [...allPalettes].sort((a, b) => {
-      const aTitle = (a.title || '').toLowerCase();
-      const bTitle = (b.title || '').toLowerCase();
-      return aTitle.localeCompare(bTitle);
-    });
-  }, [allPalettes]);
-
-  // Limit items for free plan users
-  const palettes = useMemo(() => {
-    if (isFreePlan) {
-      return sortedPalettes.slice(0, FREE_PLAN_LIMIT);
-    }
-    return sortedPalettes;
-  }, [sortedPalettes, isFreePlan]);
-
+  // Palettes are already sorted and limited by API
+  const palettes = allPalettes;
   const hasReachedLimit = isFreePlan && allPalettes.length >= FREE_PLAN_LIMIT;
   // Fetch user favorites
   const fetchFavorites = useCallback(async () => {
@@ -289,3 +283,4 @@ const ColorPalettes = ({ user }) => {
 };
 
 export default ColorPalettes;
+

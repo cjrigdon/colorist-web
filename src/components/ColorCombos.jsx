@@ -56,9 +56,18 @@ const ColorCombos = ({ user }) => {
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const FREE_PLAN_LIMIT = 5;
 
+  // Wrapper function to add sorting to API call
+  const fetchCombos = useCallback((page, perPage) => {
+    return colorCombosAPI.getAll(page, perPage, {
+      sort: 'title',
+      sort_direction: 'asc',
+      archived: false
+    });
+  }, []);
+
   // Use infinite scroll hook
   const { items: allCombos, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
-    colorCombosAPI.getAll,
+    fetchCombos,
     transformCombos,
     { perPage: 40 }
   );
@@ -111,22 +120,8 @@ const ColorCombos = ({ user }) => {
     fetchFavorites();
   }, [fetchFavorites]);
 
-  // Sort combos alphabetically by title
-  const sortedCombos = useMemo(() => {
-    return [...allCombos].sort((a, b) => {
-      const aTitle = (a.title || '').toLowerCase();
-      const bTitle = (b.title || '').toLowerCase();
-      return aTitle.localeCompare(bTitle);
-    });
-  }, [allCombos]);
-
-  // Limit items for free plan users
-  const combos = useMemo(() => {
-    if (isFreePlan) {
-      return sortedCombos.slice(0, FREE_PLAN_LIMIT);
-    }
-    return sortedCombos;
-  }, [sortedCombos, isFreePlan]);
+  // Combos are already sorted and limited by API
+  const combos = allCombos;
 
   const handleToggleFavorite = async (comboId, e) => {
     e.stopPropagation();

@@ -31,56 +31,48 @@ const ColoringBooks = ({ user }) => {
     }
   }, [location.state, navigate, location.pathname]);
   
-  // Transform function for books
+  // Transform function for books (no filtering/sorting needed - done by API)
   const transformBooks = (data) => {
-    return data
-      .filter(book => !book.archived)
-      .map(book => {
-        // Ensure id is a number for consistent comparison with favorites
-        const id = Number(book.id);
-        return {
-          id: !isNaN(id) ? id : book.id,
-          title: book.title || 'Untitled',
-          author: book.author || 'Unknown',
-          year_published: book.year_published || null,
-          cover: book.image || 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop',
-          progress: 0, // Not available in API
-          pages: 0, // Not available in API
-          completed: 0, // Not available in API
-          rating: 0, // Not available in API
-          tags: [], // Not available in API
-        };
-      });
+    return data.map(book => {
+      // Ensure id is a number for consistent comparison with favorites
+      const id = Number(book.id);
+      return {
+        id: !isNaN(id) ? id : book.id,
+        title: book.title || 'Untitled',
+        author: book.author || 'Unknown',
+        year_published: book.year_published || null,
+        cover: book.image || 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop',
+        progress: 0, // Not available in API
+        pages: 0, // Not available in API
+        completed: 0, // Not available in API
+        rating: 0, // Not available in API
+        tags: [], // Not available in API
+      };
+    });
   };
 
   // Check if user has free plan
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const FREE_PLAN_LIMIT = 5;
 
+  // Wrapper function to add sorting to API call
+  const fetchBooks = useCallback((page, perPage) => {
+    return booksAPI.getAll(page, perPage, {
+      sort: 'title',
+      sort_direction: 'asc',
+      archived: false
+    });
+  }, []);
+
   // Use infinite scroll hook
   const { items: allBooks, loading, error, loadingMore, observerTarget, refetch } = useInfiniteScroll(
-    booksAPI.getAll,
+    fetchBooks,
     transformBooks,
     { perPage: 40 }
   );
 
-  // Sort books alphabetically by title
-  const sortedBooks = useMemo(() => {
-    return [...allBooks].sort((a, b) => {
-      const aTitle = (a.title || '').toLowerCase();
-      const bTitle = (b.title || '').toLowerCase();
-      return aTitle.localeCompare(bTitle);
-    });
-  }, [allBooks]);
-
-  // Limit items for free plan users (after sorting)
-  const books = useMemo(() => {
-    if (isFreePlan) {
-      return sortedBooks.slice(0, FREE_PLAN_LIMIT);
-    }
-    return sortedBooks;
-  }, [sortedBooks, isFreePlan]);
-
+  // Books are already sorted and limited by API
+  const books = allBooks;
   const hasReachedLimit = isFreePlan && allBooks.length >= FREE_PLAN_LIMIT;
 
   // Fetch user favorites

@@ -445,7 +445,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   useEffect(() => {
     const fetchUserPencilSets = async () => {
       try {
-        const response = await coloredPencilSetsAPI.getAll(1, 1000);
+        const response = await coloredPencilSetsAPI.getAll(1, 100, true, {
+          sort: 'favorites_first,brand,set_name,count',
+          archived: false
+        });
         
         // Handle paginated response
         let setsData = [];
@@ -729,7 +732,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     const fetchInspirations = async () => {
       try {
         setLoadingInspirations(true);
-        const response = await inspirationAPI.getAll(1, 1000);
+        const response = await inspirationAPI.getAll(1, 100, {
+          sort: 'title',
+          sort_direction: 'asc',
+          archived: false
+        });
         
         // Handle paginated response
         let inspirationsData = [];
@@ -875,8 +882,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       try {
         setLoadingJournalData(true);
         
-        // Fetch books
-        const booksResponse = await booksAPI.getAll(1, 1000);
+        // Fetch books with sorting and archived filter
+        const booksResponse = await booksAPI.getAll(1, 100, {
+          sort: 'title',
+          sort_direction: 'asc',
+          archived: false
+        });
         let booksData = [];
         if (Array.isArray(booksResponse)) {
           booksData = booksResponse;
@@ -885,8 +896,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         }
         setBooks(booksData);
 
-        // Fetch palettes
-        const palettesResponse = await colorPalettesAPI.getAll(1, 1000);
+        // Fetch palettes with sorting and archived filter
+        const palettesResponse = await colorPalettesAPI.getAll(1, 100, {
+          sort: 'title',
+          sort_direction: 'asc',
+          archived: false
+        });
         let palettesData = [];
         if (Array.isArray(palettesResponse)) {
           palettesData = palettesResponse;
@@ -895,8 +910,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         }
         setPalettes(palettesData);
 
-        // Fetch combos
-        const combosResponse = await colorCombosAPI.getAll(1, 1000);
+        // Fetch combos with sorting and archived filter
+        const combosResponse = await colorCombosAPI.getAll(1, 100, {
+          sort: 'title',
+          sort_direction: 'asc',
+          archived: false
+        });
         let combosData = [];
         if (Array.isArray(combosResponse)) {
           combosData = combosResponse;
