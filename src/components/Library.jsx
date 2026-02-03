@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { inspirationAPI, playlistsAPI, videosAPI, filesAPI, userAPI } from '../services/api';
+import AddPlaylistModal from './AddPlaylistModal';
 import AddInspirationModal from './AddInspirationModal';
 import PrimaryButton from './PrimaryButton';
 import HoverableCard from './HoverableCard';
@@ -25,6 +26,7 @@ const Library = ({ user }) => {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const observerTarget = useRef(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddPlaylistModalOpen, setIsAddPlaylistModalOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -441,7 +443,7 @@ const Library = ({ user }) => {
                 color: '#49817b'
               } : {}}
             >
-              Videos
+              Videos/Playlists
             </button>
             <button
               onClick={() => setFilter('images')}
@@ -471,6 +473,25 @@ const Library = ({ user }) => {
             >
               PDFs
             </button>
+            {filter === 'videos' && (
+              <PrimaryButton 
+                onClick={() => {
+                  if (hasReachedLimit) {
+                    alert('You\'ve reached the limit of 5 inspirations on the free plan. Please upgrade to Premium to add more.');
+                    return;
+                  }
+                  setIsAddPlaylistModalOpen(true);
+                }}
+                disabled={hasReachedLimit}
+                icon={
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                }
+              >
+                Add Playlist
+              </PrimaryButton>
+            )}
             <PrimaryButton 
               onClick={() => {
                 if (hasReachedLimit) {
@@ -777,6 +798,15 @@ const Library = ({ user }) => {
         onSuccess={() => {
           fetchInspirations(1, false);
           setIsAddModalOpen(false);
+        }}
+      />
+      <AddPlaylistModal
+        isOpen={isAddPlaylistModalOpen}
+        onClose={() => setIsAddPlaylistModalOpen(false)}
+        onSuccess={() => {
+          fetchPlaylists();
+          fetchInspirations(1, false);
+          setIsAddPlaylistModalOpen(false);
         }}
       />
       <DeleteConfirmationModal

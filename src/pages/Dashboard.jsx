@@ -99,12 +99,12 @@ const Dashboard = () => {
   ];
 
   const studioSections = [
-    { id: 'overview', label: 'Overview', icon: '🏠' },
-    { id: 'library', label: 'Inspo', icon: '📚' },
-    { id: 'pencils', label: 'Media', icon: '✏️' },
-    { id: 'combos', label: 'Combos', icon: '🎨' },
-    { id: 'palettes', label: 'Palettes', icon: '🌈' },
-    { id: 'books', label: 'Books', icon: '📖' },
+    { id: 'overview', label: 'Overview', icon: '🏠', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
+    { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.jpg' },
+    { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
+    { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
+    { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
+    { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
   ];
 
   const renderContent = () => {
@@ -354,7 +354,7 @@ const Dashboard = () => {
                           color: '#ea3663'
                         } : {}}
                       >
-                        <span className="text-lg flex-shrink-0 mr-2">{section.icon}</span>
+                        <span className="text-lg flex-shrink-0 mr-2"><img src={section.image} alt={section.label} className="w-5 h-5" /></span>
                         <span>{section.label}</span>
                       </button>
                     ))}

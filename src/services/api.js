@@ -495,7 +495,8 @@ export const videosAPI = {
 
 export const playlistsAPI = {
   getAll: () => apiGet('/playlists', true),
-  getVideos: (playlistId) => apiGet(`/playlists/${playlistId}/videos`, true)
+  getVideos: (playlistId) => apiGet(`/playlists/${playlistId}/videos`, true),
+  create: (playlistData) => apiPost('/playlists', playlistData, true)
 };
 
 export const filesAPI = {
