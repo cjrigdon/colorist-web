@@ -99,7 +99,6 @@ const Dashboard = () => {
   ];
 
   const studioSections = [
-    { id: 'overview', label: 'Overview', icon: '🏠', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
     { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.jpg' },
     { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
     { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
@@ -326,7 +325,6 @@ const Dashboard = () => {
                       <button
                         key={section.id}
                         data-joyride={
-                          section.id === 'overview' ? 'studio-overview' :
                           section.id === 'library' ? 'studio-inspo' :
                           section.id === 'pencils' ? 'studio-media' :
                           section.id === 'combos' ? 'studio-combos' :
