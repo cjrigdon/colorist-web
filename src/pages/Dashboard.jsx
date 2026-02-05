@@ -99,11 +99,11 @@ const Dashboard = () => {
   ];
 
   const studioSections = [
-    { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.jpg' },
-    { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
-    { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
-    { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
-    { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.jpg' },
+    { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
+    { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
+    { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
+    { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
+    { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
   ];
 
   const renderContent = () => {
@@ -352,7 +352,7 @@ const Dashboard = () => {
                           color: '#ea3663'
                         } : {}}
                       >
-                        <span className="text-lg flex-shrink-0 mr-2"><img src={section.image} alt={section.label} className="w-5 h-5" /></span>
+                        <span className="text-lg flex-shrink-0 mr-2"><img src={section.image} alt={section.label} className="w-10 h-10" /></span>
                         <span>{section.label}</span>
                       </button>
                     ))}
