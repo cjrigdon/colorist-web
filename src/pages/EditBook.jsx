@@ -242,52 +242,59 @@ const EditBook = () => {
     );
   }
 
+  // Check if this is a system book
+  const isSystemBook = bookData?.is_system === true || bookData?.user_id === null || bookData?.user_id === undefined;
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header Section */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-800 font-venti mb-2">
-            Edit Coloring Book
+            {isSystemBook ? 'Coloring Book Details' : 'Edit Coloring Book'}
           </h2>
           <p className="text-sm text-slate-600">
-            Update the details for this coloring book
+            {isSystemBook ? 'View details for this system coloring book' : 'Update the details for this coloring book'}
           </p>
         </div>
         {/* Action Buttons Group */}
         <div className="flex items-center space-x-3">
-          <button
-            type="button"
-            onClick={() => setShowDeleteModal(true)}
-            disabled={deleting}
-            className="px-6 py-2.5 text-red-700 bg-red-50 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Delete
-          </button>
+          {!isSystemBook && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              disabled={deleting}
+              className="px-6 py-2.5 text-red-700 bg-red-50 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Delete
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate(-1)}
             className="px-6 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
           >
-            Cancel
+            {isSystemBook ? 'Back' : 'Cancel'}
           </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              const form = document.getElementById('edit-book-form');
-              if (form) {
-                form.requestSubmit();
-              }
-            }}
-            disabled={saving || uploadingFile}
-            className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#ea3663' }}
-            onMouseEnter={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#d12a4f')}
-            onMouseLeave={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#ea3663')}
-          >
-            {uploadingFile ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {!isSystemBook && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                const form = document.getElementById('edit-book-form');
+                if (form) {
+                  form.requestSubmit();
+                }
+              }}
+              disabled={saving || uploadingFile}
+              className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#d12a4f')}
+              onMouseLeave={(e) => !saving && !uploadingFile && (e.target.style.backgroundColor = '#ea3663')}
+            >
+              {uploadingFile ? 'Uploading...' : saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -299,138 +306,220 @@ const EditBook = () => {
           </div>
         )}
 
-        <form id="edit-book-form" onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Title
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-              style={{ focusRingColor: '#ea3663' }}
-              required
-            />
-          </div>
+        {isSystemBook ? (
+          /* System Book - Read-only View */
+          <div className="space-y-6">
+            <div className="flex gap-6">
+              {/* Image floated left */}
+              {formData.image && (
+                <div className="flex-shrink-0">
+                  <img
+                    src={formData.image}
+                    alt={formData.title || 'Book cover'}
+                    className="w-48 h-64 object-cover rounded-lg border border-slate-200"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              
+              {/* Book Information */}
+              <div className="flex-1 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-500 mb-1">
+                    Title
+                  </label>
+                  <p className="text-base text-slate-800 font-medium">
+                    {formData.title || 'N/A'}
+                  </p>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Author
-            </label>
-            <input
-              type="text"
-              name="author"
-              value={formData.author}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-              style={{ focusRingColor: '#ea3663' }}
-            />
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-500 mb-1">
+                    Author
+                  </label>
+                  <p className="text-base text-slate-800">
+                    {formData.author || 'N/A'}
+                  </p>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Publisher
-            </label>
-            <input
-              type="text"
-              name="publisher"
-              value={formData.publisher}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-              style={{ focusRingColor: '#ea3663' }}
-            />
-          </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 mb-1">
+                      Publisher
+                    </label>
+                    <p className="text-base text-slate-800">
+                      {formData.publisher || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 mb-1">
+                      Year Published
+                    </label>
+                    <p className="text-base text-slate-800">
+                      {formData.year_published || 'N/A'}
+                    </p>
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 mb-1">
+                      Number of Pages
+                    </label>
+                    <p className="text-base text-slate-800">
+                      {formData.number_of_pages || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 mb-1">
+                      ISBN
+                    </label>
+                    <p className="text-base text-slate-800">
+                      {formData.isbn || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* User-created Book - Editable Form */
+          <form id="edit-book-form" onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Year Published
+                Title
               </label>
               <input
-                type="number"
-                name="year_published"
-                value={formData.year_published}
+                type="text"
+                name="title"
+                value={formData.title}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                 style={{ focusRingColor: '#ea3663' }}
-                placeholder="e.g., 2024"
-                min="1000"
-                max="9999"
+                required
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Number of Pages
+                Author
               </label>
               <input
-                type="number"
-                name="number_of_pages"
-                value={formData.number_of_pages}
+                type="text"
+                name="author"
+                value={formData.author}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
                 style={{ focusRingColor: '#ea3663' }}
-                placeholder="e.g., 96"
-                min="1"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              ISBN
-            </label>
-            <input
-              type="text"
-              name="isbn"
-              value={formData.isbn}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-              style={{ focusRingColor: '#ea3663' }}
-              placeholder="Enter ISBN (10 or 13 digits)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Cover Image
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
-              style={{ focusRingColor: '#ea3663' }}
-            />
-            <p className="mt-2 text-xs text-slate-500">
-              Supported formats: JPG, PNG, GIF. Leave empty to keep current image.
-            </p>
-            {filePreview && (
-              <div className="mt-4">
-                <p className="text-sm text-slate-600 mb-2">New image preview:</p>
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  className="max-w-xs h-64 object-cover rounded-lg border border-slate-200"
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Publisher
+                </label>
+                <input
+                  type="text"
+                  name="publisher"
+                  value={formData.publisher}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  style={{ focusRingColor: '#ea3663' }}
                 />
               </div>
-            )}
-            {formData.image && !selectedFile && (
-              <div className="mt-4">
-                <p className="text-sm text-slate-600 mb-2">Current image:</p>
-                <img
-                  src={formData.image}
-                  alt="Current cover"
-                  className="max-w-xs h-64 object-cover rounded-lg border border-slate-200"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Year Published
+                </label>
+                <input
+                  type="number"
+                  name="year_published"
+                  value={formData.year_published}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  style={{ focusRingColor: '#ea3663' }}
+                  placeholder="e.g., 2024"
+                  min="1000"
+                  max="9999"
                 />
               </div>
-            )}
-          </div>
-        </form>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Number of Pages
+                </label>
+                <input
+                  type="number"
+                  name="number_of_pages"
+                  value={formData.number_of_pages}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  style={{ focusRingColor: '#ea3663' }}
+                  placeholder="e.g., 96"
+                  min="1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  ISBN
+                </label>
+                <input
+                  type="text"
+                  name="isbn"
+                  value={formData.isbn}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  style={{ focusRingColor: '#ea3663' }}
+                  placeholder="Enter ISBN (10 or 13 digits)"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Cover Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                style={{ focusRingColor: '#ea3663' }}
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Supported formats: JPG, PNG, GIF. Leave empty to keep current image.
+              </p>
+              {filePreview && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-600 mb-2">New image preview:</p>
+                  <img
+                    src={filePreview}
+                    alt="Preview"
+                    className="max-w-xs h-64 object-cover rounded-lg border border-slate-200"
+                  />
+                </div>
+              )}
+              {formData.image && !selectedFile && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-600 mb-2">Current image:</p>
+                  <img
+                    src={formData.image}
+                    alt="Current cover"
+                    className="max-w-xs h-64 object-cover rounded-lg border border-slate-200"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Book Pages Section */}
