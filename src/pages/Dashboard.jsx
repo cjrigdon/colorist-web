@@ -23,6 +23,7 @@ import AdminPencils from './AdminPencils';
 import AdminUsers from './AdminUsers';
 import AdminBrands from './AdminBrands';
 import AdminBooks from './AdminBooks';
+import CreatorTools from './CreatorTools';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI } from '../services/api';
 
@@ -70,7 +71,9 @@ const Dashboard = () => {
     activeTab = 'coloralong';
   } else if (pathname.includes('/log')) {
     activeTab = 'log';
-  } else     if (pathname.includes('/admin/')) {
+  } else if (pathname.includes('/creator-tools')) {
+    activeTab = 'creator-tools';
+  } else if (pathname.includes('/admin/')) {
       activeTab = 'admin';
       if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
       else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
@@ -81,12 +84,14 @@ const Dashboard = () => {
     }
 
   const isAdmin = user?.admin === 1 || user?.admin === true;
+  const isCreator = user?.creator === 1 || user?.creator === true;
 
   const tabs = [
     { id: 'studio', label: 'Studio', icon: '🎨' },
     { id: 'conversion', label: 'Conversion', icon: '🔄' },
     { id: 'coloralong', label: 'Color Along', icon: '📺' },
     { id: 'log', label: 'Diary', icon: '📔' },
+    ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️' }] : []),
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️' }] : []),
   ];
 
@@ -100,7 +105,7 @@ const Dashboard = () => {
 
   const studioSections = [
     { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
-    { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
+    { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/media.png' },
     { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
     { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
@@ -143,6 +148,23 @@ const Dashboard = () => {
       return <SetSizeDetail />;
     }
 
+    // Check creator tools access
+    if (pathname.includes('/creator-tools')) {
+      if (!isAdmin && !isCreator) {
+        return (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-red-200 p-8 text-center">
+              <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Access Denied</h2>
+              <p className="text-slate-600">You do not have permission to access creator tools.</p>
+            </div>
+          </div>
+        );
+      }
+    }
+
     // Check admin access
     if (pathname.includes('/admin/')) {
       if (!isAdmin) {
@@ -181,6 +203,8 @@ const Dashboard = () => {
           return <UpgradePrompt featureName="Diary" />;
         }
         return <ColoristLog />;
+      case 'creator-tools':
+        return <CreatorTools />;
       case 'admin':
         if (activeAdminSection === 'pencil-import') {
           return <AdminPencilImport />;
@@ -287,6 +311,8 @@ const Dashboard = () => {
                       navigate('/studio/overview');
                     } else if (tab.id === 'coloralong') {
                       navigate('/color-along');
+                    } else if (tab.id === 'creator-tools') {
+                      navigate('/creator-tools');
                     } else if (tab.id === 'admin') {
                       // Navigate to first admin section
                       if (adminSections.length > 0) {
@@ -419,6 +445,8 @@ const Dashboard = () => {
                 ? 'Studio'
                 : activeTab === 'admin'
                 ? adminSections.find(section => section.id === activeAdminSection)?.label || 'Admin'
+                : activeTab === 'creator-tools'
+                ? 'Creator Tools'
                 : tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
@@ -429,6 +457,7 @@ const Dashboard = () => {
               {activeTab === 'conversion' && 'Find the closest matching colors between your pencil sets'}
               {activeTab === 'coloralong' && 'Match colors from video tutorials with your own pencil sets'}
               {activeTab === 'log' && 'Track your coloring journey and creative process'}
+              {activeTab === 'creator-tools' && 'Tools and resources for content creators to manage and share their work'}
               {activeTab === 'admin' && activeAdminSection === 'pencil-import' && 'Upload CSV files to import colored pencils, sets, and sizes'}
               {activeTab === 'admin' && activeAdminSection === 'pencil-sets' && 'Manage colored pencil sets - add, edit, and delete sets'}
               {activeTab === 'admin' && activeAdminSection === 'users' && 'Manage users - add, edit, and delete user accounts'}

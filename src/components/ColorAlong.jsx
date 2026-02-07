@@ -247,6 +247,40 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     }
   }, [searchParams, inspirations, onInspirationClick]);
 
+  // Get pencil set from query string parameter - only set video set (system set)
+  useEffect(() => {
+    const pencilSetParam = searchParams.get('pencilSet');
+    
+    if (pencilSetParam && userPencilSetSizes.length > 0) {
+      // The pencilSetParam should be a set size ID
+      const pencilSetSizeId = parseInt(pencilSetParam);
+      
+      // Find the set size in userPencilSetSizes
+      const foundSetSize = userPencilSetSizes.find(setSize => setSize.id === pencilSetSizeId);
+      
+      if (foundSetSize) {
+        // Set the video set (system set) from the set size
+        // Get the set ID from the set size (this is the parent set)
+        const setId = foundSetSize.set?.id || foundSetSize.colored_pencil_set_id;
+        
+        if (setId) {
+          // Set the video set ID (for "Video Set")
+          setVideoSetId(setId);
+          
+          // Set the selected video set size for display
+          setVideoSelectedSetSize(foundSetSize);
+          
+          // Reset the video step selection UI
+          setVideoStep('brand');
+          setVideoSelectedBrand(null);
+          setVideoSelectedSet(null);
+          setVideoSetsForBrand([]);
+          setVideoSizesForSet([]);
+        }
+      }
+    }
+  }, [searchParams, userPencilSetSizes]);
+
   // Fetch brands on mount (for video set selection - system sets)
   useEffect(() => {
     const fetchBrands = async () => {

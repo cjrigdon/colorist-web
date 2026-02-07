@@ -549,6 +549,13 @@ export const coloredPencilsAPI = {
 };
 
 // Admin API endpoints
+export const shareableLinksAPI = {
+  create: (data) => apiPost('/shareable-links', data, true),
+  getBySlug: (slug) => apiGet(`/shareable-links/${slug}`, false),
+  getAll: () => apiGet('/shareable-links', true),
+  delete: (id) => apiDelete(`/shareable-links/${id}`, true)
+};
+
 export const adminAPI = {
   // Colored Pencil Sets
   pencilSets: {
