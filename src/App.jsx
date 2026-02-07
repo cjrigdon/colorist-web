@@ -19,6 +19,7 @@ function App() {
               <Route path="/" element={<Login />}></Route>
               <Route path="/register" element={<Register />}></Route>
               <Route path="/forgot-password" element={<ForgotPassword />}></Route>
+              <Route path="/privacy-policy" element={<PrivacyPolicy />}></Route>
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
               <Route path="/*" element={<Dashboard />} />
           </Routes>

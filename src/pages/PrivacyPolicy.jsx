@@ -1,10 +1,26 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6">
-        <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white shadow-sm border border-slate-200 rounded-lg p-8 md:p-12">
+          <div className="mb-6">
+            <Link
+              to="/"
+              className="text-sm font-medium transition-colors inline-flex items-center"
+              style={{ color: '#ea3663' }}
+              onMouseEnter={(e) => e.target.style.color = '#d12a4f'}
+              onMouseLeave={(e) => e.target.style.color = '#ea3663'}
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Login
+            </Link>
+          </div>
+          
           <h1 className="text-3xl font-bold text-slate-800 font-venti mb-2">Privacy Policy</h1>
           <p className="text-sm text-slate-500 mb-8">Last updated: January 2024</p>
 
