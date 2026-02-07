@@ -10,6 +10,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Support from "./pages/Support";
 import YoutubeCallback from "./YoutubeCallback";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
               <Route path="/register" element={<Register />}></Route>
               <Route path="/forgot-password" element={<ForgotPassword />}></Route>
               <Route path="/privacy-policy" element={<PrivacyPolicy />}></Route>
+              <Route path="/support" element={<Support />}></Route>
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
               <Route path="/*" element={<Dashboard />} />
           </Routes>
