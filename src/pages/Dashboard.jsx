@@ -87,20 +87,20 @@ const Dashboard = () => {
   const isCreator = user?.creator === 1 || user?.creator === true;
 
   const tabs = [
-    { id: 'studio', label: 'Studio', icon: '🎨' },
-    { id: 'conversion', label: 'Conversion', icon: '🔄' },
-    { id: 'coloralong', label: 'Color Along', icon: '📺' },
-    { id: 'log', label: 'Diary', icon: '📔' },
-    ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️' }] : []),
-    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️' }] : []),
+    { id: 'studio', label: 'Studio', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'conversion', label: 'Conversion', icon: '🔄', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
+    { id: 'coloralong', label: 'Color Along', icon: '📺', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
+    { id: 'log', label: 'Diary', icon: '📔', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
+    ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
   ];
 
   const adminSections = [
-    { id: 'pencil-import', label: 'Pencil Import', icon: '📤' },
-    { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦' },
-    { id: 'brands', label: 'Brands', icon: '🏷️' },
-    { id: 'users', label: 'Users', icon: '👥' },
-    { id: 'books', label: 'Books', icon: '📖' },
+    { id: 'pencil-import', label: 'Pencil Import', icon: '📤', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'brands', label: 'Brands', icon: '🏷️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'users', label: 'Users', icon: '👥', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
   ];
 
   const studioSections = [
@@ -335,7 +335,7 @@ const Dashboard = () => {
                   } : {}}
                   title={sidebarCollapsed ? tab.label : ''}
                 >
-                  <span className="text-xl flex-shrink-0">{tab.icon}</span>
+                  <span className="text-xl flex-shrink-0"><img src={tab.image} alt={tab.label} className="w-10 h-10" /></span>
                   <span className={`text-sm whitespace-nowrap transition-all duration-300 ${
                     sidebarCollapsed 
                       ? 'opacity-0 w-0 overflow-hidden' 
@@ -403,7 +403,7 @@ const Dashboard = () => {
                           color: '#ea3663'
                         } : {}}
                       >
-                        <span className="text-lg flex-shrink-0 mr-2">{section.icon}</span>
+                        <span className="text-lg flex-shrink-0 mr-2"><img src={section.image} alt={section.label} className="w-10 h-10" /></span>
                         <span>{section.label}</span>
                       </button>
                     ))}
