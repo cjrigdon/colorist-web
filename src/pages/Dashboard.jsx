@@ -106,8 +106,8 @@ const Dashboard = () => {
   const studioSections = [
     { id: 'library', label: 'Inspo', icon: '📚', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
     { id: 'pencils', label: 'Media', icon: '✏️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/media.png' },
-    { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
-    { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
+    { id: 'combos', label: 'Combos', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/combos.png' },
+    { id: 'palettes', label: 'Palettes', icon: '🌈', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/palettes.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png' },
   ];
 
