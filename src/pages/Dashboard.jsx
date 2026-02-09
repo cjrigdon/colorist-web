@@ -89,7 +89,7 @@ const Dashboard = () => {
   const tabs = [
     { id: 'studio', label: 'Studio', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'conversion', label: 'Conversion', icon: '🔄', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
-    { id: 'coloralong', label: 'Color Along', icon: '📺', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
+    { id: 'coloralong', label: 'Color Along', icon: '📺', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/coloralong.png' },
     { id: 'log', label: 'Diary', icon: '📔', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
     ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
