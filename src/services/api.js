@@ -606,6 +606,9 @@ export const adminAPI = {
         if (data.type !== undefined && data.type !== null && data.type !== '') {
           formData.append('type', String(data.type));
         }
+        if (data.media_type !== undefined && data.media_type !== null && data.media_type !== '') {
+          formData.append('media_type', String(data.media_type));
+        }
         if (data.shopping_link !== undefined && data.shopping_link !== null && data.shopping_link !== '') {
           formData.append('shopping_link', String(data.shopping_link));
         }
@@ -649,6 +652,9 @@ export const adminAPI = {
         }
         if (data.type !== undefined && data.type !== null && data.type !== '') {
           formData.append('type', String(data.type));
+        }
+        if (data.media_type !== undefined && data.media_type !== null && data.media_type !== '') {
+          formData.append('media_type', String(data.media_type));
         }
         if (data.shopping_link !== undefined && data.shopping_link !== null && data.shopping_link !== '') {
           formData.append('shopping_link', String(data.shopping_link));
