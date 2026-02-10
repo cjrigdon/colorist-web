@@ -556,6 +556,24 @@ export const shareableLinksAPI = {
   delete: (id) => apiDelete(`/shareable-links/${id}`, true)
 };
 
+export const notificationsAPI = {
+  stream: () => {
+    // SSE connection is handled directly with EventSource
+    const token = getAuthToken();
+    return `${API_BASE_URL}/notifications/stream?token=${token}`;
+  },
+  getAll: (unreadOnly = false) => {
+    const params = new URLSearchParams();
+    if (unreadOnly) {
+      params.append('unread_only', 'true');
+    }
+    return apiGet(`/notifications?${params.toString()}`, true);
+  },
+  getUnreadCount: () => apiGet('/notifications/unread-count', true),
+  markAsRead: (id) => apiPut(`/notifications/${id}/read`, {}, true),
+  markAllAsRead: () => apiPut('/notifications/read-all', {}, true),
+};
+
 export const adminAPI = {
   // Colored Pencil Sets
   pencilSets: {

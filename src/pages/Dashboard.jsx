@@ -7,6 +7,7 @@ import ColorAlong from '../components/ColorAlong';
 import ColoristLog from '../components/ColoristLog';
 import UpgradePrompt from '../components/UpgradePrompt';
 import ProfileDropdown from '../components/ProfileDropdown';
+import NotificationDropdown from '../components/NotificationDropdown';
 import Profile from './Profile';
 import PrivacyPolicy from './PrivacyPolicy';
 import Subscription from './Subscription';
@@ -90,9 +91,9 @@ const Dashboard = () => {
     { id: 'studio', label: 'Studio', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'conversion', label: 'Conversion', icon: '🔄', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/conversion.png' },
     { id: 'coloralong', label: 'Color Along', icon: '📺', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/coloralong.png' },
-    { id: 'log', label: 'Diary', icon: '📔', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' },
-    ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
-    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png' }] : []),
+    { id: 'log', label: 'Coloring Log', icon: '📔', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/log.png' },
+    ...(isAdmin || isCreator ? [{ id: 'creator-tools', label: 'Creator Tools', icon: '🛠️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/creator.png' }] : []),
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: '⚙️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/admin.png' }] : []),
   ];
 
   const adminSections = [
@@ -464,11 +465,7 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </button>
+            <NotificationDropdown user={user} />
           </div>
         </header>
 
