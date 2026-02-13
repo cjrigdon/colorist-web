@@ -151,22 +151,6 @@ const CreatorTools = () => {
     return null;
   };
 
-  const handleGetExtensionFiles = () => {
-    // Show detailed instructions
-    const instructions = `To install the Colorist Chrome Extension:
-
-1. The extension files are located in the chrome-extension folder of the repository
-2. Download or clone the repository to access the extension files
-3. Follow the installation steps shown above
-
-Alternatively, you can:
-- Contact support for a packaged version
-- Check the repository's releases page for a downloadable .zip file
-
-For detailed documentation, see the README.md file in the chrome-extension folder.`;
-
-    alert(instructions);
-  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -204,73 +188,64 @@ For detailed documentation, see the README.md file in the chrome-extension folde
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-green-600 mt-0.5">✓</span>
-                <span>Add links to video descriptions (when editing)</span>
+                <span>Works on both YouTube and YouTube Studio pages</span>
               </li>
             </ul>
           </div>
 
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-3">Installation Instructions</h3>
+            <h3 className="text-lg font-semibold text-slate-800 mb-3">Installation</h3>
+            <p className="text-sm text-slate-700 mb-4">
+              Install the Colorist Chrome Extension directly from the Chrome Web Store. It's quick, easy, and secure!
+            </p>
             <ol className="space-y-3 text-sm text-slate-700">
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">1</span>
                 <div>
-                  <p className="font-medium">Download the Extension</p>
-                  <p className="text-slate-600 mt-1">Download the extension files from the repository or contact support for access.</p>
+                  <p className="font-medium">Install from Chrome Web Store</p>
+                  <p className="text-slate-600 mt-1">Click the "Add to Chrome" button below to install the extension from the Chrome Web Store.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">2</span>
                 <div>
-                  <p className="font-medium">Open Chrome Extensions</p>
-                  <p className="text-slate-600 mt-1">Navigate to <code className="bg-white px-1.5 py-0.5 rounded text-xs">chrome://extensions/</code> in your browser.</p>
+                  <p className="font-medium">Login to Colorist</p>
+                  <p className="text-slate-600 mt-1">Click the extension icon in your Chrome toolbar, enter your email and password, then click Login. URLs are auto-detected automatically.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">3</span>
                 <div>
-                  <p className="font-medium">Enable Developer Mode</p>
-                  <p className="text-slate-600 mt-1">Toggle "Developer mode" in the top right corner of the extensions page.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">4</span>
-                <div>
-                  <p className="font-medium">Load the Extension</p>
-                  <p className="text-slate-600 mt-1">Click "Load unpacked" and select the extension folder.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">5</span>
-                <div>
-                  <p className="font-medium">Login to Colorist</p>
-                  <p className="text-slate-600 mt-1">Click the extension icon, enter your email and password, then click Login. URLs are auto-detected automatically.</p>
+                  <p className="font-medium">Start Using</p>
+                  <p className="text-slate-600 mt-1">Navigate to any YouTube video page (or YouTube Studio) and click the Colorist icon to generate ColorAlong links!</p>
                 </div>
               </li>
             </ol>
           </div>
 
           <div className="flex items-center gap-4 pt-4 border-t border-slate-200">
-            <button
-              onClick={handleGetExtensionFiles}
+            <a
+              href="https://chromewebstore.google.com/detail/iceognjdgcagollhbageghhbnljmlald?utm_source=item-share-cb"
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-6 py-3 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 transition-colors flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-              Get Installation Files
-            </button>
+              Install from Chrome Web Store
+            </a>
             <button
               onClick={() => {
-                const instructions = `To open Chrome Extensions page:
+                const instructions = `To find the extension after installation:
 
-1. Copy this URL: chrome://extensions/
-2. Paste it into your Chrome address bar
-3. Press Enter
+1. Look for the Colorist icon in your Chrome toolbar
+2. If you don't see it, click the puzzle piece icon (🧩) in the toolbar
+3. Find "Colorist - Color Along Link Generator" and pin it
 
-Or:
-- Click the three dots menu (⋮) in Chrome
-- Go to More tools → Extensions`;
+To open Chrome Extensions page:
+- Copy this URL: chrome://extensions/
+- Or: Click the three dots menu (⋮) → More tools → Extensions`;
                 alert(instructions);
               }}
               className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
@@ -278,7 +253,7 @@ Or:
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              How to Open Extensions
+              Installation Help
             </button>
           </div>
         </div>
