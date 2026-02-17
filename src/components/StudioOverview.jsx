@@ -361,8 +361,8 @@ const StudioOverview = ({ user }) => {
         setPencilSetPage(response.current_page);
       }
     } catch (err) {
-      setPencilSetsError(err.message || err.data?.message || 'Failed to load pencil sets');
-      console.error('Error fetching pencil sets:', err);
+      setPencilSetsError(err.message || err.data?.message || 'Failed to load media');
+      console.error('Error fetching media:', err);
       if (!append) {
         setPencilSets([]);
       }
@@ -1059,7 +1059,7 @@ const StudioOverview = ({ user }) => {
         </div>
         {pencilSetsLoading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-slate-500">Loading pencil sets...</div>
+            <div className="text-slate-500">Loading media...</div>
           </div>
         ) : pencilSetsError ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1068,7 +1068,7 @@ const StudioOverview = ({ user }) => {
         ) : sortedPencilSets.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">✏️</div>
-            <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets Yet</h4>
+            <h4 className="text-lg font-semibold text-slate-800 mb-2 font-venti">No Media Yet</h4>
             <p className="text-sm text-slate-600 mb-4">Add your first colored pencil set to get started</p>
             <button
               onClick={() => navigate('/studio/media', { state: { activeTab: 'studio', activeSection: 'pencils', openAddModal: true } })}
@@ -1080,7 +1080,7 @@ const StudioOverview = ({ user }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Add Pencil Set</span>
+              <span>Add Media</span>
             </button>
           </div>
         ) : (

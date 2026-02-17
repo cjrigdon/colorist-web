@@ -432,7 +432,7 @@ const PencilSelector = ({
                 </div>
               ) : brands.length === 0 ? (
                 <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 flex items-center justify-center">
-                  <p className="text-sm text-slate-500">No pencil sets found. Add sets to your inventory first.</p>
+                  <p className="text-sm text-slate-500">No media found. Add media to your inventory first.</p>
                 </div>
               ) : (
             <div className="w-full min-h-[235px] max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4">

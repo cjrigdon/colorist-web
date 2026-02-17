@@ -359,7 +359,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
     } catch (err) {
       console.error('Error attaching sets:', err);
-      setError(err.data?.message || 'Failed to add sets to your collection');
+      setError(err.data?.message || 'Failed to add media to your collection');
     } finally {
       setLoading(false);
     }
@@ -438,8 +438,8 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Error creating custom set:', err);
-      setError(err.data?.message || 'Failed to create custom set');
+      console.error('Error creating custom media:', err);
+      setError(err.data?.message || 'Failed to create custom media');
     } finally {
       setLoading(false);
     }
@@ -452,7 +452,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
       <div className="bg-slate-50 rounded-2xl shadow-xl max-w-4xl w-full h-[85vh] m-4 flex flex-col">
         <div className="p-4 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-slate-800 font-venti">Add Pencil Set</h3>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">Add Media</h3>
             <button
               onClick={onClose}
               className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
@@ -476,7 +476,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
               }`}
               style={activeTab === 'existing' ? { backgroundColor: '#ea3663' } : {}}
             >
-              Add Existing Set
+              Add Existing Media
             </button>
             <button
               onClick={() => setActiveTab('new')}
@@ -487,7 +487,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
               }`}
               style={activeTab === 'new' ? { backgroundColor: '#ea3663' } : {}}
             >
-              Create New Set
+              Create New Media
             </button>
             <button
               onClick={() => setActiveTab('custom')}
@@ -498,7 +498,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
               }`}
               style={activeTab === 'custom' ? { backgroundColor: '#ea3663' } : {}}
             >
-              Create Custom Set
+              Create Custom Media
             </button>
           </div>
         </div>
@@ -585,7 +585,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                     </div>
                   )}
                   <div className="text-sm text-slate-600 flex-shrink-0">
-                    Select a brand to see available pencil sets.
+                    Select a brand to see available media.
                   </div>
                 </div>
               )}
@@ -992,9 +992,9 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                 }
                 onSelectionChange={setSelectedColorIdsForCustomSet}
                 onColorAdded={(newColor) => {
-                  setError('Color added successfully! Note: You\'ll need to add this color to a pencil set before it can be used in a custom set.');
+                  setError('Color added successfully! Note: You\'ll need to add this color to a media set before it can be used in a custom set.');
                 }}
-                emptyMessage={selectedSetFilterForCustom ? 'No colors found in the selected pencil set.' : 'No colors available.'}
+                emptyMessage={selectedSetFilterForCustom ? 'No colors found in the selected media set.' : 'No colors available.'}
               />
               {selectedColorIdsForCustomSet.length === 0 && (
                 <div className="mt-2 text-sm text-amber-600 flex-shrink-0">

@@ -319,7 +319,7 @@ const PencilInventory = ({ user }) => {
               <button 
                 onClick={() => {
                   if (hasReachedLimit) {
-                    alert('You\'ve reached the limit of 5 pencil sets on the free plan. Please upgrade to Premium to add more.');
+                    alert('You\'ve reached the limit of 5 media on the free plan. Please upgrade to Premium to add more.');
                     return;
                   }
                   setIsAddModalOpen(true);
@@ -343,7 +343,7 @@ const PencilInventory = ({ user }) => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Add Set</span>
+                <span>Add Media</span>
               </button>
             </div>
           </div>
@@ -361,13 +361,13 @@ const PencilInventory = ({ user }) => {
                   <div className="loader-ring-segment"></div>
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Pencil Sets...</h3>
-              <p className="text-slate-600">Fetching your colored pencil sets</p>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Media...</h3>
+              <p className="text-slate-600">Fetching your colored media</p>
             </div>
           ) : sortedMediaTypes.length === 0 ? (
             <div className="p-12 text-center">
               <div className="text-6xl mb-4">✏️</div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Pencil Sets</h3>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Media</h3>
               <p className="text-slate-600 mb-4">Get started by adding your first colored pencil set</p>
               <button 
                 onClick={() => setIsAddModalOpen(true)}
@@ -381,7 +381,7 @@ const PencilInventory = ({ user }) => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Add Set</span>
+                <span>Add Media</span>
               </button>
             </div>
           ) : (

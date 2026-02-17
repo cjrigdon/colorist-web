@@ -279,7 +279,7 @@ const ShoppingListGeneratorModal = ({ isOpen, onClose }) => {
         <div className="px-6 py-4 overflow-y-auto flex-1">
           {loading ? (
             <div className="text-center py-12 text-slate-500">
-              Loading pencil sets...
+              Loading media...
             </div>
           ) : error ? (
             <div className="text-center py-12 text-red-600">
