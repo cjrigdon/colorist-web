@@ -1028,7 +1028,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
               >
                 {loading ? 'Processing...' : activeTab === 'existing' 
                   ? `Add ${selectedSetSizeIds.length > 0 ? `${selectedSetSizeIds.length} ` : ''}Size${selectedSetSizeIds.length !== 1 ? 's' : ''}` 
-                  : 'Create Set'}
+                  : 'Create Media'}
               </button>
             )}
           </div>
