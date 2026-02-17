@@ -78,11 +78,9 @@ const Dashboard = () => {
   } else if (pathname.includes('/admin/')) {
       activeTab = 'admin';
       if (pathname.includes('/pencil-import')) activeAdminSection = 'pencil-import';
-      else if (pathname.includes('/pencil-sets')) activeAdminSection = 'pencil-sets';
+      else if (pathname.includes('/pencil-sets') || pathname.includes('/brands') || pathname.includes('/media-types')) activeAdminSection = 'pencil-sets';
       else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
       else if (pathname.includes('/users')) activeAdminSection = 'users';
-      else if (pathname.includes('/brands')) activeAdminSection = 'brands';
-      else if (pathname.includes('/media-types')) activeAdminSection = 'media-types';
       else if (pathname.includes('/books')) activeAdminSection = 'books';
     }
 
@@ -101,8 +99,6 @@ const Dashboard = () => {
   const adminSections = [
     { id: 'pencil-import', label: 'Pencil Import', icon: '📤', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
-    { id: 'brands', label: 'Brands', icon: '🏷️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
-    { id: 'media-types', label: 'Media Types', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'users', label: 'Users', icon: '👥', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
   ];
@@ -218,12 +214,6 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'pencils') {
           return <AdminPencils />;
-        }
-        if (activeAdminSection === 'brands') {
-          return <AdminBrands />;
-        }
-        if (activeAdminSection === 'media-types') {
-          return <AdminMediaTypes />;
         }
         if (activeAdminSection === 'users') {
           return <AdminUsers />;

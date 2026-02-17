@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { adminAPI, mediaTypesAPI } from '../services/api';
 import DropdownMenu from '../components/DropdownMenu';
+import AdminBrands from './AdminBrands';
+import AdminMediaTypes from './AdminMediaTypes';
 
 const AdminPencilSets = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determine active tab from URL
+  const getActiveTab = () => {
+    const pathname = location.pathname;
+    if (pathname.includes('/brands')) return 'brands';
+    if (pathname.includes('/media-types')) return 'media-types';
+    return 'sets';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getActiveTab());
   const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,9 +55,14 @@ const AdminPencilSets = () => {
   const [showSizeModal, setShowSizeModal] = useState(false);
 
   useEffect(() => {
-    fetchSets();
-    fetchMediaTypes();
-  }, [page, filter, hideCustom]);
+    const tab = getActiveTab();
+    setActiveTab(tab);
+    if (tab === 'sets') {
+      fetchSets();
+      fetchMediaTypes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, page, filter, hideCustom]);
 
   const fetchMediaTypes = async () => {
     try {
@@ -350,9 +368,65 @@ const AdminPencilSets = () => {
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'sets') {
+      navigate('/admin/pencil-sets');
+    } else if (tab === 'brands') {
+      navigate('/admin/brands');
+    } else if (tab === 'media-types') {
+      navigate('/admin/media-types');
+    }
+  };
+
   return (
     <>
     <div className="max-w-7xl mx-auto p-6">
+      {/* Tabs */}
+      <div className="mb-6">
+        <div className="flex space-x-2 border-b border-slate-200">
+          <button
+            onClick={() => handleTabChange('sets')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'sets'
+                ? 'text-white'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+            style={activeTab === 'sets' ? { backgroundColor: '#ea3663', borderBottomColor: '#ea3663' } : { borderBottomColor: 'transparent' }}
+          >
+            Pencil Sets
+          </button>
+          <button
+            onClick={() => handleTabChange('brands')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'brands'
+                ? 'text-white'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+            style={activeTab === 'brands' ? { backgroundColor: '#ea3663', borderBottomColor: '#ea3663' } : { borderBottomColor: 'transparent' }}
+          >
+            Brands
+          </button>
+          <button
+            onClick={() => handleTabChange('media-types')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'media-types'
+                ? 'text-white'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+            style={activeTab === 'media-types' ? { backgroundColor: '#ea3663', borderBottomColor: '#ea3663' } : { borderBottomColor: 'transparent' }}
+          >
+            Media Types
+          </button>
+        </div>
+      </div>
+
+      {/* Render content based on active tab */}
+      {activeTab === 'brands' && <AdminBrands />}
+      {activeTab === 'media-types' && <AdminMediaTypes />}
+      {activeTab === 'sets' && (
+        <>
+
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800">Manage Colored Pencil Sets</h1>
         <button
@@ -554,7 +628,8 @@ const AdminPencilSets = () => {
           </div>
         )}
       </div>
-    </div>
+        </>
+      )}
 
     {/* Modal for Add/Edit */}
     {showModal && (
@@ -897,6 +972,7 @@ const AdminPencilSets = () => {
             </div>
           </div>
         )}
+    </div>
     </>
   );
 };
