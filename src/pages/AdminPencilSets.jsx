@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminAPI } from '../services/api';
+import { adminAPI, mediaTypesAPI } from '../services/api';
+import DropdownMenu from '../components/DropdownMenu';
 
 const AdminPencilSets = () => {
   const navigate = useNavigate();
@@ -17,13 +18,15 @@ const AdminPencilSets = () => {
     name: '',
     origin_country: '',
     type: '',
-    media_type: '',
+    media_type_id: '',
     shopping_link: '',
     water_soluable: false,
     open_stock: false,
     thumb: '',
     thumbFile: null
   });
+  const [mediaTypes, setMediaTypes] = useState([]);
+  const [loadingMediaTypes, setLoadingMediaTypes] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
   const [hideCustom, setHideCustom] = useState(true);
@@ -40,7 +43,26 @@ const AdminPencilSets = () => {
 
   useEffect(() => {
     fetchSets();
+    fetchMediaTypes();
   }, [page, filter, hideCustom]);
+
+  const fetchMediaTypes = async () => {
+    try {
+      setLoadingMediaTypes(true);
+      const response = await mediaTypesAPI.getAll(1, 100);
+      let mediaTypesData = [];
+      if (Array.isArray(response)) {
+        mediaTypesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        mediaTypesData = response.data;
+      }
+      setMediaTypes(mediaTypesData);
+    } catch (err) {
+      console.error('Error fetching media types:', err);
+    } finally {
+      setLoadingMediaTypes(false);
+    }
+  };
 
   const fetchSets = async () => {
     try {
@@ -94,7 +116,7 @@ const AdminPencilSets = () => {
       name: set.name || '',
       origin_country: set.origin_country || '',
       type: set.type || '',
-      media_type: set.media_type || '',
+      media_type_id: set.media_type_id || (set.media_type_data ? set.media_type_data.id : ''),
       shopping_link: set.shopping_link || '',
       water_soluable: set.water_soluable || false,
       open_stock: set.open_stock || false,
@@ -223,7 +245,7 @@ const AdminPencilSets = () => {
         name: '',
         origin_country: '',
         type: '',
-        media_type: '',
+        media_type_id: '',
         shopping_link: '',
         water_soluable: false,
         open_stock: false,
@@ -260,7 +282,7 @@ const AdminPencilSets = () => {
       name: '',
       origin_country: '',
       type: '',
-      media_type: '',
+      media_type_id: '',
       shopping_link: '',
       water_soluable: false,
       open_stock: false,
@@ -590,12 +612,17 @@ const AdminPencilSets = () => {
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Media Type
                   </label>
-                  <input
-                    type="text"
-                    name="media_type"
-                    value={formData.media_type}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+                  <DropdownMenu
+                    options={[
+                      { value: '', label: 'None' },
+                      ...mediaTypes.map(mt => ({
+                        value: mt.id.toString(),
+                        label: mt.name
+                      }))
+                    ]}
+                    value={formData.media_type_id ? formData.media_type_id.toString() : ''}
+                    onChange={(value) => setFormData({ ...formData, media_type_id: value ? parseInt(value) : '' })}
+                    placeholder="Select media type..."
                   />
                 </div>
                 <div>

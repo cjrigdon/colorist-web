@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { coloredPencilSetsAPI, colorsAPI, brandsAPI, apiGet } from '../services/api';
+import { coloredPencilSetsAPI, colorsAPI, brandsAPI, mediaTypesAPI, apiGet } from '../services/api';
 import ColorSelector from './ColorSelector';
 import DropdownMenu from './DropdownMenu';
 
@@ -30,12 +30,15 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
     name: '',
     origin_country: '',
     type: '',
+    media_type_id: '',
     shopping_link: '',
     water_soluable: false,
     open_stock: false,
     count: '',
     setName: ''
   });
+  const [mediaTypes, setMediaTypes] = useState([]);
+  const [loadingMediaTypes, setLoadingMediaTypes] = useState(false);
   const [availableColorsForNewSet, setAvailableColorsForNewSet] = useState([]);
   const [selectedColorIdsForNewSet, setSelectedColorIdsForNewSet] = useState([]);
   const [loadingColorsForNewSet, setLoadingColorsForNewSet] = useState(false);
@@ -74,6 +77,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
       setSelectedSetFilterForCustom('');
     } else if (isOpen && activeTab === 'new') {
       fetchColorsForNewSet();
+      fetchMediaTypes();
       setSelectedColorIdsForNewSet([]);
       setColorSearchTerm('');
       setShowAddColorForm(false);
@@ -248,6 +252,25 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
+  const fetchMediaTypes = async () => {
+    try {
+      setLoadingMediaTypes(true);
+      const response = await mediaTypesAPI.getAll(1, 100);
+      let mediaTypesData = [];
+      if (Array.isArray(response)) {
+        mediaTypesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        mediaTypesData = response.data;
+      }
+      setMediaTypes(mediaTypesData);
+    } catch (err) {
+      console.error('Error fetching media types:', err);
+      setError('Failed to load media types');
+    } finally {
+      setLoadingMediaTypes(false);
+    }
+  };
+
   const handleAddNewColor = async () => {
     if (!newColorHex || !/^#?[0-9A-Fa-f]{6}$/.test(newColorHex.replace('#', ''))) {
       setError('Please enter a valid hex color (e.g., #FF5733)');
@@ -395,6 +418,7 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
           name: newSetData.name,
           origin_country: newSetData.origin_country || null,
           type: newSetData.type || null,
+          media_type_id: newSetData.media_type_id || null,
           shopping_link: newSetData.shopping_link || null,
           water_soluable: newSetData.water_soluable ? 1 : 0,
           open_stock: newSetData.open_stock ? 1 : 0,
@@ -748,6 +772,23 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
                     placeholder="e.g. 72 Count"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Media Type (optional)</label>
+                  <div className="relative">
+                    <DropdownMenu
+                      options={[
+                        { value: '', label: 'None' },
+                        ...mediaTypes.map(mt => ({
+                          value: mt.id.toString(),
+                          label: mt.name
+                        }))
+                      ]}
+                      value={newSetData.media_type_id ? newSetData.media_type_id.toString() : ''}
+                      onChange={(value) => setNewSetData({ ...newSetData, media_type_id: value ? parseInt(value) : '' })}
+                      placeholder="Select media type..."
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">

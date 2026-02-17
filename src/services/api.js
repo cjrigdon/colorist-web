@@ -290,6 +290,17 @@ export const brandsAPI = {
   delete: (id) => apiDelete(`/brands/${id}`, true)
 };
 
+export const mediaTypesAPI = {
+  getAll: (page = 1, perPage = 100) => {
+    const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    return apiGet(`/media-types?${params.toString()}`, true);
+  },
+  getById: (id) => apiGet(`/media-types/${id}`, true),
+  create: (mediaType) => apiPost('/media-types', mediaType, true),
+  update: (id, mediaType) => apiPut(`/media-types/${id}`, mediaType, true),
+  delete: (id) => apiDelete(`/media-types/${id}`, true)
+};
+
 export const coloredPencilSetsAPI = {
   getAll: (page = 1, perPage = 5, excludePencils = true, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
