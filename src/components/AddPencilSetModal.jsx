@@ -625,25 +625,49 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                     ) : (
                       <div className="p-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {setsForBrand.map((set) => (
-                            <button
-                              key={set.id}
-                              onClick={() => handleSetSelect(set)}
-                              className="flex items-center space-x-3 p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 truncate">
-                                  {set.name || 'Unknown'}
+                          {setsForBrand.map((set) => {
+                            const mediaTypeImage = set.media_type_data?.image || null;
+                            return (
+                              <button
+                                key={set.id}
+                                onClick={() => handleSetSelect(set)}
+                                className="flex items-center space-x-3 p-4 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                {mediaTypeImage ? (
+                                  <img 
+                                    src={mediaTypeImage} 
+                                    alt={set.media_type_data?.name || 'Media type'}
+                                    className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      if (e.target.nextSibling) {
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }
+                                    }}
+                                  />
+                                ) : null}
+                                <div 
+                                  className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${mediaTypeImage ? 'hidden' : ''}`}
+                                  style={{ backgroundColor: '#f1f5f9' }}
+                                >
+                                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
                                 </div>
-                                <div className="text-xs text-slate-600 mt-1">
-                                  {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-slate-800 truncate">
+                                    {set.name || 'Unknown'}
+                                  </div>
+                                  <div className="text-xs text-slate-600 mt-1">
+                                    {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
+                                  </div>
                                 </div>
-                              </div>
-                              <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </button>
-                          ))}
+                                <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -774,11 +798,11 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Media Type (optional)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Media Type</label>
                   <div className="relative">
                     <DropdownMenu
                       options={[
-                        { value: '', label: 'None' },
+                        { value: '', label: 'Select media type...' },
                         ...mediaTypes.map(mt => ({
                           value: mt.id.toString(),
                           label: mt.name

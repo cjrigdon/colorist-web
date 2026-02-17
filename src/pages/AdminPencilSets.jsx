@@ -232,6 +232,13 @@ const AdminPencilSets = () => {
     setSaving(true);
     setError(null);
 
+    // Validate media type is required when editing
+    if (editingSet && !formData.media_type_id) {
+      setError('Media type is required');
+      setSaving(false);
+      return;
+    }
+
     try {
       if (editingSet) {
         await adminAPI.pencilSets.update(editingSet.id, formData);
@@ -610,11 +617,11 @@ const AdminPencilSets = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Media Type
+                    Media Type *
                   </label>
                   <DropdownMenu
                     options={[
-                      { value: '', label: 'None' },
+                      { value: '', label: 'Select media type...' },
                       ...mediaTypes.map(mt => ({
                         value: mt.id.toString(),
                         label: mt.name
@@ -624,6 +631,9 @@ const AdminPencilSets = () => {
                     onChange={(value) => setFormData({ ...formData, media_type_id: value ? parseInt(value) : '' })}
                     placeholder="Select media type..."
                   />
+                  {editingSet && !formData.media_type_id && (
+                    <p className="mt-1 text-xs text-red-600">Media type is required</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">

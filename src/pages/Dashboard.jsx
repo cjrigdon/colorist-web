@@ -24,6 +24,7 @@ import AdminPencils from './AdminPencils';
 import AdminUsers from './AdminUsers';
 import AdminBrands from './AdminBrands';
 import AdminBooks from './AdminBooks';
+import AdminMediaTypes from './AdminMediaTypes';
 import CreatorTools from './CreatorTools';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI } from '../services/api';
@@ -81,6 +82,7 @@ const Dashboard = () => {
       else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
       else if (pathname.includes('/users')) activeAdminSection = 'users';
       else if (pathname.includes('/brands')) activeAdminSection = 'brands';
+      else if (pathname.includes('/media-types')) activeAdminSection = 'media-types';
       else if (pathname.includes('/books')) activeAdminSection = 'books';
     }
 
@@ -100,6 +102,7 @@ const Dashboard = () => {
     { id: 'pencil-import', label: 'Pencil Import', icon: '📤', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'brands', label: 'Brands', icon: '🏷️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'media-types', label: 'Media Types', icon: '🎨', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'users', label: 'Users', icon: '👥', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
   ];
@@ -218,6 +221,9 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'brands') {
           return <AdminBrands />;
+        }
+        if (activeAdminSection === 'media-types') {
+          return <AdminMediaTypes />;
         }
         if (activeAdminSection === 'users') {
           return <AdminUsers />;
