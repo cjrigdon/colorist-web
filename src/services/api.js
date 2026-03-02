@@ -753,7 +753,9 @@ export const adminAPI = {
     getById: (id) => apiGet(`/admin/users/${id}`, true),
     create: (user) => apiPost('/admin/users', user, true),
     update: (id, user) => apiPut(`/admin/users/${id}`, user, true),
-    delete: (id) => apiDelete(`/admin/users/${id}`, true)
+    delete: (id) => apiDelete(`/admin/users/${id}`, true),
+    impersonate: (id) => apiPost(`/admin/users/${id}/impersonate`, {}, true),
+    stopImpersonation: (originalAdminId) => apiPost('/admin/users/stop-impersonation', { original_admin_id: originalAdminId }, true)
   },
   // Books
   books: {

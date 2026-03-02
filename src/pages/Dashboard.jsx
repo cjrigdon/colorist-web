@@ -27,7 +27,7 @@ import AdminBooks from './AdminBooks';
 import AdminMediaTypes from './AdminMediaTypes';
 import CreatorTools from './CreatorTools';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
-import { authAPI } from '../services/api';
+import { authAPI, adminAPI, setAuthToken, removeAuthToken } from '../services/api';
 
 const Dashboard = () => {
   const location = useLocation();
@@ -35,6 +35,16 @@ const Dashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
+  const [originalAdminId, setOriginalAdminId] = useState(null);
+  const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
+
+  // Check for impersonation state on mount
+  useEffect(() => {
+    const storedAdminId = localStorage.getItem('original_admin_id');
+    if (storedAdminId) {
+      setOriginalAdminId(parseInt(storedAdminId, 10));
+    }
+  }, []);
 
   // Fetch user data on mount
   useEffect(() => {
@@ -50,6 +60,32 @@ const Dashboard = () => {
     };
     fetchUser();
   }, []);
+
+  // Handle stop impersonation
+  const handleStopImpersonation = async () => {
+    if (!originalAdminId) return;
+
+    try {
+      setStoppingImpersonation(true);
+      const response = await adminAPI.users.stopImpersonation(originalAdminId);
+      
+      // Clear the stored admin ID
+      localStorage.removeItem('original_admin_id');
+      setOriginalAdminId(null);
+      
+      // Update the auth token
+      if (response.authToken) {
+        setAuthToken(response.authToken);
+      }
+      
+      // Reload the page to refresh user context
+      window.location.reload();
+    } catch (error) {
+      console.error('Error stopping impersonation:', error);
+      alert('Failed to stop impersonation. Please try again.');
+      setStoppingImpersonation(false);
+    }
+  };
 
   // Parse URL to determine active tab and section
   const pathname = location.pathname;
@@ -475,6 +511,34 @@ const Dashboard = () => {
             minHeight: activeTab === 'coloralong' ? '600px' : 'auto'
           }}
         >
+          {/* Impersonation Banner */}
+          {originalAdminId && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">
+                      You are currently impersonating <strong>{user?.first_name} {user?.last_name}</strong> ({user?.email})
+                    </p>
+                    <p className="text-xs text-yellow-600 mt-1">
+                      All actions will be performed as this user. Click "Stop Impersonating" to return to your admin account.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleStopImpersonation}
+                  disabled={stoppingImpersonation}
+                  className="ml-4 px-4 py-2 text-sm font-medium text-yellow-800 bg-yellow-100 border border-yellow-300 rounded-lg hover:bg-yellow-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {stoppingImpersonation ? 'Stopping...' : 'Stop Impersonating'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div 
             className={`max-w-full mx-auto ${activeTab === 'coloralong' ? 'py-0 h-full' : 'py-8'}`}
             data-joyride="studio-overview"

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { adminAPI } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { adminAPI, setAuthToken } from '../services/api';
 
 const AdminUsers = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +22,7 @@ const AdminUsers = () => {
     subscription_plan: 'free'
   });
   const [saving, setSaving] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -79,6 +82,37 @@ const AdminUsers = () => {
       fetchUsers();
     } catch (err) {
       setError(err.message || 'Failed to delete user');
+    }
+  };
+
+  const handleImpersonate = async (user) => {
+    if (!window.confirm(`Are you sure you want to impersonate ${user.first_name} ${user.last_name}?`)) {
+      return;
+    }
+
+    try {
+      setImpersonating(true);
+      setError(null);
+      const response = await adminAPI.users.impersonate(user.id);
+      
+      // Store the original admin ID in localStorage
+      if (response.originalAdminId) {
+        localStorage.setItem('original_admin_id', response.originalAdminId.toString());
+      }
+      
+      // Update the auth token
+      if (response.authToken) {
+        setAuthToken(response.authToken);
+      }
+      
+      // Navigate to studio overview
+      navigate('/studio/overview');
+      
+      // Reload the page to refresh user context
+      window.location.reload();
+    } catch (err) {
+      setError(err.message || 'Failed to impersonate user');
+      setImpersonating(false);
     }
   };
 
@@ -243,6 +277,15 @@ const AdminUsers = () => {
                       >
                         Edit
                       </button>
+                      {!user.admin && (
+                        <button
+                          onClick={() => handleImpersonate(user)}
+                          disabled={impersonating}
+                          className="px-3 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {impersonating ? 'Impersonating...' : 'Impersonate'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(user.id)}
                         className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
