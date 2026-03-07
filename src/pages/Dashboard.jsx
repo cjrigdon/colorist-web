@@ -289,7 +289,7 @@ const Dashboard = () => {
         >
           <svg
             className={`w-3 h-3 text-slate-600 transition-transform duration-300 ${
-              sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+              sidebarCollapsed ? 'rotate-180' : 'rotate-0'
             }`}
             fill="none"
             stroke="currentColor"
