@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { videosAPI, filesAPI } from '../services/api';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import TagSelect from '../components/TagSelect';
 
 const EditInspiration = () => {
   const location = useLocation();
@@ -34,6 +35,7 @@ const EditInspiration = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
 
   useEffect(() => {
     // Early return if no ID or type
@@ -67,6 +69,8 @@ const EditInspiration = () => {
             path: '',
             mime_type: ''
           }));
+          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
+          setSelectedTags(tags);
         } else if (type === 'file') {
           const response = await filesAPI.getById(id);
           // API returns the JSON object directly from handleResponse
@@ -87,6 +91,8 @@ const EditInspiration = () => {
             mime_type: (data.mime_type !== null && data.mime_type !== undefined) ? String(data.mime_type) : '',
             thumbnail_path: (data.thumbnail_path !== null && data.thumbnail_path !== undefined) ? String(data.thumbnail_path) : ''
           }));
+          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
+          setSelectedTags(tags);
         }
       } catch (err) {
         setError(err.message || err.data?.message || 'Failed to load inspiration item');
@@ -133,9 +139,15 @@ const EditInspiration = () => {
     setSaving(true);
     setError(null);
 
+    const tagPayload = () => {
+      const tagIds = selectedTags.filter(t => t.id).map(t => t.id);
+      const tagNames = selectedTags.filter(t => !t.id).map(t => t.tag);
+      return { tag_ids: tagIds, tag_names: tagNames };
+    };
+
     try {
       if (type === 'video') {
-        await videosAPI.update(id, formData);
+        await videosAPI.update(id, { ...formData, ...tagPayload() });
       } else if (type === 'file') {
         // If a new file was selected, upload it first
         if (selectedFile) {
@@ -159,7 +171,8 @@ const EditInspiration = () => {
                 await filesAPI.update(id, {
                   title: formData.title,
                   path: newFile.path,
-                  mime_type: newFile.mime_type
+                  mime_type: newFile.mime_type,
+                  ...tagPayload()
                 });
                 
                 navigate(-1);
@@ -178,9 +191,10 @@ const EditInspiration = () => {
             return;
           }
         } else {
-          // No new file selected, just update title
+          // No new file selected, just update title and tags
           await filesAPI.update(id, {
-            title: formData.title
+            title: formData.title,
+            ...tagPayload()
           });
         }
         navigate(-1);
@@ -373,6 +387,8 @@ const EditInspiration = () => {
               ) : null}
             </div>
           )}
+
+          <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={saving || uploadingFile} />
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">

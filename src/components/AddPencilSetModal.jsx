@@ -161,9 +161,11 @@ const AddPencilSetModal = ({ isOpen, onClose, onSuccess }) => {
       setLoadingSizes(true);
       setError(null);
       // Fetch only sizes for this specific set, without pencils for performance
+      // Sort by count descending (largest to smallest)
       const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, false, {
         setId: setId,
-        excludePencils: true
+        excludePencils: true,
+        sort: '-count'
       });
       let sizesForThisSet = [];
       if (Array.isArray(response)) {

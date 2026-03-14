@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { inspirationAPI, playlistsAPI, videosAPI, filesAPI, userAPI } from '../services/api';
+import { inspirationAPI, playlistsAPI, videosAPI, filesAPI, userAPI, tagsAPI } from '../services/api';
 import AddPlaylistModal from './AddPlaylistModal';
 import AddInspirationModal from './AddInspirationModal';
 import PrimaryButton from './PrimaryButton';
@@ -32,6 +32,8 @@ const Library = ({ user }) => {
   const [deleting, setDeleting] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
   const [togglingFavorite, setTogglingFavorite] = useState(null);
+  const [tagFilterIds, setTagFilterIds] = useState([]);
+  const [knownTags, setKnownTags] = useState([]);
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -56,6 +58,7 @@ const Library = ({ user }) => {
         thumbnail: item.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
         videoId: item.embed_id,
         embedId: item.embed_id,
+        tags: item.tags || [],
       };
     } else if (item.type === 'file' || item.type === 'image' || item.type === 'pdf') {
       // Determine file type from mime_type or use the type from API
@@ -69,6 +72,7 @@ const Library = ({ user }) => {
         thumbnail: item.thumbnail_path || item.path || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
         path: item.path,
         mime_type: item.mime_type,
+        tags: item.tags || [],
       };
     }
     return null;
@@ -134,11 +138,15 @@ const Library = ({ user }) => {
         'all': null
       };
       
-      const response = await inspirationAPI.getAll(page, 40, {
+      const filters = {
         type: typeMap[filter],
         sort: 'title',
         sort_direction: 'asc'
-      });
+      };
+      if (tagFilterIds.length > 0) {
+        filters.tags = tagFilterIds;
+      }
+      const response = await inspirationAPI.getAll(page, 40, filters);
       
       // Handle response format
       const items = response.data || [];
@@ -163,7 +171,7 @@ const Library = ({ user }) => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [filter]);
+  }, [filter, tagFilterIds]);
 
   // Fetch user favorites
   const fetchFavorites = useCallback(async () => {
@@ -237,6 +245,17 @@ const Library = ({ user }) => {
       setFavorites(new Set());
     }
   }, [user]);
+
+  // Fetch known tags for filter dropdown
+  useEffect(() => {
+    let cancelled = false;
+    tagsAPI.getAll().then((response) => {
+      if (cancelled) return;
+      const list = Array.isArray(response) ? response : (response?.data ?? []);
+      setKnownTags(list);
+    }).catch(() => { if (!cancelled) setKnownTags([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Initial fetch and refetch when filter changes
   useEffect(() => {
@@ -375,9 +394,41 @@ const Library = ({ user }) => {
     <div className="space-y-6">
       {/* Filters */}
       <div className="px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center space-x-4 flex-wrap">
             <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspo</h3>
+            {/* Tag filter */}
+            {knownTags.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-slate-600">Tags:</span>
+                <select
+                  value={tagFilterIds.length ? tagFilterIds[0] : ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '') {
+                      setTagFilterIds([]);
+                    } else {
+                      setTagFilterIds([Number(v)]);
+                    }
+                  }}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 bg-white min-w-[140px]"
+                >
+                  <option value="">All tags</option>
+                  {knownTags.map((t) => (
+                    <option key={t.id} value={t.id}>{t.tag}</option>
+                  ))}
+                </select>
+                {tagFilterIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTagFilterIds([])}
+                    className="text-sm text-slate-500 hover:text-slate-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
             {/* View mode toggle for videos */}
             {filter === 'videos' && (
               <div className="flex items-center space-x-2">
@@ -773,6 +824,18 @@ const Library = ({ user }) => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-slate-800 mb-1 line-clamp-2">{item.title}</h3>
                             <p className="text-xs text-slate-500 capitalize">{item.type}</p>
+                            {item.tags?.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {item.tags.slice(0, 3).map((t) => (
+                                  <span key={t.id || t.tag} className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">
+                                    {t.tag || t}
+                                  </span>
+                                ))}
+                                {item.tags.length > 3 && (
+                                  <span className="text-xs text-slate-400">+{item.tags.length - 3}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

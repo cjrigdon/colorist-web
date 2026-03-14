@@ -346,6 +346,10 @@ export const coloredPencilSetsAPI = {
     if (options.setId) {
       params.append('filter[colored_pencil_set_id]', options.setId.toString());
     }
+    // Add sorting - default to count descending (largest to smallest) when adding media
+    if (options.sort) {
+      params.append('sort', options.sort);
+    }
     return apiGet(`/colored-pencil-set-sizes/available?${params.toString()}`, true);
   },
   attachSetSize: (setSizeId) => apiPost('/colored-pencil-set-sizes/attach', { set_size_id: setSizeId }, true),
@@ -474,6 +478,10 @@ export const inspirationAPI = {
     if (filters.archived !== undefined) {
       params.append('filter[archived]', filters.archived.toString());
     }
+    if (filters.tags != null && filters.tags.length > 0) {
+      const tagParam = Array.isArray(filters.tags) ? filters.tags.join(',') : String(filters.tags);
+      params.append('filter[tags]', tagParam);
+    }
     
     // Add sort parameters
     if (filters.sort) {
@@ -483,16 +491,22 @@ export const inspirationAPI = {
       params.append('sort_direction', filters.sort_direction);
     }
     
-    // Add sorting
-    if (filters.sort) {
-      params.append('sort', filters.sort);
-    }
-    if (filters.sort_direction) {
-      params.append('sort_direction', filters.sort_direction);
-    }
-    
     return apiGet(`/inspiration?${params.toString()}`, true);
   }
+};
+
+export const tagsAPI = {
+  getAll: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.search) {
+      params.append('filter[search]', filters.search);
+    }
+    return apiGet(`/tags${params.toString() ? `?${params.toString()}` : ''}`, true);
+  },
+  create: (data) => apiPost('/tags', data, true),
+  getById: (id) => apiGet(`/tags/${id}`, true),
+  update: (id, data) => apiPut(`/tags/${id}`, data, true),
+  delete: (id) => apiDelete(`/tags/${id}`, true)
 };
 
 export const videosAPI = {
@@ -852,6 +866,22 @@ export const adminAPI = {
     reject: (id) => apiPost(`/admin/books/${id}/reject`, {}, true),
     convertToSystem: (id) => apiPost(`/admin/books/${id}/convert-to-system`, {}, true),
     populateFromIsbn: (isbn) => apiPost('/admin/books/populate-from-isbn', { isbn }, true)
+  },
+  // Tags (inspiration known tags)
+  tags: {
+    getAll: (page = 1, perPage = 50, additionalParams = {}) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      Object.keys(additionalParams).forEach(key => {
+        if (additionalParams[key] !== undefined && additionalParams[key] !== null) {
+          params.append(`filter[${key}]`, additionalParams[key].toString());
+        }
+      });
+      return apiGet(`/admin/tags?${params.toString()}`, true);
+    },
+    getById: (id) => apiGet(`/admin/tags/${id}`, true),
+    create: (data) => apiPost('/admin/tags', data, true),
+    update: (id, data) => apiPut(`/admin/tags/${id}`, data, true),
+    delete: (id) => apiDelete(`/admin/tags/${id}`, true)
   },
   // Brands
   brands: {

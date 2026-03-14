@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { videosAPI, filesAPI } from '../services/api';
+import TagSelect from './TagSelect';
 
 const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
   const [activeTab, setActiveTab] = useState('video'); // 'video' or 'file'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTags, setSelectedTags] = useState([]);
 
   // Video form data
   const [videoData, setVideoData] = useState({
@@ -18,6 +20,12 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
     preview: null
   });
 
+  const tagPayload = () => {
+    const tagIds = selectedTags.filter(t => t.id).map(t => t.id);
+    const tagNames = selectedTags.filter(t => !t.id).map(t => t.tag);
+    return { tag_ids: tagIds, tag_names: tagNames };
+  };
+
   const handleVideoSubmit = async (e) => {
     e.preventDefault();
     if (!videoData.embed_id) {
@@ -28,10 +36,11 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       setLoading(true);
       setError(null);
-      await videosAPI.create({ embed_id: videoData.embed_id });
+      await videosAPI.create({ embed_id: videoData.embed_id, ...tagPayload() });
       onSuccess();
       onClose();
       setVideoData({ embed_id: '' });
+      setSelectedTags([]);
     } catch (err) {
       console.error('Error creating video:', err);
       setError(err.data?.message || 'Failed to add video');
@@ -69,7 +78,8 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
         const filePayload = {
           name: fileData.file.name,
           title: fileData.title,
-          data: base64Data
+          data: base64Data,
+          ...tagPayload()
         };
 
         try {
@@ -77,6 +87,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
           onSuccess();
           onClose();
           setFileData({ title: '', file: null, preview: null });
+          setSelectedTags([]);
         } catch (err) {
           console.error('Error creating file:', err);
           setError(err.data?.message || 'Failed to upload file');
@@ -148,6 +159,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
           {/* Video Tab */}
           {activeTab === 'video' && (
             <form onSubmit={handleVideoSubmit} className="space-y-4">
+              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   YouTube URL or Video ID *
@@ -188,6 +200,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
           {/* File Tab */}
           {activeTab === 'file' && (
             <form onSubmit={handleFileSubmit} className="space-y-4">
+              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Title *

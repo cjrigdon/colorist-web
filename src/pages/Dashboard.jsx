@@ -25,6 +25,7 @@ import AdminUsers from './AdminUsers';
 import AdminBrands from './AdminBrands';
 import AdminBooks from './AdminBooks';
 import AdminMediaTypes from './AdminMediaTypes';
+import AdminTags from './AdminTags';
 import CreatorTools from './CreatorTools';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI, adminAPI, setAuthToken, removeAuthToken } from '../services/api';
@@ -118,6 +119,7 @@ const Dashboard = () => {
       else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
       else if (pathname.includes('/users')) activeAdminSection = 'users';
       else if (pathname.includes('/books')) activeAdminSection = 'books';
+      else if (pathname.includes('/tags')) activeAdminSection = 'tags';
     }
 
   const isAdmin = user?.admin === 1 || user?.admin === true;
@@ -137,6 +139,7 @@ const Dashboard = () => {
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'users', label: 'Users', icon: '👥', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'tags', label: 'Tags', icon: '🏷️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
   ];
 
   const studioSections = [
@@ -256,6 +259,9 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'books') {
           return <AdminBooks />;
+        }
+        if (activeAdminSection === 'tags') {
+          return <AdminTags />;
         }
         // Default admin page - redirect to first admin section
         if (isAdmin && adminSections.length > 0) {
