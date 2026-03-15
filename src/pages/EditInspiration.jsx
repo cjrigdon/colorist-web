@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { videosAPI, filesAPI } from '../services/api';
+import { videosAPI, filesAPI, playlistsAPI } from '../services/api';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import TagSelect from '../components/TagSelect';
 
@@ -36,6 +36,8 @@ const EditInspiration = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [selectedPlaylistIds, setSelectedPlaylistIds] = useState([]);
 
   useEffect(() => {
     // Early return if no ID or type
@@ -49,17 +51,17 @@ const EditInspiration = () => {
         setLoading(true);
         setError(null);
         let data;
-        
         if (type === 'video') {
-          const response = await videosAPI.getById(id);
-          // API returns the JSON object directly from handleResponse
-          // But check if it's wrapped in a data property
-          if (response && typeof response === 'object' && 'data' in response && !('id' in response)) {
-            data = response.data;
-          } else {
-            data = response;
-          }
-          
+          const [videoRes, playlistsRes] = await Promise.all([
+            videosAPI.getById(id),
+            playlistsAPI.getAll()
+          ]);
+          const raw = videoRes?.data && !('id' in videoRes) ? videoRes.data : videoRes;
+          if (raw) data = raw;
+          const plList = Array.isArray(playlistsRes) ? playlistsRes : (playlistsRes?.data || []);
+          setPlaylists(plList);
+        }
+        if (type === 'video' && data) {
           // Handle null/undefined values properly
           setFormData(prev => ({
             title: (data.title !== null && data.title !== undefined) ? String(data.title) : '',
@@ -71,8 +73,13 @@ const EditInspiration = () => {
           }));
           const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
           setSelectedTags(tags);
+          setSelectedPlaylistIds(Array.isArray(data.playlist_ids) ? data.playlist_ids.map(Number) : []);
         } else if (type === 'file') {
-          const response = await filesAPI.getById(id);
+          const [fileRes, playlistsRes] = await Promise.all([
+            filesAPI.getById(id),
+            playlistsAPI.getAll()
+          ]);
+          const response = fileRes;
           // API returns the JSON object directly from handleResponse
           // But check if it's wrapped in a data property
           if (response && typeof response === 'object' && 'data' in response && !('id' in response)) {
@@ -80,7 +87,9 @@ const EditInspiration = () => {
           } else {
             data = response;
           }
-          
+          const plList = Array.isArray(playlistsRes) ? playlistsRes : (playlistsRes?.data || []);
+          setPlaylists(plList);
+
           // Handle null/undefined values properly
           setFormData(prev => ({
             title: (data.title !== null && data.title !== undefined) ? String(data.title) : '',
@@ -93,6 +102,7 @@ const EditInspiration = () => {
           }));
           const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
           setSelectedTags(tags);
+          setSelectedPlaylistIds(Array.isArray(data.playlist_ids) ? data.playlist_ids.map(Number) : []);
         }
       } catch (err) {
         setError(err.message || err.data?.message || 'Failed to load inspiration item');
@@ -148,6 +158,8 @@ const EditInspiration = () => {
     try {
       if (type === 'video') {
         await videosAPI.update(id, { ...formData, ...tagPayload() });
+        await videosAPI.updatePlaylists(id, selectedPlaylistIds);
+        navigate('/studio/inspiration');
       } else if (type === 'file') {
         // If a new file was selected, upload it first
         if (selectedFile) {
@@ -174,7 +186,7 @@ const EditInspiration = () => {
                   mime_type: newFile.mime_type,
                   ...tagPayload()
                 });
-                
+                await filesAPI.updatePlaylists(id, selectedPlaylistIds);
                 navigate(-1);
               } catch (err) {
                 setError(err.data?.message || err.message || 'Failed to upload file');
@@ -191,11 +203,12 @@ const EditInspiration = () => {
             return;
           }
         } else {
-          // No new file selected, just update title and tags
+          // No new file selected, just update title, tags, and playlists
           await filesAPI.update(id, {
             title: formData.title,
             ...tagPayload()
           });
+          await filesAPI.updatePlaylists(id, selectedPlaylistIds);
         }
         navigate(-1);
       }
@@ -388,8 +401,6 @@ const EditInspiration = () => {
             </div>
           )}
 
-          <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={saving || uploadingFile} />
-
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Title
@@ -404,6 +415,43 @@ const EditInspiration = () => {
               required
             />
           </div>
+
+          <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={saving || uploadingFile} />
+
+          {(type === 'video' || type === 'file') && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Playlists
+              </label>
+              <p className="text-xs text-slate-500 mb-2">
+                Add this {type} to one or more playlists. Changes are saved when you click Save Changes.
+              </p>
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 max-h-48 overflow-y-auto space-y-2">
+                {playlists.length === 0 ? (
+                  <p className="text-sm text-slate-500">No playlists yet. Create one from the Inspiration library.</p>
+                ) : (
+                  playlists.map((p) => (
+                    <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-white/60 rounded-lg px-2 py-1.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedPlaylistIds.includes(Number(p.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPlaylistIds(prev => [...prev, Number(p.id)]);
+                          } else {
+                            setSelectedPlaylistIds(prev => prev.filter(pid => pid !== Number(p.id)));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-slate-800 focus:ring-offset-0"
+                        disabled={saving}
+                      />
+                      <span className="text-sm text-slate-800">{p.title || 'Untitled Playlist'}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {type === 'video' && (
             <>
@@ -470,22 +518,6 @@ const EditInspiration = () => {
                     )}
                   </div>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  MIME Type
-                </label>
-                <input
-                  type="text"
-                  name="mime_type"
-                  value={formData.mime_type}
-                  readOnly
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 text-sm cursor-not-allowed"
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  MIME type is automatically determined from the file
-                </p>
               </div>
             </>
           )}

@@ -1,7 +1,10 @@
 import React from 'react';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemType = 'item' }) => {
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemType = 'item', description }) => {
   if (!isOpen) return null;
+
+  const defaultDescription = 'This action cannot be undone.';
+  const message = description ?? defaultDescription;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -10,7 +13,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemTyp
           Delete {itemType}?
         </h3>
         <p className="text-sm text-slate-600 mb-6">
-          Are you sure you want to delete <strong>{itemName}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{itemName}</strong>? {message}
         </p>
         <div className="flex items-center justify-end space-x-3">
           <button

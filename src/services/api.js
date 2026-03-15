@@ -515,13 +515,25 @@ export const videosAPI = {
   create: (video) => apiPost('/videos', video, true),
   update: (id, video) => apiPut(`/videos/${id}`, video, true),
   delete: (id) => apiDelete(`/videos/${id}`, true),
-  toggleFavorite: (id) => apiPost(`/videos/${id}/favorite`, {}, true)
+  toggleFavorite: (id) => apiPost(`/videos/${id}/favorite`, {}, true),
+  addToPlaylist: (videoId, playlistId) => apiPost(`/videos/${videoId}/add-to-playlist`, { playlist_id: playlistId }, true),
+  removeFromPlaylist: (videoId, playlistId) => apiPost(`/videos/${videoId}/remove-from-playlist`, { playlist_id: playlistId }, true),
+  updatePlaylists: (videoId, playlistIds) => apiPut(`/videos/${videoId}/playlists`, { playlist_ids: playlistIds }, true)
 };
 
 export const playlistsAPI = {
-  getAll: () => apiGet('/playlists', true),
+  getAll: (params = {}) => {
+    const search = new URLSearchParams();
+    if (params.preview) search.set('preview', '1');
+    const qs = search.toString();
+    return apiGet(qs ? `/playlists?${qs}` : '/playlists', true);
+  },
+  getById: (id) => apiGet(`/playlists/${id}`, true),
   getVideos: (playlistId) => apiGet(`/playlists/${playlistId}/videos`, true),
-  create: (playlistData) => apiPost('/playlists', playlistData, true)
+  getFiles: (playlistId) => apiGet(`/playlists/${playlistId}/files`, true),
+  create: (playlistData) => apiPost('/playlists', playlistData, true),
+  update: (id, data) => apiPut(`/playlists/${id}`, data, true),
+  delete: (id) => apiDelete(`/playlists/${id}`, true)
 };
 
 export const filesAPI = {
@@ -530,7 +542,10 @@ export const filesAPI = {
   create: (file) => apiPost('/files', file, true),
   update: (id, file) => apiPut(`/files/${id}`, file, true),
   delete: (id) => apiDelete(`/files/${id}`, true),
-  toggleFavorite: (id) => apiPost(`/files/${id}/favorite`, {}, true)
+  toggleFavorite: (id) => apiPost(`/files/${id}/favorite`, {}, true),
+  addToPlaylist: (fileId, playlistId) => apiPost(`/files/${fileId}/add-to-playlist`, { playlist_id: playlistId }, true),
+  removeFromPlaylist: (fileId, playlistId) => apiPost(`/files/${fileId}/remove-from-playlist`, { playlist_id: playlistId }, true),
+  updatePlaylists: (fileId, playlistIds) => apiPut(`/files/${fileId}/playlists`, { playlist_ids: playlistIds }, true)
 };
 
 export const journalEntriesAPI = {

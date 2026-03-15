@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { videosAPI, filesAPI } from '../services/api';
 import TagSelect from './TagSelect';
 
-const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
-  const [activeTab, setActiveTab] = useState('video'); // 'video' or 'file'
+const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video' or 'file'
+
+  // When modal opens with a defaultTab (e.g. from Files tab), switch to that section
+  useEffect(() => {
+    if (isOpen && defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [isOpen, defaultTab]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -159,7 +166,6 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
           {/* Video Tab */}
           {activeTab === 'video' && (
             <form onSubmit={handleVideoSubmit} className="space-y-4">
-              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   YouTube URL or Video ID *
@@ -176,6 +182,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
                   Enter a YouTube URL or video ID. The video title and thumbnail will be automatically fetched.
                 </p>
               </div>
+              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -200,7 +207,6 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
           {/* File Tab */}
           {activeTab === 'file' && (
             <form onSubmit={handleFileSubmit} className="space-y-4">
-              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Title *
@@ -214,6 +220,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess }) => {
                   required
                 />
               </div>
+              <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   File (Image or PDF) *
