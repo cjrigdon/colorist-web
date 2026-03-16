@@ -353,6 +353,7 @@ export const coloredPencilSetsAPI = {
     return apiGet(`/colored-pencil-set-sizes/available?${params.toString()}`, true);
   },
   attachSetSize: (setSizeId) => apiPost('/colored-pencil-set-sizes/attach', { set_size_id: setSizeId }, true),
+  detachSetSize: (setSizeId) => apiDelete(`/colored-pencil-set-sizes/${setSizeId}/detach`, true),
   createUserSet: (data) => apiPost('/colored-pencil-set-sizes/user-set', data, true),
   createCustomSet: (data) => apiPost('/colored-pencil-set-sizes/custom-set', data, true),
   getById: (id) => apiGet(`/colored-pencil-sets/${id}`, true),
@@ -730,6 +731,10 @@ export const adminAPI = {
     reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true),
     convertToSystem: (id) => apiPost(`/admin/colored-pencil-sets/${id}/convert-to-system`, {}, true),
     getSetSizes: (id) => apiGet(`/admin/colored-pencil-sets/${id}/set-sizes`, true),
+    getPencilsBySetSize: (sizeId, page = 1, perPage = 15) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      return apiGet(`/admin/colored-pencil-set-sizes/${sizeId}/pencils?${params.toString()}`, true);
+    },
     updateSetSize: (id, data) => {
       // Handle file upload for thumbnail
       // Check if thumbFile exists and is a File object

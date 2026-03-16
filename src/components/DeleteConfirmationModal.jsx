@@ -1,19 +1,25 @@
 import React from 'react';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemType = 'item', description }) => {
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemType = 'item', description, title, confirmLabel }) => {
   if (!isOpen) return null;
 
   const defaultDescription = 'This action cannot be undone.';
   const message = description ?? defaultDescription;
+  const heading = title ?? `Delete ${itemType}?`;
+  const buttonLabel = confirmLabel ?? 'Delete';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
         <h3 className="text-xl font-semibold text-slate-800 font-venti mb-2">
-          Delete {itemType}?
+          {heading}
         </h3>
         <p className="text-sm text-slate-600 mb-6">
-          Are you sure you want to delete <strong>{itemName}</strong>? {message}
+          {title ? (
+            <>Are you sure you want to remove <strong>{itemName}</strong> from your collection? {message}</>
+          ) : (
+            <>Are you sure you want to delete <strong>{itemName}</strong>? {message}</>
+          )}
         </p>
         <div className="flex items-center justify-end space-x-3">
           <button
@@ -31,7 +37,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName, itemTyp
             onMouseEnter={(e) => (e.target.style.backgroundColor = '#b91c1c')}
             onMouseLeave={(e) => (e.target.style.backgroundColor = '#dc2626')}
           >
-            Delete
+            {buttonLabel}
           </button>
         </div>
       </div>

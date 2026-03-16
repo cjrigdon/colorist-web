@@ -85,7 +85,7 @@ const SetSizeItem = ({ setSize, onSelect, onDelete, onToggleFavorite, isFavorite
               onDelete(setSize);
             }}
             className="p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full text-slate-600 hover:text-red-600 transition-all shadow-sm"
-            title="Delete pencil set"
+            title="Remove from my collection"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -263,27 +263,15 @@ const PencilInventory = ({ user }) => {
     
     setDeleting(true);
     try {
-      // Delete the set size (user's instance of the set)
-      await coloredPencilSetsAPI.delete(setSizeToDelete.id);
+      // Remove this media item from the user's profile only (does not delete from site)
+      await coloredPencilSetsAPI.detachSetSize(setSizeToDelete.id);
       
-      // Refresh the list
       await refetch();
-      
       setShowDeleteModal(false);
       setSetSizeToDelete(null);
     } catch (err) {
-      console.error('Error deleting pencil set:', err);
-      // If deleting by set size ID doesn't work, try the actual set ID
-      if (setSizeToDelete.set?.id) {
-        try {
-          await coloredPencilSetsAPI.delete(setSizeToDelete.set.id);
-          await refetch();
-          setShowDeleteModal(false);
-          setSetSizeToDelete(null);
-        } catch (err2) {
-          console.error('Error deleting pencil set by set ID:', err2);
-        }
-      }
+      console.error('Error removing media from profile:', err);
+      alert(err.data?.message || err.message || 'Failed to remove from your profile');
     } finally {
       setDeleting(false);
     }
@@ -447,6 +435,9 @@ const PencilInventory = ({ user }) => {
         onConfirm={handleDeleteSetSize}
         itemName={setSizeToDelete?.set?.name || setSizeToDelete?.name || 'Pencil Set'}
         itemType="pencil set"
+        title="Remove from your collection?"
+        confirmLabel="Remove"
+        description="This will only remove it from your studio."
       />
     </>
   );

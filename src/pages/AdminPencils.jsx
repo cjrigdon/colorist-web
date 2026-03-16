@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { adminAPI, coloredPencilSetsAPI } from '../services/api';
+import { useSearchParams } from 'react-router-dom';
+import { adminAPI } from '../services/api';
 import DropdownMenu from '../components/DropdownMenu';
 
 const AdminPencils = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setId = searchParams.get('setId');
   const [pencils, setPencils] = useState([]);
-  const [sets, setSets] = useState([]);
-  const [selectedSetId, setSelectedSetId] = useState(setId || '');
+  const [setDetails, setSetDetails] = useState(null);
+  const [setSizes, setSetSizes] = useState([]);
+  const [selectedSizeId, setSelectedSizeId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -29,54 +29,57 @@ const AdminPencils = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchSets();
-  }, []);
+    if (setId) {
+      fetchSetDetails();
+      fetchSetSizes();
+    } else {
+      setLoading(false);
+    }
+  }, [setId]);
 
   useEffect(() => {
-    if (selectedSetId) {
+    if (setId && selectedSizeId) {
       fetchPencils();
     } else {
       setPencils([]);
+      setTotalPages(1);
     }
-  }, [selectedSetId, page]);
+  }, [setId, selectedSizeId, page]);
 
-  const fetchSets = async () => {
+  const fetchSetDetails = async () => {
+    if (!setId) return;
     try {
-      const response = await coloredPencilSetsAPI.getAllSets(1, 1000);
-      // Handle response structure
-      if (response.data && Array.isArray(response.data)) {
-        setSets(response.data);
-      } else if (Array.isArray(response)) {
-        setSets(response);
-      } else {
-        setSets([]);
-      }
-      if (setId && !selectedSetId) {
-        setSelectedSetId(setId);
-      }
+      const response = await adminAPI.pencilSets.getById(setId);
+      setSetDetails(response);
     } catch (err) {
-      setError(err.message || 'Failed to load pencil sets');
+      setError(err.message || 'Failed to load set');
+      setLoading(false);
+    }
+  };
+
+  const fetchSetSizes = async () => {
+    if (!setId) return;
+    try {
+      const response = await adminAPI.pencilSets.getSetSizes(setId);
+      const sizes = Array.isArray(response) ? response : response.data || [];
+      setSetSizes(sizes);
+      setSelectedSizeId((prev) => (prev ? prev : sizes[0] ? sizes[0].id.toString() : ''));
+      if (sizes.length === 0) setLoading(false);
+    } catch (err) {
+      setError(err.message || 'Failed to load set sizes');
+      setLoading(false);
     }
   };
 
   const fetchPencils = async () => {
-    if (!selectedSetId) return;
-    
+    if (!selectedSizeId) return;
     try {
       setLoading(true);
       setError(null);
-      const response = await adminAPI.pencilSets.getPencils(selectedSetId, page, perPage);
-      // Handle response structure
+      const response = await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage);
       if (response.data && Array.isArray(response.data)) {
         setPencils(response.data);
-        // Set pagination metadata
-        if (response.last_page !== undefined) {
-          setTotalPages(response.last_page);
-        } else if (response.meta && response.meta.last_page) {
-          setTotalPages(response.meta.last_page);
-        } else {
-          setTotalPages(1);
-        }
+        setTotalPages(response.last_page ?? 1);
       } else if (Array.isArray(response)) {
         setPencils(response);
         setTotalPages(1);
@@ -94,7 +97,7 @@ const AdminPencils = () => {
   const handleEdit = (pencil) => {
     setEditingPencil(pencil);
     setFormData({
-      colored_pencil_set_id: pencil.colored_pencil_set_id || selectedSetId,
+      colored_pencil_set_id: pencil.colored_pencil_set_id || setId,
       color_number: pencil.color_number || '',
       color_name: pencil.color_name || '',
       hex: pencil.color?.hex || '',
@@ -131,14 +134,23 @@ const AdminPencils = () => {
       };
 
       if (editingPencil) {
-        await adminAPI.pencils.update(editingPencil.id, submitData);
+        const updateData = { ...submitData };
+        if (editingPencil.sizes && Array.isArray(editingPencil.sizes)) {
+          updateData.sizes = editingPencil.sizes;
+        }
+        await adminAPI.pencils.update(editingPencil.id, updateData);
       } else {
-        await adminAPI.pencils.create(submitData);
+        const createData = {
+          ...submitData,
+          colored_pencil_set_id: parseInt(setId, 10),
+          sizes: selectedSizeId ? [parseInt(selectedSizeId, 10)] : []
+        };
+        await adminAPI.pencils.create(createData);
       }
       setShowModal(false);
       setEditingPencil(null);
       setFormData({
-        colored_pencil_set_id: selectedSetId,
+        colored_pencil_set_id: setId,
         color_number: '',
         color_name: '',
         hex: '',
@@ -165,17 +177,18 @@ const AdminPencils = () => {
   const handleNew = () => {
     setEditingPencil(null);
     setFormData({
-      colored_pencil_set_id: selectedSetId,
+      colored_pencil_set_id: setId,
       color_number: '',
       color_name: '',
       hex: '',
       lightfast_rating: '',
-      shopping_link: ''
+      shopping_link: '',
+      barcode: ''
     });
     setShowModal(true);
   };
 
-  const selectedSet = sets.find(s => s.id === parseInt(selectedSetId));
+  const selectedSize = setSizes.find((s) => s.id === parseInt(selectedSizeId, 10));
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -190,25 +203,26 @@ const AdminPencils = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="w-64">
-              <DropdownMenu
-                options={[
-                  { value: '', label: 'Select a set...' },
-                  ...sets.map((set) => ({
-                    value: set.id.toString(),
-                    label: `${set.brand} - ${set.name}`
-                  }))
-                ]}
-                value={selectedSetId}
-                onChange={(value) => {
-                  setSelectedSetId(value);
-                  setPage(1); // Reset to first page when changing sets
-                  navigate(`/admin/pencils?setId=${value}`);
-                }}
-                placeholder="Select a set..."
-              />
-            </div>
-            {selectedSetId && (
+            {setId && setSizes.length > 0 && (
+              <div className="w-64">
+                <DropdownMenu
+                  options={[
+                    { value: '', label: 'Select a size...' },
+                    ...setSizes.map((size) => ({
+                      value: size.id.toString(),
+                      label: size.name ? `${size.name} (${size.count || ''} ct)` : `${size.count || '?'} ct`
+                    }))
+                  ]}
+                  value={selectedSizeId}
+                  onChange={(value) => {
+                    setSelectedSizeId(value);
+                    setPage(1);
+                  }}
+                  placeholder="Select a size..."
+                />
+              </div>
+            )}
+            {selectedSizeId && (
               <button
                 onClick={handleNew}
                 className="px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors"
@@ -228,17 +242,30 @@ const AdminPencils = () => {
           </div>
         )}
 
-        {selectedSet && (
+        {setDetails && (
           <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
             <p className="text-sm text-slate-700">
-              <span className="font-semibold">Set:</span> {selectedSet.brand} - {selectedSet.name}
+              <span className="font-semibold">Set:</span> {setDetails.brand} - {setDetails.name}
+              {selectedSize && (
+                <span className="ml-2">
+                  · <span className="font-semibold">Size:</span> {selectedSize.name || `${selectedSize.count} ct`}
+                </span>
+              )}
             </p>
           </div>
         )}
 
-        {!selectedSetId ? (
+        {!setId ? (
           <div className="text-center py-12">
-            <p className="text-slate-500">Please select a pencil set to manage pencils</p>
+            <p className="text-slate-500">Go to Pencil Sets and click &quot;Manage Pencils&quot; on a set to manage its pencils.</p>
+          </div>
+        ) : setSizes.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <p className="text-slate-500">No sizes defined for this set. Add set sizes in Pencil Sets first.</p>
+          </div>
+        ) : !selectedSizeId ? (
+          <div className="text-center py-12">
+            <p className="text-slate-500">Select a set size above to manage pencils</p>
           </div>
         ) : loading ? (
           <div className="text-center py-12">
@@ -261,7 +288,7 @@ const AdminPencils = () => {
                 {pencils.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="py-8 text-center text-slate-500">
-                      No pencils found for this set
+                      No pencils in this set size
                     </td>
                   </tr>
                 ) : (
@@ -309,7 +336,7 @@ const AdminPencils = () => {
         )}
 
         {/* Pagination */}
-        {selectedSetId && totalPages > 1 && (
+        {selectedSizeId && totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center space-x-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -341,28 +368,11 @@ const AdminPencils = () => {
                 {editingPencil ? 'Edit Pencil' : 'Add New Pencil'}
               </h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <DropdownMenu
-                    label="Pencil Set *"
-                    options={[
-                      { value: '', label: 'Select a set...' },
-                      ...sets.map((set) => ({
-                        value: set.id.toString(),
-                        label: `${set.brand} - ${set.name}`
-                      }))
-                    ]}
-                    value={formData.colored_pencil_set_id ? formData.colored_pencil_set_id.toString() : ''}
-                    onChange={(value) => {
-                      handleChange({
-                        target: {
-                          name: 'colored_pencil_set_id',
-                          value: value === '' ? '' : parseInt(value)
-                        }
-                      });
-                    }}
-                    placeholder="Select a set..."
-                  />
-                </div>
+                {!editingPencil && selectedSize && (
+                  <p className="text-sm text-slate-600">
+                    Pencil will be added to: <span className="font-medium">{selectedSize.name || `${selectedSize.count} ct`}</span>
+                  </p>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Color Number

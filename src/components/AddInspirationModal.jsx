@@ -4,6 +4,7 @@ import TagSelect from './TagSelect';
 
 const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video' or 'file'
+  const [fileInputMode, setFileInputMode] = useState('upload'); // 'upload' or 'link'
 
   // When modal opens with a defaultTab (e.g. from Files tab), switch to that section
   useEffect(() => {
@@ -24,7 +25,8 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
   const [fileData, setFileData] = useState({
     title: '',
     file: null,
-    preview: null
+    preview: null,
+    imageUrl: ''
   });
 
   const tagPayload = () => {
@@ -69,6 +71,32 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
 
   const handleFileSubmit = async (e) => {
     e.preventDefault();
+    if (fileInputMode === 'link') {
+      if (!fileData.imageUrl?.trim() || !fileData.title?.trim()) {
+        setError('Please provide a title and image URL');
+        return;
+      }
+      try {
+        setLoading(true);
+        setError(null);
+        await filesAPI.create({
+          title: fileData.title.trim(),
+          url: fileData.imageUrl.trim(),
+          ...tagPayload()
+        });
+        onSuccess();
+        onClose();
+        setFileData({ title: '', file: null, preview: null, imageUrl: '' });
+        setSelectedTags([]);
+      } catch (err) {
+        console.error('Error adding image from link:', err);
+        setError(err.data?.message || 'Failed to add image from link');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!fileData.file || !fileData.title) {
       setError('Please provide a title and select a file');
       return;
@@ -93,7 +121,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
           await filesAPI.create(filePayload);
           onSuccess();
           onClose();
-          setFileData({ title: '', file: null, preview: null });
+          setFileData({ title: '', file: null, preview: null, imageUrl: '' });
           setSelectedTags([]);
         } catch (err) {
           console.error('Error creating file:', err);
@@ -207,6 +235,28 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
           {/* File Tab */}
           {activeTab === 'file' && (
             <form onSubmit={handleFileSubmit} className="space-y-4">
+              <div className="flex space-x-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => { setFileInputMode('upload'); setFileData(prev => ({ ...prev, imageUrl: '' })); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    fileInputMode === 'upload' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  style={fileInputMode === 'upload' ? { backgroundColor: '#ea3663' } : {}}
+                >
+                  Upload file
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setFileInputMode('link'); setFileData(prev => ({ ...prev, file: null, preview: null })); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    fileInputMode === 'link' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  style={fileInputMode === 'link' ? { backgroundColor: '#ea3663' } : {}}
+                >
+                  From link
+                </button>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Title *
@@ -221,38 +271,56 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
                 />
               </div>
               <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  File (Image or PDF) *
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={handleFileChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
-                  required
-                />
-                <p className="mt-2 text-xs text-slate-500">
-                  Supported formats: JPG, PNG, GIF, PDF
-                </p>
-                {fileData.preview && (
-                  <div className="mt-4">
-                    <p className="text-sm text-slate-600 mb-2">Preview:</p>
-                    {fileData.file.type.startsWith('image/') ? (
-                      <img
-                        src={fileData.preview}
-                        alt="Preview"
-                        className="max-w-full h-auto rounded-lg border border-slate-200"
-                        style={{ maxHeight: '300px' }}
-                      />
-                    ) : (
-                      <div className="p-4 bg-slate-100 rounded-lg border border-slate-200">
-                        <p className="text-sm text-slate-600">PDF: {fileData.file.name}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              {fileInputMode === 'link' ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Image URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={fileData.imageUrl}
+                    onChange={(e) => setFileData({ ...fileData, imageUrl: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Enter a direct link to an image (JPG, PNG, GIF). The image will be downloaded and saved.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    File (Image or PDF) *
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleFileChange}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800"
+                    required={fileInputMode === 'upload'}
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Supported formats: JPG, PNG, GIF, PDF
+                  </p>
+                  {fileData.preview && (
+                    <div className="mt-4">
+                      <p className="text-sm text-slate-600 mb-2">Preview:</p>
+                      {fileData.file.type.startsWith('image/') ? (
+                        <img
+                          src={fileData.preview}
+                          alt="Preview"
+                          className="max-w-full h-auto rounded-lg border border-slate-200"
+                          style={{ maxHeight: '300px' }}
+                        />
+                      ) : (
+                        <div className="p-4 bg-slate-100 rounded-lg border border-slate-200">
+                          <p className="text-sm text-slate-600">PDF: {fileData.file.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -268,7 +336,9 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
                   style={{ backgroundColor: '#ea3663' }}
                   disabled={loading}
                 >
-                  {loading ? 'Uploading...' : 'Upload File'}
+                  {loading
+                    ? (fileInputMode === 'link' ? 'Adding...' : 'Uploading...')
+                    : (fileInputMode === 'link' ? 'Add from link' : 'Upload File')}
                 </button>
               </div>
             </form>
