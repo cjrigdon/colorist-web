@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { videosAPI, filesAPI } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { videosAPI, filesAPI, playlistsAPI } from '../services/api';
 import TagSelect from './TagSelect';
 
 const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
@@ -15,6 +15,10 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
+  const [playlistDropdownOpen, setPlaylistDropdownOpen] = useState(false);
+  const playlistDropdownRef = useRef(null);
 
   // Video form data
   const [videoData, setVideoData] = useState({
@@ -35,6 +39,55 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
     return { tag_ids: tagIds, tag_names: tagNames };
   };
 
+  const getCreatedFileId = (response) => {
+    if (!response) return null;
+    if (response.id != null) return Number(response.id);
+    if (response.data?.id != null) return Number(response.data.id);
+    return null;
+  };
+
+  const getCreatedVideoId = (response) => {
+    if (!response) return null;
+    if (response.id != null) return Number(response.id);
+    if (response.data?.id != null) return Number(response.data.id);
+    return null;
+  };
+
+  const selectedPlaylist = playlists.find((playlist) => String(playlist.id) === String(selectedPlaylistId));
+
+  const playlistThumbnail = (playlist) => {
+    return playlist?.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isOpen) return;
+
+    playlistsAPI.getAll({ preview: true })
+      .then((response) => {
+        if (cancelled) return;
+        const list = Array.isArray(response) ? response : (response?.data ?? []);
+        setPlaylists(list);
+      })
+      .catch(() => {
+        if (!cancelled) setPlaylists([]);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (playlistDropdownRef.current && !playlistDropdownRef.current.contains(e.target)) {
+        setPlaylistDropdownOpen(false);
+      }
+    };
+    if (playlistDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [playlistDropdownOpen]);
+
   const handleVideoSubmit = async (e) => {
     e.preventDefault();
     if (!videoData.embed_id) {
@@ -45,11 +98,16 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
     try {
       setLoading(true);
       setError(null);
-      await videosAPI.create({ embed_id: videoData.embed_id, ...tagPayload() });
+      const response = await videosAPI.create({ embed_id: videoData.embed_id, ...tagPayload() });
+      const createdVideoId = getCreatedVideoId(response);
+      if (selectedPlaylistId && createdVideoId) {
+        await videosAPI.addToPlaylist(createdVideoId, Number(selectedPlaylistId));
+      }
       onSuccess();
       onClose();
       setVideoData({ embed_id: '' });
       setSelectedTags([]);
+      setSelectedPlaylistId('');
     } catch (err) {
       console.error('Error creating video:', err);
       setError(err.data?.message || 'Failed to add video');
@@ -79,15 +137,20 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
       try {
         setLoading(true);
         setError(null);
-        await filesAPI.create({
+        const response = await filesAPI.create({
           title: fileData.title.trim(),
           url: fileData.imageUrl.trim(),
           ...tagPayload()
         });
+        const createdFileId = getCreatedFileId(response);
+        if (selectedPlaylistId && createdFileId) {
+          await filesAPI.addToPlaylist(createdFileId, Number(selectedPlaylistId));
+        }
         onSuccess();
         onClose();
         setFileData({ title: '', file: null, preview: null, imageUrl: '' });
         setSelectedTags([]);
+        setSelectedPlaylistId('');
       } catch (err) {
         console.error('Error adding image from link:', err);
         setError(err.data?.message || 'Failed to add image from link');
@@ -118,11 +181,16 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
         };
 
         try {
-          await filesAPI.create(filePayload);
+          const response = await filesAPI.create(filePayload);
+          const createdFileId = getCreatedFileId(response);
+          if (selectedPlaylistId && createdFileId) {
+            await filesAPI.addToPlaylist(createdFileId, Number(selectedPlaylistId));
+          }
           onSuccess();
           onClose();
           setFileData({ title: '', file: null, preview: null, imageUrl: '' });
           setSelectedTags([]);
+          setSelectedPlaylistId('');
         } catch (err) {
           console.error('Error creating file:', err);
           setError(err.data?.message || 'Failed to upload file');
@@ -137,6 +205,12 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
     }
   };
 
+  const handleClose = () => {
+    setSelectedPlaylistId('');
+    setPlaylistDropdownOpen(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -146,7 +220,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold text-slate-800 font-venti">Add Inspiration</h3>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,10 +285,77 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
                 </p>
               </div>
               <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
+              <div ref={playlistDropdownRef} className="relative">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Add to playlist (optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPlaylistDropdownOpen((o) => !o)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 bg-white flex items-center justify-between"
+                  disabled={loading}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    {selectedPlaylist ? (
+                      <>
+                        <img
+                          src={playlistThumbnail(selectedPlaylist)}
+                          alt={selectedPlaylist.title || 'Playlist thumbnail'}
+                          className="w-8 h-6 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                          }}
+                        />
+                        <span className="truncate">{selectedPlaylist.title || 'Untitled Playlist'}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">No playlist</span>
+                    )}
+                  </span>
+                  <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {playlistDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-slate-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlaylistId('');
+                        setPlaylistDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${!selectedPlaylistId ? 'bg-slate-50 text-slate-800 font-medium' : 'text-slate-700'}`}
+                    >
+                      No playlist
+                    </button>
+                    {playlists.map((playlist) => (
+                      <button
+                        key={playlist.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlaylistId(String(playlist.id));
+                          setPlaylistDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${String(selectedPlaylistId) === String(playlist.id) ? 'bg-slate-50 text-slate-800 font-medium' : 'text-slate-700'}`}
+                      >
+                        <img
+                          src={playlistThumbnail(playlist)}
+                          alt={playlist.title || 'Playlist thumbnail'}
+                          className="w-8 h-6 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                          }}
+                        />
+                        <span className="truncate">{playlist.title || 'Untitled Playlist'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   disabled={loading}
                 >
@@ -271,6 +412,73 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
                 />
               </div>
               <TagSelect value={selectedTags} onChange={setSelectedTags} disabled={loading} />
+              <div ref={playlistDropdownRef} className="relative">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Add to playlist (optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPlaylistDropdownOpen((o) => !o)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 bg-white flex items-center justify-between"
+                  disabled={loading}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    {selectedPlaylist ? (
+                      <>
+                        <img
+                          src={playlistThumbnail(selectedPlaylist)}
+                          alt={selectedPlaylist.title || 'Playlist thumbnail'}
+                          className="w-8 h-6 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                          }}
+                        />
+                        <span className="truncate">{selectedPlaylist.title || 'Untitled Playlist'}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">No playlist</span>
+                    )}
+                  </span>
+                  <svg className="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {playlistDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-slate-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlaylistId('');
+                        setPlaylistDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${!selectedPlaylistId ? 'bg-slate-50 text-slate-800 font-medium' : 'text-slate-700'}`}
+                    >
+                      No playlist
+                    </button>
+                    {playlists.map((playlist) => (
+                      <button
+                        key={playlist.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlaylistId(String(playlist.id));
+                          setPlaylistDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${String(selectedPlaylistId) === String(playlist.id) ? 'bg-slate-50 text-slate-800 font-medium' : 'text-slate-700'}`}
+                      >
+                        <img
+                          src={playlistThumbnail(playlist)}
+                          alt={playlist.title || 'Playlist thumbnail'}
+                          className="w-8 h-6 rounded object-cover flex-shrink-0"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                          }}
+                        />
+                        <span className="truncate">{playlist.title || 'Untitled Playlist'}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {fileInputMode === 'link' ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -324,7 +532,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                   disabled={loading}
                 >

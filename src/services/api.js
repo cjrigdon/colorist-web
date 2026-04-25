@@ -532,8 +532,48 @@ export const playlistsAPI = {
   getById: (id) => apiGet(`/playlists/${id}`, true),
   getVideos: (playlistId) => apiGet(`/playlists/${playlistId}/videos`, true),
   getFiles: (playlistId) => apiGet(`/playlists/${playlistId}/files`, true),
-  create: (playlistData) => apiPost('/playlists', playlistData, true),
-  update: (id, data) => apiPut(`/playlists/${id}`, data, true),
+  create: (playlistData) => {
+    if (playlistData.thumbFile && (playlistData.thumbFile instanceof File || playlistData.thumbFile instanceof Blob)) {
+      const formData = new FormData();
+      if (playlistData.title !== undefined && playlistData.title !== null && playlistData.title !== '') {
+        formData.append('title', String(playlistData.title));
+      }
+      if (playlistData.playlist_url !== undefined && playlistData.playlist_url !== null && playlistData.playlist_url !== '') {
+        formData.append('playlist_url', String(playlistData.playlist_url));
+      }
+      formData.append('thumb', playlistData.thumbFile);
+      return fetch(`${API_BASE_URL}/playlists`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Accept': 'application/json',
+        },
+        body: formData
+      }).then(handleResponse);
+    }
+    const { thumbFile, ...dataToSend } = playlistData;
+    return apiPost('/playlists', dataToSend, true);
+  },
+  update: (id, data) => {
+    if (data.thumbFile && (data.thumbFile instanceof File || data.thumbFile instanceof Blob)) {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      if (data.title !== undefined && data.title !== null && data.title !== '') {
+        formData.append('title', String(data.title));
+      }
+      formData.append('thumb', data.thumbFile);
+      return fetch(`${API_BASE_URL}/playlists/${id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Accept': 'application/json',
+        },
+        body: formData
+      }).then(handleResponse);
+    }
+    const { thumbFile, ...dataToSend } = data;
+    return apiPut(`/playlists/${id}`, dataToSend, true);
+  },
   delete: (id) => apiDelete(`/playlists/${id}`, true)
 };
 

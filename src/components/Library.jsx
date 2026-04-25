@@ -547,6 +547,13 @@ const Library = ({ user }) => {
     ? { color: '#49817b', borderBottomColor: '#49817b' }
     : {};
 
+  const refreshLibraryListing = useCallback(async () => {
+    await Promise.all([
+      fetchInspirations(1, false),
+      fetchPlaylists(),
+    ]);
+  }, [fetchInspirations, fetchPlaylists]);
+
   return (
     <div className="space-y-6">
       {/* Main row: type tabs + actions — stable layout, no jumping */}
@@ -690,7 +697,7 @@ const Library = ({ user }) => {
                 </svg>
               }
             >
-              Add File
+              Add Inspo
             </PrimaryButton>
           </div>
         </div>
@@ -1357,8 +1364,8 @@ const Library = ({ user }) => {
       <AddInspirationModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => {
-          fetchInspirations(1, false);
+        onSuccess={async () => {
+          await refreshLibraryListing();
           setIsAddModalOpen(false);
         }}
         defaultTab="video"
