@@ -120,9 +120,25 @@ const BookDropdown = ({
           focusRingColor: '#ea3663'
         }}
       >
-        <span className={selectedBook ? 'text-slate-800 font-medium' : 'text-slate-500'}>
-          {selectedBook ? (selectedBook.title || `Book ${selectedBook.id}`) : placeholder}
-        </span>
+        <div className="flex items-center min-w-0 flex-1 mr-3">
+          {selectedBook ? (
+            <>
+              <img
+                src={getBookImage(selectedBook)}
+                alt={selectedBook.title || 'Book cover'}
+                className="w-8 h-10 object-cover rounded border border-slate-200 flex-shrink-0 mr-2"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop';
+                }}
+              />
+              <span className="text-slate-800 font-medium truncate">
+                {selectedBook.title || `Book ${selectedBook.id}`}
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-500 truncate">{placeholder}</span>
+          )}
+        </div>
         <svg 
           className={`w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`}
           fill="none" 

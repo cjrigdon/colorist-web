@@ -22,6 +22,14 @@ const InspirationDropdown = ({
     }
   }, [isOpen]);
 
+  // Also load inspirations when a value is already selected.
+  // This allows the selected item (thumbnail/title) to render before the dropdown is focused/opened.
+  useEffect(() => {
+    if (value && inspirations.length === 0 && !loading) {
+      loadInspirations();
+    }
+  }, [value, inspirations.length, loading]);
+
   // Focus search input when dropdown opens
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
@@ -168,11 +176,30 @@ const InspirationDropdown = ({
           focusRingColor: '#ea3663'
         }}
       >
-        <span className={selectedInspiration ? 'text-slate-800 font-medium' : 'text-slate-500'}>
-          {selectedInspiration 
-            ? `${selectedInspiration.type === 'video' ? '📺' : selectedInspiration.type === 'image' ? '🖼️' : '📄'} ${selectedInspiration.title || `Inspiration ${selectedInspiration.id}`}`
-            : placeholder}
-        </span>
+        <div className="flex items-center min-w-0 flex-1 mr-3">
+          {selectedInspiration ? (
+            <>
+              <div className="relative w-12 h-9 flex-shrink-0 rounded border border-slate-200 overflow-hidden bg-slate-100 mr-2">
+                <img
+                  src={selectedInspiration.thumbnail}
+                  alt={selectedInspiration.title || 'Inspiration thumbnail'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                  }}
+                />
+                <div className="absolute top-0.5 right-0.5 bg-black bg-opacity-60 rounded p-0.5 text-white">
+                  {getTypeIcon(selectedInspiration.type)}
+                </div>
+              </div>
+              <span className="text-slate-800 font-medium truncate">
+                {selectedInspiration.title || `Inspiration ${selectedInspiration.id}`}
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-500 truncate">{placeholder}</span>
+          )}
+        </div>
         <svg 
           className={`w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`}
           fill="none" 

@@ -82,7 +82,7 @@ const ColorConversion = ({ user }) => {
         } else if (response.data && Array.isArray(response.data)) {
           brandsData = response.data;
         }
-        setBrands(brandsData.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en')));
+        setBrands(brandsData);
       } catch (err) {
         console.error('Error fetching brands:', err);
         setError('Failed to load brands. Please try again.');
@@ -280,7 +280,6 @@ const ColorConversion = ({ user }) => {
         ...set,
         sizeCount: set.sizes_count || 0
       }));
-      setsWithSizeCounts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en'));
       setSourceSetsForBrand(setsWithSizeCounts);
     } catch (err) {
       console.error('Error fetching sets for brand:', err);
@@ -391,7 +390,6 @@ const ColorConversion = ({ user }) => {
         ...set,
         sizeCount: set.sizes_count || 0
       }));
-      setsWithSizeCounts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en'));
       setTargetSetsForBrand(setsWithSizeCounts);
     } catch (err) {
       console.error('Error fetching sets for brand:', err);

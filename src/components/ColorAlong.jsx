@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
-import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, booksAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
+import BookDropdown from './BookDropdown';
+import InspirationDropdown from './InspirationDropdown';
+import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
 import AdSpace from './AdSpace';
 
@@ -128,7 +130,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
   // Journal entry modal states
   const [showJournalModal, setShowJournalModal] = useState(false);
-  const [books, setBooks] = useState([]);
   const [palettes, setPalettes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [journalFormData, setJournalFormData] = useState({
@@ -293,7 +294,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         } else if (response.data && Array.isArray(response.data)) {
           brandsData = response.data;
         }
-        setBrands(brandsData.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en')));
+        setBrands(brandsData);
       } catch (err) {
         console.error('Error fetching brands:', err);
       } finally {
@@ -547,11 +548,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       }
     });
 
-    return Array.from(brandMap.values()).sort((a, b) => {
-      const nameA = a.name || '';
-      const nameB = b.name || '';
-      return nameA.localeCompare(nameB);
-    });
+    return Array.from(brandMap.values());
   }, [userPencilSetSizes]);
 
   // Video Set Selection Handlers
@@ -578,7 +575,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         ...set,
         sizeCount: set.sizes_count || 0
       }));
-      setsWithSizeCounts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en'));
       setVideoSetsForBrand(setsWithSizeCounts);
     } catch (err) {
       console.error('Error fetching sets for brand:', err);
@@ -692,7 +688,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         ...set,
         sizeCount: set.sizes_count || 0
       }));
-      setsWithSizeCounts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'en'));
       setUserSetsForBrand(setsWithSizeCounts);
     } catch (err) {
       console.error('Error fetching sets for brand:', err);
@@ -814,7 +809,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         // Find the set info
         const setInfo = allPencilSets.find(set => set.id === videoSetId);
         
-        // Transform pencils to colors format
+        // Transform pencils to colors format (API returns pencils ordered by name)
         const colors = pencilsData
           .filter(pencil => pencil.color && pencil.color.hex)
           .map((pencil, index) => ({
@@ -880,7 +875,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           }
         }
 
-        // Transform pencils to colors format
+        // Transform pencils to colors format (API returns pencils ordered by name)
         const colors = pencilsData
           .filter(pencil => pencil.color && pencil.color.hex)
           .map((pencil, index) => ({
@@ -915,20 +910,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
       try {
         setLoadingJournalData(true);
-        
-        // Fetch books with sorting and archived filter
-        const booksResponse = await booksAPI.getAll(1, 100, {
-          sort: 'title',
-          sort_direction: 'asc',
-          archived: false
-        });
-        let booksData = [];
-        if (Array.isArray(booksResponse)) {
-          booksData = booksResponse;
-        } else if (booksResponse.data && Array.isArray(booksResponse.data)) {
-          booksData = booksResponse.data;
-        }
-        setBooks(booksData);
 
         // Fetch palettes with sorting and archived filter
         const palettesResponse = await colorPalettesAPI.getAll(1, 100, {
@@ -2281,16 +2262,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Inspiration
                     </label>
-                    <DropdownMenu
-                      options={inspirations.map(insp => {
-                        const id = insp.id;
-                        const title = insp.title || insp.name || `Inspiration ${id}`;
-                        const type = insp.type;
-                        return {
-                          value: id.toString(),
-                          label: `${type === 'video' ? '📺' : '🖼️'} ${title}`
-                        };
-                      })}
+                    <InspirationDropdown
                       value={journalFormData.inspiration}
                       onChange={(value) => setJournalFormData({ ...journalFormData, inspiration: value })}
                       placeholder="Select inspiration..."
@@ -2318,11 +2290,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Book
                     </label>
-                    <DropdownMenu
-                      options={books.map(book => ({
-                        value: book.id.toString(),
-                        label: book.title || book.name || `Book ${book.id}`
-                      }))}
+                    <BookDropdown
                       value={journalFormData.book}
                       onChange={(value) => setJournalFormData({ ...journalFormData, book: value })}
                       placeholder="Select a book (optional)..."
