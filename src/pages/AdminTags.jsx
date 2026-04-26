@@ -92,7 +92,7 @@ const AdminTags = () => {
                 Inspiration Tags
               </h2>
               <p className="text-sm text-slate-600">
-                Manage known tags that users can apply to videos, images, and files in Inspo.
+                Manage known tags that users can apply to videos, images, and files in Inspiration.
               </p>
             </div>
             <button

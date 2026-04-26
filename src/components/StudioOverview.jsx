@@ -906,7 +906,7 @@ const StudioOverview = ({ user }) => {
       {/* Inspiration Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspo</h3>
+          <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspiration</h3>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedInspirations, inspirationHasMore) && (
               <div className="flex items-center space-x-2">

@@ -358,10 +358,13 @@ export const coloredPencilSetsAPI = {
   createCustomSet: (data) => apiPost('/colored-pencil-set-sizes/custom-set', data, true),
   getById: (id) => apiGet(`/colored-pencil-sets/${id}`, true),
   getPencils: (id) => apiGet(`/colored-pencil-sets/${id}/pencils`, true),
-  compare: (sourceSetId, targetSetId, includeTwoColorMix = false) => apiPost('/colored-pencil-sets/compare', {
+  compare: (sourceSetId, targetSetId, includeTwoColorMix = false, options = {}) => apiPost('/colored-pencil-sets/compare', {
     source_set_id: sourceSetId,
     target_set_id: targetSetId,
-    include_two_color_mix: includeTwoColorMix
+    include_two_color_mix: includeTwoColorMix,
+    ...(Array.isArray(options.sourceSetSizeIds) && options.sourceSetSizeIds.length > 0
+      ? { source_set_size_ids: options.sourceSetSizeIds }
+      : {})
   }, true),
   create: (set) => apiPost('/colored-pencil-sets', set, true),
   update: (id, set) => apiPut(`/colored-pencil-sets/${id}`, set, true),
@@ -469,7 +472,7 @@ export const bookPagesAPI = {
 };
 
 export const inspirationAPI = {
-  getAll: (page = 1, perPage = 40, filters = {}) => {
+  getAll: (page = 1, perPage = 25, filters = {}) => {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     
     // Add filter parameters
@@ -482,6 +485,9 @@ export const inspirationAPI = {
     if (filters.tags != null && filters.tags.length > 0) {
       const tagParam = Array.isArray(filters.tags) ? filters.tags.join(',') : String(filters.tags);
       params.append('filter[tags]', tagParam);
+    }
+    if (filters.search) {
+      params.append('filter[search]', String(filters.search));
     }
     
     // Add sort parameters
@@ -787,6 +793,9 @@ export const adminAPI = {
         }
         if (data.name !== undefined && data.name !== null && data.name !== '') {
           formData.append('name', String(data.name));
+        }
+        if (data.include_in_color_along !== undefined) {
+          formData.append('include_in_color_along', data.include_in_color_along ? '1' : '0');
         }
         return fetch(`${API_BASE_URL}/admin/colored-pencil-set-sizes/${id}`, {
           method: 'POST', // Use POST for file uploads, Laravel will handle _method=PUT

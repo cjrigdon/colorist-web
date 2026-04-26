@@ -18,7 +18,7 @@ const steps = [
   },
   {
     target: '[data-joyride="studio-inspo"]',
-    content: 'Inspo is where you save and organize your creative inspirations - images, videos, and ideas that spark your creativity.',
+    content: 'Inspiration is where you save and organize your creative inspirations - images, videos, and ideas that spark your creativity.',
     placement: 'right',
     route: '/studio/inspiration',
   },

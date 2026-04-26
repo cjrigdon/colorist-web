@@ -49,6 +49,7 @@ const AdminPencilSets = () => {
   const [sizeFormData, setSizeFormData] = useState({
     count: '',
     name: '',
+    include_in_color_along: true,
     thumb: '',
     thumbFile: null
   });
@@ -164,6 +165,7 @@ const AdminPencilSets = () => {
     setSizeFormData({
       count: size.count || '',
       name: size.name || '',
+      include_in_color_along: size.include_in_color_along !== false,
       thumb: size.thumb || '',
       thumbFile: null
     });
@@ -203,6 +205,7 @@ const AdminPencilSets = () => {
       setSizeFormData({
         count: '',
         name: '',
+        include_in_color_along: true,
         thumb: '',
         thumbFile: null
       });
@@ -913,6 +916,23 @@ const AdminPencilSets = () => {
                     />
                   </div>
                   <div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="include_in_color_along"
+                        checked={!!sizeFormData.include_in_color_along}
+                        onChange={(e) => {
+                          setSizeFormData(prev => ({
+                            ...prev,
+                            include_in_color_along: e.target.checked
+                          }));
+                        }}
+                        className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-2 focus:ring-pink-500"
+                      />
+                      <span className="text-sm font-medium text-slate-700">Include this size in Color Along</span>
+                    </label>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Thumbnail
                     </label>
@@ -948,6 +968,7 @@ const AdminPencilSets = () => {
                         setSizeFormData({
                           count: '',
                           name: '',
+                          include_in_color_along: true,
                           thumb: '',
                           thumbFile: null
                         });
