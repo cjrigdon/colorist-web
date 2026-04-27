@@ -48,7 +48,7 @@ const DropdownMenu = ({
         }}
       >
         <span className={selectedOption ? 'text-slate-800 font-medium' : 'text-slate-500'}>
-          {selectedOption ? selectedOption.label : placeholder}
+          {selectedOption ? (selectedOption.selectedLabel || selectedOption.label) : placeholder}
         </span>
         <svg 
           className={`w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -77,7 +77,7 @@ const DropdownMenu = ({
                       : 'text-slate-700 hover:bg-white hover:text-slate-900'
                   }`}
                 >
-                  {option.label}
+                  {option.displayLabel || option.label}
                 </button>
               ))
             )}

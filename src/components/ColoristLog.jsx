@@ -4,10 +4,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import InspirationDropdown from './InspirationDropdown';
-import AddPencilSetModal from './AddPencilSetModal';
-import PencilSelector from './PencilSelector';
-import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI, brandsAPI } from '../services/api';
-import { apiGet } from '../services/api';
+import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
+import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
 
 // Filtered Combo Checkbox List Component
 const FilteredComboCheckboxList = ({ combos, selectedCombos, onSelectionChange, pencilSetIds }) => {
@@ -90,6 +88,70 @@ const FilteredComboCheckboxList = ({ combos, selectedCombos, onSelectionChange, 
   );
 };
 
+const getThumbnailUrl = (thumb) => {
+  if (!thumb) return null;
+  if (thumb.startsWith('http')) return thumb;
+  const apiBase = process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000';
+  return `${apiBase}/storage/${thumb}`;
+};
+
+const buildSetDropdownOptions = (setSizes = []) => {
+  const grouped = new Map();
+
+  setSizes.forEach((setSize) => {
+    const setId = setSize.set?.id || setSize.id;
+    if (!setId) return;
+
+    const existing = grouped.get(setId) || {
+      setId,
+      name: setSize.set?.name || setSize.name || 'Unknown',
+      brand: typeof setSize.set?.brand === 'object'
+        ? setSize.set?.brand?.name
+        : (setSize.set?.brand || setSize.brand || 'Unknown'),
+      totalColors: 0,
+      thumbs: []
+    };
+
+    existing.totalColors += (setSize.count || 0);
+    const thumbUrl = getThumbnailUrl(setSize.thumb || setSize.set?.thumb);
+    if (thumbUrl && !existing.thumbs.includes(thumbUrl)) {
+      existing.thumbs.push(thumbUrl);
+    }
+    grouped.set(setId, existing);
+  });
+
+  return Array.from(grouped.values())
+    .sort((a, b) => `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`))
+    .map((option) => ({
+      value: option.setId.toString(),
+      label: `${option.name} (${option.brand})`,
+      selectedLabel: `${option.name} (${option.brand})`,
+      displayLabel: (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 min-w-[2.75rem]">
+            {option.thumbs.slice(0, 3).map((thumb) => (
+              <img
+                key={`${option.setId}-${thumb}`}
+                src={thumb}
+                alt={`${option.name} size`}
+                className="w-7 h-7 rounded object-cover border border-slate-200"
+              />
+            ))}
+            {option.thumbs.length === 0 && (
+              <div className="w-7 h-7 rounded bg-slate-100 border border-slate-200" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-slate-900 font-medium truncate">{option.name}</div>
+            <div className="text-xs text-slate-500 truncate">
+              {option.brand} - {option.totalColors} colors
+            </div>
+          </div>
+        </div>
+      )
+    }));
+};
+
 const ColoristLog = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -109,7 +171,6 @@ const ColoristLog = () => {
     notes: ''
   });
   const [showPaletteList, setShowPaletteList] = useState(false);
-  const [showPencilSelector, setShowPencilSelector] = useState(false);
   const [showColorSelector, setShowColorSelector] = useState(false);
   const [pencilSelection, setPencilSelection] = useState({
     setIds: [],
@@ -128,7 +189,10 @@ const ColoristLog = () => {
   const [palettes, setPalettes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [loadingFormData, setLoadingFormData] = useState(false);
-  const [showAddSetModal, setShowAddSetModal] = useState(false);
+  const userSetJournalOptions = useMemo(
+    () => buildSetDropdownOptions(pencilSets),
+    [pencilSets]
+  );
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
@@ -168,7 +232,7 @@ const ColoristLog = () => {
         }
         setBooks(booksData);
 
-        // Fetch pencil sets
+        // Fetch user's pencil set sizes for dropdown
         const pencilSetsResponse = await coloredPencilSetsAPI.getAll(1, 1000);
         let pencilSetsData = [];
         if (Array.isArray(pencilSetsResponse)) {
@@ -176,13 +240,7 @@ const ColoristLog = () => {
         } else if (pencilSetsResponse.data && Array.isArray(pencilSetsResponse.data)) {
           pencilSetsData = pencilSetsResponse.data;
         }
-        // Transform for dropdown
-        const transformedSets = pencilSetsData.map(setSize => ({
-          id: setSize.set?.id || setSize.id,
-          name: setSize.set?.name || 'Unknown',
-          brand: setSize.set?.brand || 'Unknown'
-        }));
-        setPencilSets(transformedSets);
+        setPencilSets(pencilSetsData);
 
         // Fetch palettes
         const palettesResponse = await colorPalettesAPI.getAll(1, 1000);
@@ -349,7 +407,6 @@ const ColoristLog = () => {
       notes: ''
     });
     setShowPaletteList(false);
-    setShowPencilSelector(false);
     setShowColorSelector(false);
     setSelectedPalettes([]);
     setSelectedCombos([]);
@@ -376,42 +433,14 @@ const ColoristLog = () => {
     // Note: We need to get the set ID from the entry's colored_pencil_set_id
     const setIds = entry.pencilSet_id ? [entry.pencilSet_id.toString()] : [];
     
-    // Fetch size IDs for the selected set(s) to populate PencilSelector correctly
-    const existingSizeIds = [];
-    if (setIds.length > 0) {
-      for (const setId of setIds) {
-        try {
-          const sizesResponse = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
-            setId: parseInt(setId),
-            excludePencils: false
-          });
-          let sizesData = [];
-          if (Array.isArray(sizesResponse)) {
-            sizesData = sizesResponse;
-          } else if (sizesResponse.data && Array.isArray(sizesResponse.data)) {
-            sizesData = sizesResponse.data;
-          }
-          // Add all size IDs for this set
-          sizesData.forEach(size => {
-            existingSizeIds.push(size.id);
-          });
-        } catch (sizeError) {
-          console.error(`Error fetching sizes for set ${setId}:`, sizeError);
-        }
-      }
-    }
-    
-    // Ensure all IDs are strings for consistent comparison
-    const sizeIdsAsStrings = existingSizeIds.map(id => String(id));
+    // Keep size IDs empty for dropdown-based set selection.
+    const sizeIdsAsStrings = [];
     const setIdsAsStrings = setIds.map(id => String(id));
     
     setPencilSelection({
       setIds: setIdsAsStrings,
       sizeIds: sizeIdsAsStrings
     });
-    
-    // Show pencil selector if there are existing sizes
-    setShowPencilSelector(sizeIdsAsStrings.length > 0);
     
     // Load existing palette and combos
     if (formData.palettes && formData.palettes.length > 0) {
@@ -439,6 +468,7 @@ const ColoristLog = () => {
       
       // Prepare data for API
       // Note: Journal entries store set IDs, not size IDs
+      const notesValue = isRichTextEmpty(formData.notes) ? null : formData.notes;
       const entryData = {
         date: formData.date,
         inspiration: formData.inspiration || null,
@@ -446,7 +476,7 @@ const ColoristLog = () => {
         book: formData.book || null,
         palettes: selectedPalettes.map(id => parseInt(id)),
         combos: selectedCombos.map(id => parseInt(id)),
-        notes: formData.notes || null
+        notes: notesValue
       };
 
       // Remove null/empty string values (but keep empty arrays for combos and palettes)
@@ -879,7 +909,14 @@ const ColoristLog = () => {
                       )}
                     </div>
                     {entry.notes && (
-                      <p className="text-slate-700 mb-3">{entry.notes}</p>
+                      /<\/?[a-z][\s\S]*>/i.test(entry.notes) ? (
+                        <div
+                          className="text-slate-700 mb-3 whitespace-pre-wrap [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_li]:my-1"
+                          dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(entry.notes) }}
+                        />
+                      ) : (
+                        <p className="text-slate-700 mb-3 whitespace-pre-wrap">{entry.notes}</p>
+                      )
                     )}
                   </div>
                   <div className="flex space-x-2 ml-4">
@@ -968,50 +1005,15 @@ const ColoristLog = () => {
                     </div>
                   </div>
 
-                  {/* Add Pencils Section */}
+                  {/* Pencil Set Section */}
                   <div>
-                    {!showPencilSelector ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowPencilSelector(true)}
-                        className="flex items-center space-x-2 px-4 py-2.5 text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium hover:bg-white transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Add Pencils</span>
-                      </button>
-                    ) : (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-slate-700">Pencil Sets</label>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => setShowAddSetModal(true)}
-                              className="text-xs text-slate-600 hover:text-slate-800 underline"
-                            >
-                              Add New Set
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowPencilSelector(false);
-                              }}
-                              className="text-xs text-slate-600 hover:text-slate-800"
-                            >
-                              Hide
-                            </button>
-                          </div>
-                        </div>
-                        <PencilSelector
-                          value={pencilSelection}
-                          onChange={setPencilSelection}
-                          label=""
-                          multiple={true}
-                        />
-                      </div>
-                    )}
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Your Pencil Set</label>
+                    <DropdownMenu
+                      options={userSetJournalOptions}
+                      value={pencilSelection.setIds[0] || ''}
+                      onChange={(value) => setPencilSelection({ setIds: value ? [value] : [], sizeIds: [] })}
+                      placeholder="Select your pencil set..."
+                    />
                   </div>
 
                   {/* Add Colors Section */}
@@ -1112,12 +1114,9 @@ const ColoristLog = () => {
               {!loadingFormData && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-                  <textarea
+                  <RichTextEditor
                     value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={4}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    style={{ focusRingColor: '#ea3663' }}
+                    onChange={(value) => setFormData({ ...formData, notes: value })}
                     placeholder="Write your notes here..."
                   />
                 </div>
@@ -1148,31 +1147,6 @@ const ColoristLog = () => {
         </div>
       )}
 
-      {/* Add Pencil Set Modal */}
-      <AddPencilSetModal
-        isOpen={showAddSetModal}
-        onClose={() => setShowAddSetModal(false)}
-        onSuccess={async () => {
-          // Refresh pencil sets after adding
-          try {
-            const pencilSetsResponse = await coloredPencilSetsAPI.getAll(1, 1000);
-            let pencilSetsData = [];
-            if (Array.isArray(pencilSetsResponse)) {
-              pencilSetsData = pencilSetsResponse;
-            } else if (pencilSetsResponse.data && Array.isArray(pencilSetsResponse.data)) {
-              pencilSetsData = pencilSetsResponse.data;
-            }
-            const transformedSets = pencilSetsData.map(setSize => ({
-              id: setSize.set?.id || setSize.id,
-              name: setSize.set?.name || 'Unknown',
-              brand: setSize.set?.brand || 'Unknown'
-            }));
-            setPencilSets(transformedSets);
-          } catch (error) {
-            console.error('Error refreshing pencil sets:', error);
-          }
-        }}
-      />
     </div>
   );
 };
