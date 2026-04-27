@@ -77,7 +77,7 @@ export const sanitizeRichTextHtml = (html = '') => {
   return normalizeHtml(template.innerHTML);
 };
 
-const RichTextEditor = ({ value, onChange, placeholder = 'Write your notes here...', minHeight = '8rem' }) => {
+const RichTextEditor = ({ value, onChange, placeholder = '', minHeight = '8rem' }) => {
   const editorRef = useRef(null);
   const selectionRef = useRef(null);
   const normalizedValue = useMemo(() => (value && value.trim().length > 0 ? value : ''), [value]);

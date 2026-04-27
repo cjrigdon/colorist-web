@@ -2353,7 +2353,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     <RichTextEditor
                       value={journalFormData.notes}
                       onChange={(value) => setJournalFormData({ ...journalFormData, notes: value })}
-                      placeholder="Add your notes about this session..."
+                      placeholder=""
                     />
                   </div>
                 </>
