@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
-import InspirationDropdown from './InspirationDropdown';
+import InspirationDropdown, { getInspirationKey, parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty } from './RichTextEditor';
-import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
+import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, playlistsAPI, videosAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
+import { extractYouTubeVideoId } from '../utils/youtubeUtils';
 import AdSpace from './AdSpace';
+import YouTubeImportBanner from './YouTubeImportBanner';
+import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
+import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 
 // Color distance calculation using Euclidean distance in RGB space
 const colorDistance = (color1, color2) => {
@@ -122,11 +126,14 @@ const findClosestColor = (sourceColor, targetSet) => {
 };
 
 const ColorAlong = ({ user, onInspirationClick }) => {
+  const { importing } = useYouTubeImport();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [videoId, setVideoId] = useState('');
+  const [videoLoadError, setVideoLoadError] = useState(null);
+  const [loadingVideo, setLoadingVideo] = useState(false);
   const [videoSetId, setVideoSetId] = useState(null);
   const [userSetId, setUserSetId] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -188,6 +195,15 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   // Inspiration data state
   const [inspirations, setInspirations] = useState([]);
   const [loadingInspirations, setLoadingInspirations] = useState(true);
+  const [pickerVideos, setPickerVideos] = useState([]);
+  const [loadingPickerVideos, setLoadingPickerVideos] = useState(true);
+  const [playlists, setPlaylists] = useState([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(true);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [debouncedLibrarySearch, setDebouncedLibrarySearch] = useState('');
+  const [activePlaylist, setActivePlaylist] = useState(null);
+  const [playlistVideos, setPlaylistVideos] = useState([]);
+  const [loadingPlaylistVideos, setLoadingPlaylistVideos] = useState(false);
 
   // Journal entry modal states
   const [showJournalModal, setShowJournalModal] = useState(false);
@@ -270,10 +286,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     const imageParam = searchParams.get('image');
     
     if (videoParam) {
+      const resolvedVideoId = extractYouTubeVideoId(videoParam) || videoParam;
       // Load video from query parameter
       // Try to find it in loaded inspirations first
       const videoInspiration = inspirations.find(insp => 
-        insp.type === 'video' && (insp.embed_id === videoParam || insp.id === parseInt(videoParam))
+        insp.type === 'video' && (insp.embed_id === resolvedVideoId || insp.embed_id === videoParam || insp.id === parseInt(videoParam))
       );
       
       if (videoInspiration) {
@@ -284,8 +301,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         });
         setVideoId(videoInspiration.embed_id);
       } else {
-        setVideoId(videoParam);
-        setSelectedVideo({ id: videoParam, title: 'Video' });
+        setVideoId(resolvedVideoId);
+        setSelectedVideo({ id: resolvedVideoId, title: 'Video' });
       }
       // Close the left navigation when video is loaded from URL
       if (onInspirationClick) {
@@ -459,10 +476,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       // Clear container
       playerContainer.innerHTML = '';
 
-      // Get container dimensions
-      const containerWidth = playerContainer.offsetWidth || playerContainer.clientWidth || 640;
-      const containerHeight = playerContainer.offsetHeight || playerContainer.clientHeight || 360;
-
       // Create a div for the player
       const playerId = `youtube-player-${selectedVideo.id}-${Date.now()}`;
       const playerDiv = document.createElement('div');
@@ -475,8 +488,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       try {
         const player = new window.YT.Player(playerId, {
           videoId: selectedVideo.id,
-          width: containerWidth,
-          height: containerHeight,
+          width: '100%',
+          height: '100%',
           playerVars: {
             autoplay: 0,
             controls: 1,
@@ -586,6 +599,25 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     () => buildSetDropdownOptions(userPencilSetSizes),
     [userPencilSetSizes]
   );
+
+  const journalUserSelectedSet = useMemo(() => {
+    if (!journalFormData.userPencilSet) return null;
+    const selectedId = journalFormData.userPencilSet.toString();
+    const fromList = userPencilSets.find((set) => set.id?.toString() === selectedId);
+    if (fromList) return fromList;
+    if (userSet && userSet.id?.toString() === selectedId) return userSet;
+    const fromSizes = userPencilSetSizes.find(
+      (setSize) => (setSize.set?.id || setSize.id)?.toString() === selectedId
+    );
+    if (fromSizes) {
+      return {
+        id: fromSizes.set?.id || fromSizes.id,
+        name: fromSizes.set?.name || 'Unknown',
+        brand: fromSizes.set?.brand || 'Unknown'
+      };
+    }
+    return { id: selectedId, name: 'Selected set', brand: 'Unknown' };
+  }, [journalFormData.userPencilSet, userPencilSets, userSet, userPencilSetSizes]);
 
   // Video Set Selection Handlers
   const fetchVideoSetsForBrand = async (brandId) => {
@@ -772,35 +804,115 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     setUserSelectedSetSize(representativeSetSize);
   };
 
-  // Fetch user's inspirations on component mount
-  useEffect(() => {
-    const fetchInspirations = async () => {
-      try {
-        setLoadingInspirations(true);
-        const response = await inspirationAPI.getAll(1, 100, {
-          sort: 'title',
-          sort_direction: 'asc',
-          archived: false
-        });
-        
-        // Handle paginated response
-        let inspirationsData = [];
-        if (Array.isArray(response)) {
-          inspirationsData = response;
-        } else if (response.data && Array.isArray(response.data)) {
-          inspirationsData = response.data;
-        }
-        
-        setInspirations(inspirationsData);
-      } catch (error) {
-        console.error('Error fetching inspirations:', error);
-      } finally {
-        setLoadingInspirations(false);
-      }
-    };
+  const fetchInspirations = useCallback(async () => {
+    try {
+      setLoadingInspirations(true);
+      const response = await inspirationAPI.getAll(1, 100, {
+        sort: 'title',
+        sort_direction: 'asc',
+        archived: false
+      });
 
-    fetchInspirations();
+      let inspirationsData = [];
+      if (Array.isArray(response)) {
+        inspirationsData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        inspirationsData = response.data;
+      }
+
+      setInspirations(inspirationsData);
+    } catch (error) {
+      console.error('Error fetching inspirations:', error);
+    } finally {
+      setLoadingInspirations(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchInspirations();
+  }, [fetchInspirations]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedLibrarySearch(librarySearch.trim());
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [librarySearch]);
+
+  const fetchPickerVideos = useCallback(async () => {
+    try {
+      setLoadingPickerVideos(true);
+      const isSearch = Boolean(debouncedLibrarySearch);
+      const response = await inspirationAPI.getAll(1, isSearch ? 20 : 4, {
+        type: 'video',
+        sort: 'created_at',
+        sort_direction: 'desc',
+        archived: false,
+        ...(isSearch ? { search: debouncedLibrarySearch } : {}),
+      });
+      const videosData = Array.isArray(response) ? response : (response?.data ?? []);
+      setPickerVideos(videosData);
+    } catch (error) {
+      console.error('Error fetching Color Along videos:', error);
+      setPickerVideos([]);
+    } finally {
+      setLoadingPickerVideos(false);
+    }
+  }, [debouncedLibrarySearch]);
+
+  const fetchPlaylists = useCallback(async () => {
+    try {
+      setLoadingPlaylists(true);
+      const response = await playlistsAPI.getAll({ preview: true });
+      const playlistsData = Array.isArray(response) ? response : (response?.data ?? []);
+      setPlaylists(playlistsData);
+    } catch (error) {
+      console.error('Error fetching Color Along playlists:', error);
+      setPlaylists([]);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPickerVideos();
+  }, [fetchPickerVideos]);
+
+  useEffect(() => {
+    fetchPlaylists();
+  }, [fetchPlaylists]);
+
+  const refreshPickerLibrary = useCallback(() => {
+    fetchInspirations();
+    fetchPickerVideos();
+    fetchPlaylists();
+    if (activePlaylist?.id) {
+      playlistsAPI.getVideos(activePlaylist.id)
+        .then((response) => {
+          const videos = Array.isArray(response) ? response : (response?.data ?? []);
+          setPlaylistVideos(videos.map((video) => ({ ...video, type: 'video' })));
+        })
+        .catch((error) => console.error('Error refreshing playlist videos:', error));
+    }
+  }, [fetchInspirations, fetchPickerVideos, fetchPlaylists, activePlaylist?.id]);
+
+  useYouTubeImportRefresh(refreshPickerLibrary);
+
+  const filteredPlaylists = useMemo(() => {
+    const query = debouncedLibrarySearch.toLowerCase();
+    if (!query) {
+      return playlists;
+    }
+    return playlists.filter((playlist) => (playlist.title || '').toLowerCase().includes(query));
+  }, [playlists, debouncedLibrarySearch]);
+
+  const filteredPlaylistVideos = useMemo(() => {
+    const query = debouncedLibrarySearch.toLowerCase();
+    if (!query) {
+      return playlistVideos;
+    }
+    return playlistVideos.filter((video) => (video.title || '').toLowerCase().includes(query));
+  }, [playlistVideos, debouncedLibrarySearch]);
 
   // Fetch colors for video set when selected
   useEffect(() => {
@@ -980,18 +1092,18 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             return false;
           });
           if (videoInspiration) {
-            currentInspirationId = videoInspiration.id.toString();
+            currentInspirationId = getInspirationKey(videoInspiration);
           }
         } else if (selectedImage) {
           // Find image in inspirations by id
           const imageInspiration = inspirations.find(insp => {
-            if (insp.type === 'file') {
-              return insp.id === selectedImage.id;
+            if (insp.type === 'file' || insp.type === 'image' || insp.type === 'pdf') {
+              return insp.id === selectedImage.id || insp.id === parseInt(selectedImage.id, 10);
             }
             return false;
           });
           if (imageInspiration) {
-            currentInspirationId = imageInspiration.id.toString();
+            currentInspirationId = getInspirationKey(imageInspiration);
           }
         }
       }
@@ -1032,14 +1144,15 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           insp.type === 'video' && (insp.embed_id === selectedVideo.id || insp.embed_id === selectedVideo.embed_id || insp.id === selectedVideo.id)
         );
         if (videoInspiration) {
-          currentInspirationId = videoInspiration.id.toString();
+          currentInspirationId = getInspirationKey(videoInspiration);
         }
       } else if (selectedImage) {
-        const imageInspiration = inspirations.find(insp => 
-          insp.type === 'file' && insp.id === selectedImage.id
+        const imageInspiration = inspirations.find(insp =>
+          (insp.type === 'file' || insp.type === 'image' || insp.type === 'pdf')
+          && (insp.id === selectedImage.id || insp.id === parseInt(selectedImage.id, 10))
         );
         if (imageInspiration) {
-          currentInspirationId = imageInspiration.id.toString();
+          currentInspirationId = getInspirationKey(imageInspiration);
         }
       }
       
@@ -1272,6 +1385,22 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     }
   };
 
+  const handlePlaylistSelect = async (playlist) => {
+    setActivePlaylist(playlist);
+    setLoadingPlaylistVideos(true);
+    setPlaylistVideos([]);
+    try {
+      const response = await playlistsAPI.getVideos(playlist.id);
+      const videos = Array.isArray(response) ? response : (response?.data ?? []);
+      setPlaylistVideos(videos.map((video) => ({ ...video, type: 'video' })));
+    } catch (error) {
+      console.error('Error fetching playlist videos:', error);
+      setPlaylistVideos([]);
+    } finally {
+      setLoadingPlaylistVideos(false);
+    }
+  };
+
   const handleInspirationSelect = (inspiration) => {
     if (inspiration.type === 'video') {
       setSelectedVideo({
@@ -1297,9 +1426,65 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     }
   };
 
-  const handleLoadVideo = () => {
-    if (videoId) {
-      setSelectedVideo({ id: videoId, title: 'Custom Video' });
+  const renderVideoCard = (inspiration) => (
+    <button
+      key={`${inspiration.type || 'video'}-${inspiration.id || inspiration.embed_id}`}
+      onClick={() => handleInspirationSelect(inspiration)}
+      className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left p-0 flex flex-col"
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ea3663'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
+    >
+      <div className="relative aspect-video bg-slate-100 overflow-hidden">
+        <img
+          src={inspiration.thumb || `https://img.youtube.com/vi/${inspiration.embed_id}/hqdefault.jpg`}
+          alt={inspiration.title || 'Video'}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+          }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="w-10 h-10 rounded-full bg-white bg-opacity-90 flex items-center justify-center">
+            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#49817b' }}>
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div className="p-2">
+        <p className="text-sm font-medium text-slate-800 line-clamp-2">{inspiration.title || 'Video'}</p>
+      </div>
+    </button>
+  );
+
+  const handleLoadVideo = async () => {
+    const resolvedVideoId = extractYouTubeVideoId(videoId);
+    if (!resolvedVideoId) {
+      setVideoLoadError('Enter a valid YouTube URL or video ID.');
+      return;
+    }
+
+    setVideoLoadError(null);
+    setLoadingVideo(true);
+    setVideoId(resolvedVideoId);
+
+    try {
+      const created = await videosAPI.create({ embed_id: resolvedVideoId });
+      const saved = created?.data ?? created;
+      setSelectedVideo({
+        id: saved?.embed_id || resolvedVideoId,
+        embed_id: saved?.embed_id || resolvedVideoId,
+        title: saved?.title || 'Custom Video',
+        inspirationId: saved?.id,
+      });
+      fetchInspirations();
+      fetchPickerVideos();
+    } catch (error) {
+      console.error('Error saving loaded video to inspiration:', error);
+      setSelectedVideo({ id: resolvedVideoId, title: 'Custom Video' });
+      setVideoLoadError(error.data?.message || error.message || 'Video loaded, but it could not be saved to your inspiration.');
+    } finally {
+      setLoadingVideo(false);
     }
   };
 
@@ -1841,100 +2026,178 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         <div className={`${isMatchesCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} bg-white flex flex-col relative`} style={{ minHeight: '600px', height: '100%', maxHeight: '100%' }}>
           
           {!selectedVideo && !selectedImage ? (
-            <div className="p-3 space-y-3 h-full flex flex-col">
-              {/* Video ID Input */}
-              <div className="flex-shrink-0">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Enter YouTube Video ID
-                </label>
-                <div className="flex space-x-2">
+            <div className="p-4 space-y-5 h-full flex flex-col">
+              <div className="flex-shrink-0 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-slate-800 mb-1">Load a YouTube video</h3>
+                <p className="text-xs text-slate-500 mb-3">Paste a YouTube URL or video ID to start coloring along.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={videoId}
-                    onChange={(e) => setVideoId(e.target.value)}
-                    placeholder="e.g., dQw4w9WgXcQ"
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    onChange={(e) => {
+                      setVideoId(e.target.value);
+                      if (videoLoadError) {
+                        setVideoLoadError(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLoadVideo();
+                      }
+                    }}
+                    placeholder="https://www.youtube.com/watch?v=... or video ID"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-offset-2"
                     style={{ focusRingColor: '#ea3663' }}
                   />
                   <button
                     onClick={handleLoadVideo}
-                    disabled={!videoId}
-                    className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!videoId.trim() || loadingVideo}
+                    className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto w-full"
                     style={{
                       backgroundColor: '#ea3663'
                     }}
                     onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}
                     onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#ea3663')}
                   >
-                    Load Video
+                    {loadingVideo ? 'Loading...' : 'Load Video'}
                   </button>
                 </div>
+                {videoLoadError && (
+                  <p className="mt-2 text-sm text-red-600">{videoLoadError}</p>
+                )}
               </div>
 
-              {/* Inspiration Videos and Images */}
-              <div className="flex-1 overflow-y-auto">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Or choose from your inspiration
-                </label>
-                {loadingInspirations ? (
-                  <div className="flex items-center justify-center py-8">
-                    <p className="text-slate-500">Loading inspirations...</p>
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">Or choose from your library</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Browse recent videos and playlists</p>
                   </div>
-                ) : inspirations.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <p className="text-slate-500">No inspirations found. Add videos or images to get started.</p>
+                  <div className="relative w-full sm:w-56 flex-shrink-0">
+                    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
+                    </svg>
+                    <input
+                      type="search"
+                      value={librarySearch}
+                      onChange={(e) => {
+                        setLibrarySearch(e.target.value);
+                        if (activePlaylist) {
+                          setActivePlaylist(null);
+                          setPlaylistVideos([]);
+                        }
+                      }}
+                      placeholder="Search library"
+                      className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{ focusRingColor: '#ea3663' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-6">
+                <YouTubeImportBanner />
+                {activePlaylist ? (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePlaylist(null);
+                        setPlaylistVideos([]);
+                      }}
+                      className="text-sm text-slate-500 hover:text-slate-700 mb-3"
+                    >
+                      ← Back to library
+                    </button>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-3">{activePlaylist.title || 'Playlist'}</h3>
+                    {loadingPlaylistVideos ? (
+                      <p className="text-slate-500 py-8 text-center">Loading playlist videos...</p>
+                    ) : filteredPlaylistVideos.length === 0 ? (
+                      <p className="text-slate-500 py-8 text-center">No videos in this playlist.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {filteredPlaylistVideos.map(renderVideoCard)}
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {inspirations.map((inspiration) => (
-                      <button
-                        key={`${inspiration.type}-${inspiration.id}`}
-                        onClick={() => handleInspirationSelect(inspiration)}
-                        className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left p-0 flex flex-col"
-                        onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-                        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                      >
-                        <div className="relative aspect-video bg-slate-100 overflow-hidden">
-                          {inspiration.type === 'video' ? (
-                            <>
-                              <img
-                                src={inspiration.thumb || `https://img.youtube.com/vi/${inspiration.embed_id}/hqdefault.jpg`}
-                                alt={inspiration.title || 'Video'}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
-                                }}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
-                                <div className="w-10 h-10 rounded-full bg-white bg-opacity-90 flex items-center justify-center">
-                                  <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#49817b' }}>
-                                    <path d="M8 5v14l11-7z" />
-                                  </svg>
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                        {debouncedLibrarySearch ? 'Videos' : 'Recent Videos'}
+                      </h3>
+                      {loadingPickerVideos ? (
+                        <p className="text-slate-500 py-8 text-center">Loading videos...</p>
+                      ) : pickerVideos.length === 0 && importing ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                          <YouTubeImportPlaceholder count={4} />
+                        </div>
+                      ) : pickerVideos.length === 0 ? (
+                        <p className="text-slate-500 py-6 text-center">
+                          {debouncedLibrarySearch ? 'No videos match your search.' : 'No videos yet. Load a YouTube URL or add inspiration to get started.'}
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {importing && <YouTubeImportPlaceholder />}
+                          {pickerVideos.map(renderVideoCard)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-800 mb-3">Playlists</h3>
+                      {loadingPlaylists ? (
+                        <p className="text-slate-500 py-8 text-center">Loading playlists...</p>
+                      ) : filteredPlaylists.length === 0 && importing ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                          <YouTubeImportPlaceholder count={3} />
+                        </div>
+                      ) : filteredPlaylists.length === 0 ? (
+                        <p className="text-slate-500 py-6 text-center">
+                          {debouncedLibrarySearch ? 'No playlists match your search.' : 'No playlists yet.'}
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                          {importing && <YouTubeImportPlaceholder />}
+                          {filteredPlaylists.map((playlist) => {
+                            const previewThumb = playlist.thumb
+                              || playlist.preview_items?.[0]?.thumb
+                              || (playlist.preview_items?.[0]?.embed_id ? `https://img.youtube.com/vi/${playlist.preview_items[0].embed_id}/hqdefault.jpg` : null)
+                              || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                            const videoCount = playlist.preview_total ?? playlist.videos?.length ?? playlist.preview_items?.length ?? 0;
+                            return (
+                              <button
+                                key={playlist.id}
+                                onClick={() => handlePlaylistSelect(playlist)}
+                                className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all text-left p-0 flex flex-col"
+                                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ea3663'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                              >
+                                <div className="relative aspect-video bg-slate-100 overflow-hidden">
+                                  <img
+                                    src={previewThumb}
+                                    alt={playlist.title || 'Playlist'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
+                                    }}
+                                  />
                                 </div>
-                              </div>
-                            </>
-                          ) : (
-                            <img
-                              src={inspiration.thumbnail_path || inspiration.path || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop'}
-                              alt={inspiration.title || 'Image'}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.src = 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop';
-                              }}
-                            />
-                          )}
+                                <div className="p-2">
+                                  <p className="text-sm font-medium text-slate-800 line-clamp-2">{playlist.title || 'Untitled Playlist'}</p>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {videoCount} {videoCount === 1 ? 'video' : 'videos'}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
-                        <div className="p-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <span className="text-xs">{inspiration.type === 'video' ? '📺' : '🖼️'}</span>
-                            <span className="text-xs text-slate-500 uppercase">{inspiration.type}</span>
-                          </div>
-                          <p className="text-sm font-medium text-slate-800 line-clamp-2">{inspiration.title || `${inspiration.type === 'video' ? 'Video' : 'Image'} ${inspiration.id}`}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  </>
                 )}
+                </div>
               </div>
             </div>
           ) : selectedImage ? (
@@ -1981,9 +2244,9 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              <div className="flex-1 bg-slate-900 overflow-hidden" style={{ minHeight: '600px' }}>
+              <div className="flex-1 bg-slate-900 overflow-hidden flex items-center justify-center" style={{ minHeight: '600px' }}>
                 {youtubeApiLoaded ? (
-                  <div id="youtube-player-container" className="w-full h-full" style={{ width: '100%', height: '100%', display: 'block' }}></div>
+                  <div id="youtube-player-container" className="youtube-player-frame"></div>
                 ) : (
                   (() => {
                     const savedProgress = getVideoProgress(selectedVideo.id);
@@ -1991,17 +2254,17 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       ? `https://www.youtube.com/embed/${selectedVideo.id}?start=${savedProgress}`
                       : `https://www.youtube.com/embed/${selectedVideo.id}`;
                     return (
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        src={embedUrl}
-                        title={selectedVideo.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full"
-                        style={{ display: 'block' }}
-                      ></iframe>
+                      <div className="youtube-player-frame">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={embedUrl}
+                          title={selectedVideo.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
                     );
                   })()
                 )}
@@ -2266,17 +2529,43 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     </div>
                   </div>
 
-                  {/* User Pencil Set */}
+                  {/* User Pencil Set (selected state matches Video Pencil Set) */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Your Pencil Set
                     </label>
-                    <DropdownMenu
-                      options={userSetJournalOptions}
-                      value={journalFormData.userPencilSet}
-                      onChange={(value) => setJournalFormData({ ...journalFormData, userPencilSet: value })}
-                      placeholder="Select your pencil set..."
-                    />
+                    <div className="bg-slate-50 shadow-sm border border-slate-200 p-2 rounded-lg">
+                      {journalFormData.userPencilSet && journalUserSelectedSet ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">
+                              {journalUserSelectedSet.name || 'Unknown'}
+                            </p>
+                            <p className="text-xs text-slate-600 truncate">
+                              {typeof journalUserSelectedSet.brand === 'object'
+                                ? (journalUserSelectedSet.brand?.name || 'Unknown')
+                                : (journalUserSelectedSet.brand || 'Unknown')}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setJournalFormData({ ...journalFormData, userPencilSet: '' });
+                            }}
+                            className="text-xs text-slate-500 hover:text-slate-700 underline flex-shrink-0"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <DropdownMenu
+                          options={userSetJournalOptions}
+                          value={journalFormData.userPencilSet}
+                          onChange={(value) => setJournalFormData({ ...journalFormData, userPencilSet: value })}
+                          placeholder="Select your pencil set..."
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Book */}
@@ -2377,7 +2666,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     const notesValue = isRichTextEmpty(journalFormData.notes) ? null : journalFormData.notes;
                     const entryData = {
                       date: journalFormData.date,
-                      inspiration: journalFormData.inspiration || null,
+                      inspiration: parseInspirationValue(journalFormData.inspiration).id,
                       videoPencilSet: journalFormData.videoPencilSet || null,
                       userPencilSet: journalFormData.userPencilSet || null,
                       // Keep legacy field for backward compatibility.

@@ -30,6 +30,8 @@ import AdminTags from './AdminTags';
 import CreatorTools from './CreatorTools';
 import JoyrideWalkthrough from '../components/JoyrideWalkthrough';
 import { authAPI, adminAPI, setAuthToken, removeAuthToken } from '../services/api';
+import { YouTubeImportProvider } from '../context/YouTubeImportContext';
+import YouTubeImportBanner from '../components/YouTubeImportBanner';
 
 const Dashboard = () => {
   const location = useLocation();
@@ -53,9 +55,17 @@ const Dashboard = () => {
     const fetchUser = async () => {
       try {
         const userData = await authAPI.getUser();
+        if (!userData?.id && !userData?.email) {
+          removeAuthToken();
+          navigate('/', { replace: true });
+          return;
+        }
         setUser(userData);
       } catch (error) {
         console.error('Error fetching user:', error);
+        removeAuthToken();
+        navigate('/', { replace: true });
+        return;
       } finally {
         setLoadingUser(false);
       }
@@ -280,6 +290,7 @@ const Dashboard = () => {
   };
 
   return (
+    <YouTubeImportProvider user={user}>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex">
       {/* Left Sidebar Navigation */}
       <aside
@@ -508,6 +519,7 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            <YouTubeImportBanner compact />
             <NotificationDropdown user={user} />
           </div>
         </header>
@@ -576,6 +588,7 @@ const Dashboard = () => {
       </div>
       <JoyrideWalkthrough user={user} loadingUser={loadingUser} />
     </div>
+    </YouTubeImportProvider>
   );
 };
 

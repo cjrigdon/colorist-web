@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { userAPI } from '../services/api';
+import { userAPI, removeAuthToken } from '../services/api';
 
 const ProfileDropdown = ({ sidebarCollapsed = false }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,15 +67,16 @@ const ProfileDropdown = ({ sidebarCollapsed = false }) => {
       }
       return user.email || 'User';
     }
-    return loading ? 'Loading...' : 'User Name';
+    return loading ? 'Loading...' : '';
   };
 
   const getUserEmail = () => {
-    return user?.email || (loading ? 'Loading...' : 'user@example.com');
+    if (loading) return 'Loading...';
+    return user?.email || '';
   };
 
   const handleLogout = () => {
-    // Handle logout logic here
+    removeAuthToken();
     navigate('/');
   };
 

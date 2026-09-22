@@ -5,9 +5,13 @@ import VideoThumbnail from '../components/VideoThumbnail';
 import HoverableCard from '../components/HoverableCard';
 import PrimaryButton from '../components/PrimaryButton';
 import ErrorState from '../components/ErrorState';
+import YouTubeImportBanner from '../components/YouTubeImportBanner';
+import YouTubeImportPlaceholder from '../components/YouTubeImportPlaceholder';
+import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 
 const PlaylistVideos = () => {
   const navigate = useNavigate();
+  const { importing } = useYouTubeImport();
   const location = useLocation();
   const { playlistId } = useParams();
   const resolvedPlaylistId = useMemo(() => {
@@ -58,6 +62,8 @@ const PlaylistVideos = () => {
     fetchPlaylistVideos();
   }, [fetchPlaylistVideos]);
 
+  useYouTubeImportRefresh(fetchPlaylistVideos);
+
   if (loading) {
     return (
       <div className="bg-white p-12 text-center">
@@ -90,9 +96,17 @@ const PlaylistVideos = () => {
         </div>
       </div>
 
+      <YouTubeImportBanner />
+
       {error && <ErrorState error={error} />}
 
-      {!error && videos.length === 0 && (
+      {!error && videos.length === 0 && importing && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <YouTubeImportPlaceholder count={4} />
+        </div>
+      )}
+
+      {!error && videos.length === 0 && !importing && (
         <div className="text-center py-10">
           <p className="text-slate-500">No videos in this playlist yet.</p>
         </div>
@@ -100,6 +114,7 @@ const PlaylistVideos = () => {
 
       {!error && videos.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <YouTubeImportPlaceholder />
           {videos.map((video) => (
             <HoverableCard key={video.id} className="group relative">
               <div className="w-full">

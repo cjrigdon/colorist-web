@@ -5,6 +5,7 @@ import ColorCombos from './ColorCombos';
 import ColorPalettes from './ColorPalettes';
 import ColoringBooks from './ColoringBooks';
 import AdSpace from './AdSpace';
+import YouTubeImportBanner from './YouTubeImportBanner';
 
 const Studio = ({ activeSection = 'library', user }) => {
   const sections = [
@@ -36,6 +37,7 @@ const Studio = ({ activeSection = 'library', user }) => {
 
   return (
     <div className="space-y-6">
+      <YouTubeImportBanner />
       {/* Ad Space at Top for Free Plan */}
       {isFreePlan && (
         <div className="flex justify-center w-full">

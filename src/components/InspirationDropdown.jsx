@@ -1,6 +1,49 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { inspirationAPI } from '../services/api';
 
+export const getInspirationKey = (item) => {
+  if (!item?.id) {
+    return '';
+  }
+  const kind = item.type === 'video' ? 'video' : 'file';
+  return `${kind}:${item.id}`;
+};
+
+export const parseInspirationValue = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return { id: null, type: null };
+  }
+
+  const str = value.toString();
+  const match = str.match(/^(video|file|image|pdf):(.+)$/);
+  if (match) {
+    return {
+      id: match[2],
+      type: match[1] === 'video' ? 'video' : 'file',
+    };
+  }
+
+  return { id: str, type: null };
+};
+
+export const findInspirationByValue = (items, value) => {
+  const parsed = parseInspirationValue(value);
+  if (!parsed.id) {
+    return undefined;
+  }
+
+  if (parsed.type === 'video') {
+    return items.find((item) => item.type === 'video' && item.id.toString() === parsed.id);
+  }
+
+  if (parsed.type === 'file') {
+    return items.find((item) => item.type !== 'video' && item.id.toString() === parsed.id);
+  }
+
+  const matches = items.filter((item) => item.id.toString() === parsed.id);
+  return matches.length === 1 ? matches[0] : undefined;
+};
+
 const InspirationDropdown = ({ 
   value, 
   onChange, 
@@ -39,43 +82,56 @@ const InspirationDropdown = ({
     }
   }, [isOpen]);
 
+  const extractItems = (response) => {
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    return [];
+  };
+
+  const transformInspiration = (item) => {
+    if (item.type === 'video') {
+      return {
+        id: item.id,
+        type: 'video',
+        title: item.title || 'Untitled Video',
+        thumbnail: item.thumb || `https://img.youtube.com/vi/${item.embed_id}/hqdefault.jpg`,
+        embedId: item.embed_id,
+      };
+    }
+
+    if (item.type === 'file' || item.type === 'image' || item.type === 'pdf') {
+      const isPdf = item.type === 'pdf' || item.mime_type?.includes('pdf');
+      const isImage = item.type === 'image' || item.mime_type?.startsWith('image/');
+
+      return {
+        id: item.id,
+        type: isPdf ? 'pdf' : (isImage ? 'image' : 'file'),
+        title: item.title || 'Untitled File',
+        thumbnail: getFileImageUrl(item.thumbnail_path || item.path),
+        path: item.path,
+      };
+    }
+
+    return null;
+  };
+
   const loadInspirations = async () => {
     try {
       setLoading(true);
-      const response = await inspirationAPI.getAll(1, 1000);
-      
-      let inspirationsData = [];
-      if (Array.isArray(response)) {
-        inspirationsData = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        inspirationsData = response.data;
-      }
-      
-      // Transform inspirations to match the format we need
-      const transformedInspirations = inspirationsData.map(item => {
-        if (item.type === 'video') {
-          return {
-            id: item.id,
-            type: 'video',
-            title: item.title || 'Untitled Video',
-            thumbnail: item.thumb || `https://img.youtube.com/vi/${item.embed_id}/hqdefault.jpg`,
-            embedId: item.embed_id,
-          };
-        } else if (item.type === 'file') {
-          const isPdf = item.mime_type?.includes('pdf');
-          const isImage = item.mime_type?.startsWith('image/');
-          
-          return {
-            id: item.id,
-            type: isPdf ? 'pdf' : (isImage ? 'image' : 'file'),
-            title: item.title || 'Untitled File',
-            thumbnail: getFileImageUrl(item.thumbnail_path || item.path),
-            path: item.path,
-          };
-        }
-        return null;
-      }).filter(Boolean);
-      
+      const [videosResponse, filesResponse] = await Promise.all([
+        inspirationAPI.getAll(1, 100, { type: 'video', archived: false }),
+        inspirationAPI.getAll(1, 100, { type: 'file', archived: false }),
+      ]);
+
+      const transformedInspirations = [
+        ...extractItems(videosResponse),
+        ...extractItems(filesResponse),
+      ].map(transformInspiration).filter(Boolean);
+
       setInspirations(transformedInspirations);
     } catch (error) {
       console.error('Error loading inspirations:', error);
@@ -124,10 +180,10 @@ const InspirationDropdown = ({
     };
   }, [isOpen]);
 
-  const selectedInspiration = inspirations.find(insp => insp.id.toString() === value);
+  const selectedInspiration = findInspirationByValue(inspirations, value);
 
   const handleSelect = (inspiration) => {
-    onChange(inspiration.id.toString());
+    onChange(getInspirationKey(inspiration));
     setIsOpen(false);
     setSearchQuery('');
   };
@@ -240,11 +296,11 @@ const InspirationDropdown = ({
             ) : (
               filteredInspirations.map((inspiration) => (
                 <button
-                  key={inspiration.id}
+                  key={`${inspiration.type}-${inspiration.id}`}
                   type="button"
                   onClick={() => handleSelect(inspiration)}
                   className={`w-full text-left px-4 py-3 transition-colors flex items-center space-x-3 ${
-                    value === inspiration.id.toString()
+                    getInspirationKey(inspiration) === (value || '').toString()
                       ? 'bg-slate-100 text-slate-900 font-medium'
                       : 'text-slate-700 hover:bg-white hover:text-slate-900'
                   }`}

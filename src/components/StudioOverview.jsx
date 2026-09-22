@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { colorPalettesAPI, colorCombosAPI, coloredPencilSetsAPI, booksAPI, inspirationAPI, userAPI } from '../services/api';
 import HoverableCard from './HoverableCard';
 import UpgradeBanner from './UpgradeBanner';
+import YouTubeImportBanner from './YouTubeImportBanner';
+import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
+import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 
 // Constants for hover colors
 const HOVER_BORDER_COLOR = '#ea3663';
@@ -202,6 +205,7 @@ InspirationCard.displayName = 'InspirationCard';
 
 const StudioOverview = ({ user }) => {
   const navigate = useNavigate();
+  const { importing } = useYouTubeImport();
   const [inspirationIndex, setInspirationIndex] = useState(0);
   const [pencilSetIndex, setPencilSetIndex] = useState(0);
   const [comboIndex, setComboIndex] = useState(0);
@@ -822,6 +826,11 @@ const StudioOverview = ({ user }) => {
     fetchInspirations(1, false);
   }, [fetchInspirations]);
 
+  const refreshInspirations = useCallback(() => {
+    fetchInspirations(1, false);
+  }, [fetchInspirations]);
+  useYouTubeImportRefresh(refreshInspirations);
+
   // Helper function to get visible items for carousel (shows 5 at a time)
   // For free plan users, limit to 5 total items
   const getVisibleItems = useCallback((items, currentIndex) => {
@@ -903,6 +912,7 @@ const StudioOverview = ({ user }) => {
 
   return (
     <div className="space-y-6">
+      <YouTubeImportBanner />
       {/* Inspiration Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
@@ -960,6 +970,10 @@ const StudioOverview = ({ user }) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-600">{inspirationsError}</p>
           </div>
+        ) : sortedInspirations.length === 0 && importing ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <YouTubeImportPlaceholder count={3} />
+          </div>
         ) : sortedInspirations.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">🎨</div>
@@ -980,6 +994,7 @@ const StudioOverview = ({ user }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" key={`inspirations-${favoritesVersion}-${sortedInspirationsVersion}-${inspirationIndex}`}>
+            <YouTubeImportPlaceholder />
             {visibleInspirations.map((item) => {
               const favoriteKey = `${item.type === 'video' ? 'video' : 'file'}-${Number(item.id)}`;
               const isFavorite = inspirationFavorites.has(favoriteKey);

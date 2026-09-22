@@ -12,6 +12,15 @@ import Profile from "./pages/Profile";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Support from "./pages/Support";
 import YoutubeCallback from "./YoutubeCallback";
+import { isAuthenticated } from "./services/api";
+
+function ProtectedRoute({ children }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 
 function App() {
   return (
@@ -23,7 +32,7 @@ function App() {
               <Route path="/privacy-policy" element={<PrivacyPolicy />}></Route>
               <Route path="/support" element={<Support />}></Route>
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
-              <Route path="/*" element={<Dashboard />} />
+              <Route path="/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           </Routes>
       </BrowserRouter>
   );

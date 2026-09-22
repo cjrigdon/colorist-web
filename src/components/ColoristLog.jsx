@@ -3,7 +3,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
-import InspirationDropdown from './InspirationDropdown';
+import InspirationDropdown, { parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
 import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
 
@@ -202,24 +202,19 @@ const ColoristLog = () => {
   useEffect(() => {
     const fetchRelatedData = async () => {
       try {
-        // Fetch inspirations
-        const inspirationsResponse = await inspirationAPI.getAll(1, 1000);
-        let inspirationsData = [];
-        if (Array.isArray(inspirationsResponse)) {
-          inspirationsData = inspirationsResponse;
-        } else if (inspirationsResponse.data && Array.isArray(inspirationsResponse.data)) {
-          inspirationsData = inspirationsResponse.data;
-        }
-        // Extract data property if present (inspiration API returns {type, data, created_at})
-        // Note: Inspirations are now loaded lazily in InspirationDropdown component when the dropdown is opened
-        // But we still need to load inspirations for displaying entries
-        const extractedInspirations = inspirationsData.map(item => {
-          if (item.data) {
-            return { ...item.data, type: item.type };
-          }
-          return item;
-        });
-        setInspirations(extractedInspirations);
+        const [videosResponse, filesResponse] = await Promise.all([
+          inspirationAPI.getAll(1, 100, { type: 'video', archived: false }),
+          inspirationAPI.getAll(1, 100, { type: 'file', archived: false }),
+        ]);
+        const extractItems = (response) => {
+          if (Array.isArray(response)) return response;
+          if (response?.data && Array.isArray(response.data)) return response.data;
+          return [];
+        };
+        setInspirations([
+          ...extractItems(videosResponse),
+          ...extractItems(filesResponse),
+        ]);
 
         // Books are now loaded lazily in BookDropdown component when the dropdown is opened
         // But we still need to load books for displaying entries
@@ -471,7 +466,7 @@ const ColoristLog = () => {
       const notesValue = isRichTextEmpty(formData.notes) ? null : formData.notes;
       const entryData = {
         date: formData.date,
-        inspiration: formData.inspiration || null,
+        inspiration: parseInspirationValue(formData.inspiration).id,
         colored_pencil_set_id: coloredPencilSetId,
         book: formData.book || null,
         palettes: selectedPalettes.map(id => parseInt(id)),

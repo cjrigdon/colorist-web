@@ -11,10 +11,13 @@ import ErrorState from './ErrorState';
 import VideoThumbnail from './VideoThumbnail';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
+import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 
 const Library = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { importing } = useYouTubeImport();
   // Single section: playlists | videos | files (replaces old All/Videos/Files tabs + Playlists/All Videos sub-tabs)
   const [section, setSection] = useState('videos');
   const [inspirations, setInspirations] = useState([]);
@@ -344,6 +347,12 @@ const Library = ({ user }) => {
     fetchPlaylists();
   }, [fetchPlaylists]);
 
+  const refreshImportedVideos = useCallback(() => {
+    fetchInspirations(1, false);
+    fetchPlaylists();
+  }, [fetchInspirations, fetchPlaylists]);
+  useYouTubeImportRefresh(refreshImportedVideos);
+
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -666,6 +675,10 @@ const Library = ({ user }) => {
                 <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Playlists...</h3>
                 <p className="text-slate-600">Fetching your playlists</p>
               </div>
+            ) : playlists.length === 0 && importing ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <YouTubeImportPlaceholder count={3} />
+              </div>
             ) : playlists.length === 0 ? (
               error ? (
                 <ErrorState error={error} />
@@ -676,6 +689,7 @@ const Library = ({ user }) => {
               )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <YouTubeImportPlaceholder />
                 {playlists.map((playlist) => {
                   const videoCount = playlist.videos?.length ?? 0;
                   const fallbackCount = Number.isFinite(Number(playlist.preview_total))
@@ -743,13 +757,18 @@ const Library = ({ user }) => {
         )}
         {section !== 'playlists' && !loading && !error && (
           <>
-            {gridItems.length === 0 ? (
+            {gridItems.length === 0 && importing && section === 'videos' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                <YouTubeImportPlaceholder count={4} />
+              </div>
+            ) : gridItems.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-slate-500">No items found in this category.</p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                  {section === 'videos' && <YouTubeImportPlaceholder />}
                   {gridItems.map((item, index) => (
                     <HoverableCard
                       key={`inspiration-${item.type}-${item.id}-${index}`}

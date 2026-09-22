@@ -144,3 +144,18 @@ body{
     transform: rotate(360deg);
   }
 }
+
+.youtube-player-frame {
+  position: relative;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.youtube-player-frame iframe,
+.youtube-player-frame > div {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
