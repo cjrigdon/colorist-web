@@ -80,10 +80,14 @@ export const sanitizeRichTextHtml = (html = '') => {
 const RichTextEditor = ({ value, onChange, placeholder = '', minHeight = '8rem' }) => {
   const editorRef = useRef(null);
   const selectionRef = useRef(null);
+  const lastEmittedValueRef = useRef(null);
   const normalizedValue = useMemo(() => (value && value.trim().length > 0 ? value : ''), [value]);
 
   useEffect(() => {
     if (!editorRef.current) return;
+    // The emitted value is normalized, so it rarely matches innerHTML exactly (e.g. after Enter or a trailing
+    // space). Rewriting innerHTML for our own edits resets the caret to the start, so only sync external changes.
+    if (normalizedValue === lastEmittedValueRef.current) return;
     if (editorRef.current.innerHTML !== normalizedValue) {
       editorRef.current.innerHTML = normalizedValue;
     }
@@ -95,7 +99,9 @@ const RichTextEditor = ({ value, onChange, placeholder = '', minHeight = '8rem' 
     if (selection && selection.rangeCount > 0) {
       selectionRef.current = selection.getRangeAt(0).cloneRange();
     }
-    onChange(normalizeHtml(editorRef.current.innerHTML));
+    const html = normalizeHtml(editorRef.current.innerHTML);
+    lastEmittedValueRef.current = html;
+    onChange(html);
   };
 
   const restoreSelection = () => {

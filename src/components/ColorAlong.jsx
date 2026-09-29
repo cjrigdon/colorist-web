@@ -125,6 +125,41 @@ const findClosestColor = (sourceColor, targetSet) => {
   return closest;
 };
 
+const JOURNAL_DRAFT_STORAGE_KEY = 'color_along_journal_draft';
+
+// A journal draft belongs to the selected video (or image) and is discarded when the selection changes
+const getJournalDraftInspirationKey = (video, image) => {
+  if (video?.id) return `video:${video.id}`;
+  if (image?.id) return `image:${image.id}`;
+  return null;
+};
+
+const readJournalDraft = () => {
+  try {
+    const saved = localStorage.getItem(JOURNAL_DRAFT_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    console.error('Error loading journal draft:', error);
+    return null;
+  }
+};
+
+const writeJournalDraft = (draft) => {
+  try {
+    localStorage.setItem(JOURNAL_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch (error) {
+    console.error('Error saving journal draft:', error);
+  }
+};
+
+const clearJournalDraft = () => {
+  try {
+    localStorage.removeItem(JOURNAL_DRAFT_STORAGE_KEY);
+  } catch (error) {
+    console.error('Error clearing journal draft:', error);
+  }
+};
+
 const ColorAlong = ({ user, onInspirationClick }) => {
   const { importing } = useYouTubeImport();
   const location = useLocation();
@@ -138,6 +173,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [userSetId, setUserSetId] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const journalInspirationKey = useMemo(
+    () => getJournalDraftInspirationKey(selectedVideo, selectedImage),
+    [selectedVideo, selectedImage]
+  );
   
   // API data states
   const [allPencilSets, setAllPencilSets] = useState([]);
@@ -207,6 +246,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
   // Journal entry modal states
   const [showJournalModal, setShowJournalModal] = useState(false);
+  const [journalMinimized, setJournalMinimized] = useState(false);
+  const journalDraftInitializedRef = useRef(false);
+  // Inspiration key the open draft belongs to, and the last selected inspiration key
+  const journalDraftKeyRef = useRef(null);
+  const previousJournalInspirationKeyRef = useRef(null);
   const [palettes, setPalettes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [journalFormData, setJournalFormData] = useState({
@@ -1077,63 +1121,73 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
   // Pre-populate journal form when modal opens
   useEffect(() => {
-    if (showJournalModal) {
-      // Initialize form with defaults
-      let currentInspirationId = '';
-      
-      // Find current inspiration (video or image) if inspirations are loaded
-      if (inspirations.length > 0) {
-        if (selectedVideo) {
-          // Find video in inspirations by embed_id or id
-          const videoInspiration = inspirations.find(insp => {
-            if (insp.type === 'video') {
-              return insp.embed_id === selectedVideo.id || insp.embed_id === selectedVideo.embed_id || insp.id === selectedVideo.id;
-            }
-            return false;
-          });
-          if (videoInspiration) {
-            currentInspirationId = getInspirationKey(videoInspiration);
+    if (!showJournalModal) {
+      journalDraftInitializedRef.current = false;
+      return;
+    }
+    // Only pre-fill once per open so changing the video or sets mid-session doesn't wipe the draft
+    if (journalDraftInitializedRef.current) {
+      return;
+    }
+    journalDraftInitializedRef.current = true;
+    journalDraftKeyRef.current = journalInspirationKey;
+    setJournalMinimized(false);
+
+    // Initialize form with defaults
+    let currentInspirationId = '';
+
+    // Find current inspiration (video or image) if inspirations are loaded
+    if (inspirations.length > 0) {
+      if (selectedVideo) {
+        // Find video in inspirations by embed_id or id
+        const videoInspiration = inspirations.find(insp => {
+          if (insp.type === 'video') {
+            return insp.embed_id === selectedVideo.id || insp.embed_id === selectedVideo.embed_id || insp.id === selectedVideo.id;
           }
-        } else if (selectedImage) {
-          // Find image in inspirations by id
-          const imageInspiration = inspirations.find(insp => {
-            if (insp.type === 'file' || insp.type === 'image' || insp.type === 'pdf') {
-              return insp.id === selectedImage.id || insp.id === parseInt(selectedImage.id, 10);
-            }
-            return false;
-          });
-          if (imageInspiration) {
-            currentInspirationId = getInspirationKey(imageInspiration);
+          return false;
+        });
+        if (videoInspiration) {
+          currentInspirationId = getInspirationKey(videoInspiration);
+        }
+      } else if (selectedImage) {
+        // Find image in inspirations by id
+        const imageInspiration = inspirations.find(insp => {
+          if (insp.type === 'file' || insp.type === 'image' || insp.type === 'pdf') {
+            return insp.id === selectedImage.id || insp.id === parseInt(selectedImage.id, 10);
           }
+          return false;
+        });
+        if (imageInspiration) {
+          currentInspirationId = getInspirationKey(imageInspiration);
         }
       }
-
-      const preselectedVideoSetId = videoSetId ? videoSetId.toString() : '';
-
-      setJournalFormData({
-        date: new Date().toISOString().split('T')[0],
-        inspiration: currentInspirationId,
-        videoPencilSet: preselectedVideoSetId,
-        userPencilSet: userSetId ? userSetId.toString() : '',
-        book: '',
-        palette: '',
-        combos: [],
-        notes: ''
-      });
-      setJournalVideoStep('brand');
-      setJournalVideoSelectedBrand(null);
-      setJournalVideoSetsForBrand([]);
-      setJournalVideoSelectedSet(
-        preselectedVideoSetId
-          ? {
-              id: parseInt(preselectedVideoSetId, 10),
-              name: videoSelectedSetSize?.set?.name || videoSelectedSet?.name || 'Selected set',
-              brand: videoSelectedSetSize?.set?.brand || videoSelectedSet?.brand || 'Unknown'
-            }
-          : null
-      );
     }
-  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet]);
+
+    const preselectedVideoSetId = videoSetId ? videoSetId.toString() : '';
+
+    setJournalFormData({
+      date: new Date().toISOString().split('T')[0],
+      inspiration: currentInspirationId,
+      videoPencilSet: preselectedVideoSetId,
+      userPencilSet: userSetId ? userSetId.toString() : '',
+      book: '',
+      palette: '',
+      combos: [],
+      notes: ''
+    });
+    setJournalVideoStep('brand');
+    setJournalVideoSelectedBrand(null);
+    setJournalVideoSetsForBrand([]);
+    setJournalVideoSelectedSet(
+      preselectedVideoSetId
+        ? {
+            id: parseInt(preselectedVideoSetId, 10),
+            name: videoSelectedSetSize?.set?.name || videoSelectedSet?.name || 'Selected set',
+            brand: videoSelectedSetSize?.set?.brand || videoSelectedSet?.brand || 'Unknown'
+          }
+        : null
+    );
+  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet, journalInspirationKey]);
 
   // Update inspiration when inspirations load and we have a selected video/image
   useEffect(() => {
@@ -1164,6 +1218,61 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       }
     }
   }, [inspirations, showJournalModal, selectedVideo, selectedImage]);
+
+  // Discard the draft when the selected video/image changes, and restore it when the same one is selected again
+  // (e.g. after a refresh). Must stay below the pre-populate effect so a restored draft isn't overwritten.
+  useEffect(() => {
+    const previousKey = previousJournalInspirationKeyRef.current;
+    previousJournalInspirationKeyRef.current = journalInspirationKey;
+
+    if (previousKey && previousKey !== journalInspirationKey) {
+      clearJournalDraft();
+      journalDraftKeyRef.current = null;
+      setShowJournalModal(false);
+      return;
+    }
+
+    if (!journalInspirationKey || !user?.id || journalDraftKeyRef.current === journalInspirationKey) {
+      return;
+    }
+
+    const draft = readJournalDraft();
+    if (!draft) {
+      return;
+    }
+    if (draft.userId !== user.id || draft.inspirationKey !== journalInspirationKey) {
+      clearJournalDraft();
+      return;
+    }
+
+    journalDraftInitializedRef.current = true;
+    journalDraftKeyRef.current = journalInspirationKey;
+    setJournalFormData(draft.formData);
+    setJournalVideoSelectedSet(draft.videoSelectedSet ?? null);
+    setJournalMinimized(Boolean(draft.minimized));
+    setShowJournalModal(true);
+  }, [journalInspirationKey, user?.id]);
+
+  useEffect(() => {
+    const draftKey = journalDraftKeyRef.current;
+    if (!showJournalModal || !user?.id || !draftKey || draftKey !== journalInspirationKey) {
+      return;
+    }
+    writeJournalDraft({
+      userId: user.id,
+      inspirationKey: draftKey,
+      formData: journalFormData,
+      videoSelectedSet: journalVideoSelectedSet,
+      minimized: journalMinimized,
+      updatedAt: Date.now(),
+    });
+  }, [showJournalModal, journalFormData, journalVideoSelectedSet, journalMinimized, journalInspirationKey, user?.id]);
+
+  const discardJournalDraft = () => {
+    clearJournalDraft();
+    journalDraftKeyRef.current = null;
+    setShowJournalModal(false);
+  };
 
   // Fetch matches using backend API when both sets are selected
   useEffect(() => {
@@ -2219,7 +2328,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowJournalModal(true)}
+                    onClick={() => {
+                      setShowJournalModal(true);
+                      setJournalMinimized(false);
+                    }}
                     className="px-3 py-1.5 text-sm text-white rounded-lg font-medium transition-colors"
                     style={{
                       backgroundColor: '#ea3663'
@@ -2227,7 +2339,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
                   >
-                    Add Journal Entry
+                    {showJournalModal ? 'Resume Journal Entry' : 'Add Journal Entry'}
                   </button>
                   <button
                     onClick={() => {
@@ -2276,7 +2388,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowJournalModal(true)}
+                    onClick={() => {
+                      setShowJournalModal(true);
+                      setJournalMinimized(false);
+                    }}
                     className="px-3 py-1.5 text-sm text-white rounded-lg font-medium transition-colors"
                     style={{
                       backgroundColor: '#ea3663'
@@ -2284,7 +2399,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
                   >
-                    Add Journal Entry
+                    {showJournalModal ? 'Resume Journal Entry' : 'Add Journal Entry'}
                   </button>
                   <button
                     onClick={() => {
@@ -2371,24 +2486,60 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             }}
           >
             <div 
-              className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[85vh] overflow-y-auto border-t border-l border-r border-slate-200"
+              className={`bg-white rounded-t-2xl shadow-2xl w-full border-t border-l border-r border-slate-200 ${
+                journalMinimized ? '' : 'max-h-[85vh] overflow-y-auto'
+              }`}
             >
             
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-slate-200 p-3 flex items-center justify-between z-10">
-              <h2 className="text-base font-semibold text-slate-800 font-venti">Add Journal Entry</h2>
-              <button
-                onClick={() => setShowJournalModal(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div
+              className={`sticky top-0 bg-white p-3 flex items-center justify-between z-10 rounded-t-2xl ${
+                journalMinimized ? 'cursor-pointer hover:bg-slate-50' : 'border-b border-slate-200'
+              }`}
+              onClick={journalMinimized ? () => setJournalMinimized(false) : undefined}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <h2 className="text-base font-semibold text-slate-800 font-venti">Add Journal Entry</h2>
+                {journalMinimized && (
+                  <span className="text-xs text-slate-500 truncate">Draft saved here · click to continue</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setJournalMinimized((prev) => !prev);
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={journalMinimized ? 'Expand' : 'Minimize'}
+                  aria-label={journalMinimized ? 'Expand journal entry' : 'Minimize journal entry'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {journalMinimized ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    )}
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    discardJournalDraft();
+                  }}
+                  className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                  title="Close without saving"
+                  aria-label="Close journal entry"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-3 space-y-3">
+            {/* Modal Body - hidden rather than unmounted when minimized so the editor keeps its state */}
+            <div className={`p-3 space-y-3 ${journalMinimized ? 'hidden' : ''}`}>
               {loadingJournalData ? (
                 <div className="flex items-center justify-center py-8">
                   <p className="text-slate-500">Loading form data...</p>
@@ -2650,9 +2801,9 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 flex items-center justify-end gap-2">
+            <div className={`sticky bottom-0 bg-white border-t border-slate-200 p-3 flex items-center justify-end gap-2 ${journalMinimized ? 'hidden' : ''}`}>
               <button
-                onClick={() => setShowJournalModal(false)}
+                onClick={discardJournalDraft}
                 className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Cancel
@@ -2686,8 +2837,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
                     await journalEntriesAPI.create(entryData);
                     
-                    // Close modal
-                    setShowJournalModal(false);
+                    discardJournalDraft();
                     
                     // Show success message
                     setSuccessMessage('Journal entry saved successfully!');
