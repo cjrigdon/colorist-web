@@ -6,6 +6,7 @@ import './App.css';
 import {Route, BrowserRouter, Routes, Navigate} from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
@@ -28,6 +29,7 @@ function App() {
           <Routes>
               <Route path="/" element={<Login />}></Route>
               <Route path="/register" element={<Register />}></Route>
+              <Route path="/verify-email" element={<VerifyEmail />}></Route>
               <Route path="/forgot-password" element={<ForgotPassword />}></Route>
               <Route path="/privacy-policy" element={<PrivacyPolicy />}></Route>
               <Route path="/support" element={<Support />}></Route>

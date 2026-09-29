@@ -161,7 +161,10 @@ export const authAPI = {
   register: (userData) => apiPost('/users/register', userData, false),
   getYoutubeRedirect: () => apiGet('/auth/youtube/redirect', false),
   getYoutubeCallback: (searchParams) => apiGet(`/auth/youtube/callback${searchParams}`, false),
-  getUser: () => apiGet('/user', true)
+  getUser: () => apiGet('/user', true),
+  getVerificationStatus: () => apiGet('/email/verification-status', true),
+  resendVerificationEmail: () => apiPost('/email/verification-notification', {}, true),
+  completeOnboarding: () => apiPost('/users/complete-onboarding', {}, true),
 };
 
 export const userAPI = {
@@ -777,6 +780,9 @@ export const adminAPI = {
     reject: (id) => apiPost(`/admin/colored-pencil-sets/${id}/reject`, {}, true),
     convertToSystem: (id) => apiPost(`/admin/colored-pencil-sets/${id}/convert-to-system`, {}, true),
     getSetSizes: (id) => apiGet(`/admin/colored-pencil-sets/${id}/set-sizes`, true),
+    createSetSizeFromPencils: (setId, { name, count, pencilIds }) =>
+      apiPost(`/admin/colored-pencil-sets/${setId}/set-sizes`, { name, count, pencil_ids: pencilIds }, true),
+    // perPage may be 'all' to return every pencil in the size unpaginated
     getPencilsBySetSize: (sizeId, page = 1, perPage = 15) => {
       const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
       return apiGet(`/admin/colored-pencil-set-sizes/${sizeId}/pencils?${params.toString()}`, true);

@@ -59,8 +59,18 @@ function Login() {
       if (data.authToken || data.token) {
         const token = data.authToken || data.token;
         setAuthToken(token);
-        
-        // Navigate to studio overview on success
+
+        // Password users must verify email before continuing; Google users are already verified
+        if (data.email_verified === false) {
+          navigate('/register?step=verify');
+          return;
+        }
+
+        if (data.needs_onboarding) {
+          navigate('/register?step=plan');
+          return;
+        }
+
         navigate('/studio/overview');
       } else {
         throw new Error('No authentication token received from server.');
