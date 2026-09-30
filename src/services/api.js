@@ -613,7 +613,21 @@ export const journalEntriesAPI = {
   create: (entry) => apiPost('/journal-entries', entry, true),
   getById: (id) => apiGet(`/journal-entries/${id}`, true),
   update: (id, entry) => apiPut(`/journal-entries/${id}`, entry, true),
-  delete: (id) => apiDelete(`/journal-entries/${id}`, true)
+  delete: (id) => apiDelete(`/journal-entries/${id}`, true),
+  uploadImage: (id, file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return fetch(`${API_BASE_URL}/journal-entries/${id}/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`,
+        'Accept': 'application/json',
+        // Don't set Content-Type - browser will set it with boundary for FormData
+      },
+      body: formData
+    }).then(handleResponse);
+  },
+  deleteImage: (id) => apiDelete(`/journal-entries/${id}/image`, true)
 };
 
 export const coloredPencilsAPI = {

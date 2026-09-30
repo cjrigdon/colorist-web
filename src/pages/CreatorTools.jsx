@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { inspirationAPI, coloredPencilSetsAPI } from '../services/api';
+import BookDropdown from '../components/BookDropdown';
 
 const CreatorTools = () => {
   const [selectedInspiration, setSelectedInspiration] = useState(null);
   const [selectedPencilSet, setSelectedPencilSet] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState('');
   const [inspirations, setInspirations] = useState([]);
   const [pencilSets, setPencilSets] = useState([]);
   const [loadingInspirations, setLoadingInspirations] = useState(false);
@@ -111,8 +113,11 @@ const CreatorTools = () => {
       const pencilSetId = selectedPencilSet.id;
       
       // Generate Color Along URL with query parameters
-      const shareableUrl = `${window.location.origin}/color-along?video=${encodeURIComponent(videoEmbedId)}&pencilSet=${encodeURIComponent(pencilSetId)}`;
-      setGeneratedLink(shareableUrl);
+      const params = new URLSearchParams({ video: videoEmbedId, pencilSet: String(pencilSetId) });
+      if (selectedBookId) {
+        params.set('book', selectedBookId);
+      }
+      setGeneratedLink(`${window.location.origin}/color-along?${params.toString()}`);
     } catch (err) {
       console.error('Error generating link:', err);
       setError(err.message || 'Failed to generate shareable link');
@@ -154,117 +159,12 @@ const CreatorTools = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Chrome Extension Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">🎨</span>
-            <h1 className="text-3xl font-bold text-slate-800">Chrome Extension</h1>
-          </div>
-          <p className="text-slate-600">
-            Install our Chrome extension to quickly generate ColorAlong links directly from YouTube videos.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-2">Features</h3>
-            <ul className="space-y-2 text-sm text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5">✓</span>
-                <span>Automatically detect YouTube video ID</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5">✓</span>
-                <span>Select from your pencil sets</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5">✓</span>
-                <span>Generate ColorAlong links with one click</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5">✓</span>
-                <span>Copy links to clipboard automatically</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5">✓</span>
-                <span>Works on both YouTube and YouTube Studio pages</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-3">Installation</h3>
-            <p className="text-sm text-slate-700 mb-4">
-              Install the Colorist Chrome Extension directly from the Chrome Web Store. It's quick, easy, and secure!
-            </p>
-            <ol className="space-y-3 text-sm text-slate-700">
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">1</span>
-                <div>
-                  <p className="font-medium">Install from Chrome Web Store</p>
-                  <p className="text-slate-600 mt-1">Click the "Add to Chrome" button below to install the extension from the Chrome Web Store.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">2</span>
-                <div>
-                  <p className="font-medium">Login to Colorist</p>
-                  <p className="text-slate-600 mt-1">Click the extension icon in your Chrome toolbar, enter your email and password, then click Login. URLs are auto-detected automatically.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">3</span>
-                <div>
-                  <p className="font-medium">Start Using</p>
-                  <p className="text-slate-600 mt-1">Navigate to any YouTube video page (or YouTube Studio) and click the Colorist icon to generate ColorAlong links!</p>
-                </div>
-              </li>
-            </ol>
-          </div>
-
-          <div className="flex items-center gap-4 pt-4 border-t border-slate-200">
-            <a
-              href="https://chromewebstore.google.com/detail/iceognjdgcagollhbageghhbnljmlald?utm_source=item-share-cb"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Install from Chrome Web Store
-            </a>
-            <button
-              onClick={() => {
-                const instructions = `To find the extension after installation:
-
-1. Look for the Colorist icon in your Chrome toolbar
-2. If you don't see it, click the puzzle piece icon (🧩) in the toolbar
-3. Find "Colorist - Color Along Link Generator" and pin it
-
-To open Chrome Extensions page:
-- Copy this URL: chrome://extensions/
-- Or: Click the three dots menu (⋮) → More tools → Extensions`;
-                alert(instructions);
-              }}
-              className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Installation Help
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Link Generator Section */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Color Along Link Generator</h1>
           <p className="text-slate-600">
-            Create a shareable link to the Color Along page that pre-populates a video and pencil set for your audience.
+            Create a shareable link to the Color Along page that pre-populates a video, pencil set, and optionally a book for your audience.
           </p>
         </div>
 
@@ -462,6 +362,38 @@ To open Chrome Extensions page:
             )}
           </div>
 
+          {/* Book Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Select Book <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              {selectedBookId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBookId('');
+                    setGeneratedLink(null);
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <BookDropdown
+              value={selectedBookId}
+              onChange={(bookId) => {
+                setSelectedBookId(bookId);
+                setGeneratedLink(null);
+              }}
+              placeholder="Select a book from your library..."
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              The book is preselected when your audience adds a journal entry from Color Along.
+            </p>
+          </div>
+
           {/* Generate Button */}
           <button
             onClick={handleGenerateLink}
@@ -475,7 +407,9 @@ To open Chrome Extensions page:
           {generatedLink && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm font-medium text-green-800 mb-2">Color Along Link Generated!</p>
-              <p className="text-xs text-green-700 mb-3">Share this link to let others color along with your selected video and pencil set.</p>
+              <p className="text-xs text-green-700 mb-3">
+                Share this link to let others color along with your selected video, pencil set{selectedBookId ? ', and book' : ''}.
+              </p>
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
@@ -493,6 +427,115 @@ To open Chrome Extensions page:
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Chrome Extension Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🎨</span>
+            <h1 className="text-3xl font-bold text-slate-800">Chrome Extension</h1>
+          </div>
+          <p className="text-slate-600">
+            Install our Chrome extension to quickly generate ColorAlong links directly from YouTube videos.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">Features</h3>
+            <ul className="space-y-2 text-sm text-slate-700">
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Automatically detect YouTube video ID</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Select from your pencil sets</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Optionally include a book from your library</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Generate ColorAlong links with one click</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Copy links to clipboard automatically</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-green-600 mt-0.5">✓</span>
+                <span>Works on both YouTube and YouTube Studio pages</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h3 className="text-lg font-semibold text-slate-800 mb-3">Installation</h3>
+            <p className="text-sm text-slate-700 mb-4">
+              Install the Colorist Chrome Extension directly from the Chrome Web Store. It's quick, easy, and secure!
+            </p>
+            <ol className="space-y-3 text-sm text-slate-700">
+              <li className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">1</span>
+                <div>
+                  <p className="font-medium">Install from Chrome Web Store</p>
+                  <p className="text-slate-600 mt-1">Click the "Add to Chrome" button below to install the extension from the Chrome Web Store.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">2</span>
+                <div>
+                  <p className="font-medium">Login to Colorist</p>
+                  <p className="text-slate-600 mt-1">Click the extension icon in your Chrome toolbar, enter your email and password, then click Login. URLs are auto-detected automatically.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">3</span>
+                <div>
+                  <p className="font-medium">Start Using</p>
+                  <p className="text-slate-600 mt-1">Navigate to any YouTube video page (or YouTube Studio) and click the Colorist icon to generate ColorAlong links!</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <div className="flex items-center gap-4 pt-4 border-t border-slate-200">
+            <a
+              href="https://chromewebstore.google.com/detail/iceognjdgcagollhbageghhbnljmlald?utm_source=item-share-cb"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Install from Chrome Web Store
+            </a>
+            <button
+              onClick={() => {
+                const instructions = `To find the extension after installation:
+
+1. Look for the Colorist icon in your Chrome toolbar
+2. If you don't see it, click the puzzle piece icon (🧩) in the toolbar
+3. Find "Colorist - Color Along Link Generator" and pin it
+
+To open Chrome Extensions page:
+- Copy this URL: chrome://extensions/
+- Or: Click the three dots menu (⋮) → More tools → Extensions`;
+                alert(instructions);
+              }}
+              className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Installation Help
+            </button>
+          </div>
         </div>
       </div>
     </div>

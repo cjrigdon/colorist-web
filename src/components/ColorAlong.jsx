@@ -165,6 +165,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const bookParam = searchParams.get('book');
+  const urlBookId = bookParam && /^\d+$/.test(bookParam) ? bookParam : '';
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [videoId, setVideoId] = useState('');
   const [videoLoadError, setVideoLoadError] = useState(null);
@@ -1170,7 +1172,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       inspiration: currentInspirationId,
       videoPencilSet: preselectedVideoSetId,
       userPencilSet: userSetId ? userSetId.toString() : '',
-      book: '',
+      book: urlBookId,
       palette: '',
       combos: [],
       notes: ''
@@ -1187,7 +1189,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           }
         : null
     );
-  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet, journalInspirationKey]);
+  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet, journalInspirationKey, urlBookId]);
 
   // Update inspiration when inspirations load and we have a selected video/image
   useEffect(() => {

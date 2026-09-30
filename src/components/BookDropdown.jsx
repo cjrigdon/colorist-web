@@ -12,15 +12,35 @@ const BookDropdown = ({
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [booksLoaded, setBooksLoaded] = useState(false);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // Load books when dropdown opens
+  // Load books when dropdown opens, or up front when a book is preselected so it can be shown
   useEffect(() => {
-    if (isOpen && books.length === 0 && !loading) {
+    if ((isOpen || value) && !booksLoaded && !loading) {
       loadBooks();
     }
-  }, [isOpen]);
+  }, [isOpen, value]);
+
+  // A preselected book (e.g. from a shared link) may not be in the user's library, so fetch it directly
+  useEffect(() => {
+    if (!value || !booksLoaded || books.some((book) => book.id.toString() === value)) {
+      return;
+    }
+    let cancelled = false;
+    booksAPI.getById(value)
+      .then((response) => {
+        const book = response?.data ?? response;
+        if (!cancelled && book?.id) {
+          setBooks((prev) => (prev.some((b) => b.id === book.id) ? prev : [book, ...prev]));
+        }
+      })
+      .catch((error) => console.error('Error loading selected book:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [value, booksLoaded, books]);
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -49,6 +69,7 @@ const BookDropdown = ({
       setBooks([]);
     } finally {
       setLoading(false);
+      setBooksLoaded(true);
     }
   };
 

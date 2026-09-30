@@ -22,30 +22,42 @@ const getMatchQualityColor = (quality) => {
   }
 };
 
-const MatchResultCard = ({ hex, title, colorNumber, match }) => {
+const ColorCard = ({ hex, title, colorNumber, match, badge, compact = false }) => {
   const dark = prefersDarkText(hex);
   const textClass = dark ? 'text-slate-900' : 'text-white';
   const subTextClass = dark ? 'text-slate-800/80' : 'text-white/85';
+  const sizeClass = compact ? 'min-w-0 min-h-[5.5rem] p-2.5 gap-2' : 'min-w-[13rem] min-h-[8rem] p-4 gap-3';
 
   return (
     <div
-      className={`w-full min-w-[13rem] min-h-[8rem] rounded-xl shadow-sm border border-black/10 p-4 flex flex-col justify-between gap-3 ${textClass}`}
+      className={`w-full rounded-xl shadow-sm border border-black/10 flex flex-col justify-between ${sizeClass} ${textClass}`}
       style={{ backgroundColor: hex }}
       title={hex}
     >
       <div className="min-w-0">
-        <p className="text-base font-semibold leading-tight break-words">{title}</p>
+        <p className={`${compact ? 'text-xs' : 'text-base'} font-semibold leading-tight break-words`}>{title}</p>
         {colorNumber && <p className={`text-xs mt-1 ${subTextClass}`}>#{colorNumber}</p>}
         <p className={`text-xs font-mono mt-0.5 ${subTextClass}`}>{hex}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`text-xs font-medium px-2 py-0.5 rounded shadow-sm ${getMatchQualityColor(match.match_quality)}`}>
-          {match.match_quality.replace(/_/g, ' ')}
-        </span>
-        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white/85 text-slate-800 shadow-sm">
-          {deltaEToPercentage(match.delta_e)}% match
-        </span>
-      </div>
+      {(match || badge) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {match && (
+            <>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded shadow-sm ${getMatchQualityColor(match.match_quality)}`}>
+                {match.match_quality.replace(/_/g, ' ')}
+              </span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white/85 text-slate-800 shadow-sm">
+                {deltaEToPercentage(match.delta_e)}% match
+              </span>
+            </>
+          )}
+          {badge && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white/85 text-slate-800 shadow-sm">
+              {badge}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -1018,7 +1030,7 @@ const ColorConversion = ({ user }) => {
               </div>
             </div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Comparing Colors...</h3>
-            <p className="text-slate-600">Finding the closest matches using CIE Delta E 2000</p>
+            <p className="text-slate-600">Finding the closest matches</p>
           </div>
         )}
 
@@ -1090,7 +1102,7 @@ const ColorConversion = ({ user }) => {
               <table className="w-full">
                 <thead className="bg-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">Source Color</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti border-r-4 border-slate-300">Source Color</th>
                     {targetSets.map((setSize) => (
                       <th key={setSize.id} className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">
                         {setSize.set?.name || setSize.name}
@@ -1101,20 +1113,12 @@ const ColorConversion = ({ user }) => {
                 <tbody className="divide-y divide-slate-200">
                   {matches.map(({ sourceColor, matches: colorMatches }) => (
                     <tr key={sourceColor.id} className="hover:bg-white transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                            style={{ backgroundColor: sourceColor.hex }}
-                          ></div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-800">{sourceColor.name}</p>
-                            {sourceColor.color_number && (
-                              <p className="text-xs text-slate-400">#{sourceColor.color_number}</p>
-                            )}
-                            <p className="text-xs text-slate-500 font-mono">{sourceColor.hex}</p>
-                          </div>
-                        </div>
+                      <td className="px-6 py-4 align-top bg-white border-r-4 border-slate-300">
+                        <ColorCard
+                          hex={sourceColor.hex}
+                          title={sourceColor.name}
+                          colorNumber={sourceColor.color_number}
+                        />
                       </td>
                       {targetSets.map((setSize) => {
                         const targetSetId = setSize.set?.id || setSize.id;
@@ -1126,7 +1130,7 @@ const ColorConversion = ({ user }) => {
                         });
                         if (!matchData) {
                           return (
-                            <td key={setSize.id} className="px-6 py-4">
+                            <td key={setSize.id} className="px-6 py-4 align-top">
                               <div className="text-xs text-slate-400">No match</div>
                             </td>
                           );
@@ -1134,7 +1138,7 @@ const ColorConversion = ({ user }) => {
                         const { match, error: matchError } = matchData;
                         if (matchError) {
                           return (
-                            <td key={setSize.id} className="px-6 py-4">
+                            <td key={setSize.id} className="px-6 py-4 align-top">
                               <div className="text-xs text-red-500">Error</div>
                             </td>
                           );
@@ -1145,38 +1149,28 @@ const ColorConversion = ({ user }) => {
                           const ratio1 = (1 - match.ratio) * 100;
                           const ratio2 = match.ratio * 100;
                           return (
-                            <td key={setSize.id} className="px-6 py-4">
+                            <td key={setSize.id} className="px-6 py-4 align-top">
                               <div className="space-y-2">
-                                <MatchResultCard hex={match.mixed_hex} title="Two-color mix" match={match} />
-                                {/* Color 1 */}
-                                <div className="flex items-center space-x-2 pl-2 border-l-2 border-slate-200">
-                                  <div
-                                    className="color-swatch w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
-                                    style={{ backgroundColor: match.color1.hex }}
-                                  ></div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-800">{match.color1.name}</p>
-                                    {match.color1.color_number && (
-                                      <p className="text-xs text-slate-400">#{match.color1.color_number}</p>
-                                    )}
-                                    <p className="text-xs text-slate-500 font-mono">{match.color1.hex}</p>
-                                  </div>
-                                  <span className="text-xs font-semibold text-slate-600">{Math.round(ratio1)}%</span>
-                                </div>
-                                {/* Color 2 */}
-                                <div className="flex items-center space-x-2 pl-2 border-l-2 border-slate-200">
-                                  <div
-                                    className="color-swatch w-8 h-8 rounded shadow-sm border border-slate-200 flex-shrink-0"
-                                    style={{ backgroundColor: match.color2.hex }}
-                                  ></div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-800">{match.color2.name}</p>
-                                    {match.color2.color_number && (
-                                      <p className="text-xs text-slate-400">#{match.color2.color_number}</p>
-                                    )}
-                                    <p className="text-xs text-slate-500 font-mono">{match.color2.hex}</p>
-                                  </div>
-                                  <span className="text-xs font-semibold text-slate-600">{Math.round(ratio2)}%</span>
+                                <ColorCard hex={match.mixed_hex} title="Two-color mix" match={match} />
+                                <div className="flex gap-2">
+                                  {[
+                                    { color: match.color1, ratio: ratio1 },
+                                    { color: match.color2, ratio: ratio2 }
+                                  ].map(({ color, ratio }, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex min-w-[6.5rem]"
+                                      style={{ flex: `${ratio} 1 0%` }}
+                                    >
+                                      <ColorCard
+                                        compact
+                                        hex={color.hex}
+                                        title={color.name}
+                                        colorNumber={color.color_number}
+                                        badge={`${Math.round(ratio)}%`}
+                                      />
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             </td>
@@ -1185,8 +1179,8 @@ const ColorConversion = ({ user }) => {
                         
                         // Display single color match
                         return (
-                          <td key={setSize.id} className="px-6 py-4">
-                            <MatchResultCard
+                          <td key={setSize.id} className="px-6 py-4 align-top">
+                            <ColorCard
                               hex={match.hex}
                               title={match.name}
                               colorNumber={match.color_number}

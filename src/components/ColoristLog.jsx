@@ -5,6 +5,7 @@ import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import InspirationDropdown, { parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
+import { shrinkImageForUpload } from '../utils/imageUtils';
 import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
 
 // Filtered Combo Checkbox List Component
@@ -170,6 +171,9 @@ const ColoristLog = () => {
     combos: [],
     notes: ''
   });
+  // file: newly chosen photo to upload on save; previewUrl: what the form shows; removed: clear the saved photo on save
+  const [entryImage, setEntryImage] = useState({ file: null, previewUrl: null, removed: false });
+  const [savingEntry, setSavingEntry] = useState(false);
   const [showPaletteList, setShowPaletteList] = useState(false);
   const [showColorSelector, setShowColorSelector] = useState(false);
   const [pencilSelection, setPencilSelection] = useState({
@@ -196,6 +200,29 @@ const ColoristLog = () => {
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
+  };
+
+  // Release the object URL for a locally chosen photo once it's replaced or the form closes
+  useEffect(() => {
+    const { file, previewUrl } = entryImage;
+    return () => {
+      if (file && previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [entryImage]);
+
+  const handleEntryImageSelected = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
+    setEntryImage({ file, previewUrl: URL.createObjectURL(file), removed: false });
+  };
+
+  const handleRemoveEntryImage = () => {
+    setEntryImage({ file: null, previewUrl: null, removed: true });
   };
 
   // Fetch related data for displaying entries (loads on mount)
@@ -296,6 +323,7 @@ const ColoristLog = () => {
           palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
           combos: entry.combos || [],
           notes: entry.notes || '',
+          image_url: entry.image_url || null,
           // Related objects will be looked up at render time
           inspiration: null,
           book: null,
@@ -401,6 +429,7 @@ const ColoristLog = () => {
       combos: [],
       notes: ''
     });
+    setEntryImage({ file: null, previewUrl: null, removed: false });
     setShowPaletteList(false);
     setShowColorSelector(false);
     setSelectedPalettes([]);
@@ -422,6 +451,7 @@ const ColoristLog = () => {
       combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
       notes: entry.notes || ''
     });
+    setEntryImage({ file: null, previewUrl: entry.image_url || null, removed: false });
     setShowPaletteList(false);
     
     // Convert entry data to pencilSelection format
@@ -452,6 +482,8 @@ const ColoristLog = () => {
 
 
   const handleSaveEntry = async () => {
+    if (savingEntry) return;
+    setSavingEntry(true);
     try {
       // Journal entries only support set selection (not individual pencils or size IDs)
       // Get the set ID from the first selected set
@@ -488,6 +520,20 @@ const ColoristLog = () => {
         savedEntry = await journalEntriesAPI.create(entryData);
       }
 
+      const savedEntryId = savedEntry?.id ?? savedEntry?.data?.id ?? editingEntry?.id;
+      try {
+        if (entryImage.file && savedEntryId) {
+          const upload = await shrinkImageForUpload(entryImage.file);
+          await journalEntriesAPI.uploadImage(savedEntryId, upload);
+        } else if (entryImage.removed && editingEntry?.image_url) {
+          await journalEntriesAPI.deleteImage(editingEntry.id);
+        }
+      } catch (imageError) {
+        console.error('Error saving entry photo:', imageError);
+        const detail = imageError.data?.errors?.image?.[0];
+        alert(`Your entry was saved, but the photo couldn't be ${entryImage.file ? 'uploaded' : 'removed'}.${detail ? ` ${detail}` : ''}`);
+      }
+
       // Refresh entries for the selected date (or all if no date selected)
       const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
       const response = await journalEntriesAPI.getAll(filters);
@@ -512,6 +558,7 @@ const ColoristLog = () => {
         palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
         combos: entry.combos || [],
         notes: entry.notes || '',
+        image_url: entry.image_url || null,
         inspiration: null,
         book: null,
         pencilSet: null,
@@ -530,6 +577,8 @@ const ColoristLog = () => {
     } catch (error) {
       console.error('Error saving entry:', error);
       alert('Failed to save entry. Please try again.');
+    } finally {
+      setSavingEntry(false);
     }
   };
 
@@ -564,6 +613,7 @@ const ColoristLog = () => {
         palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
         combos: entry.combos || [],
         notes: entry.notes || '',
+        image_url: entry.image_url || null,
         inspiration: null,
         book: null,
         pencilSet: null,
@@ -903,6 +953,22 @@ const ColoristLog = () => {
                         </>
                       )}
                     </div>
+                    {entry.image_url && (
+                      <a
+                        href={entry.image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-fit mb-3"
+                        title="Open full-size photo"
+                      >
+                        <img
+                          src={entry.image_url}
+                          alt="Journal entry"
+                          loading="lazy"
+                          className="max-h-64 max-w-full rounded-lg border border-slate-200 object-contain bg-white"
+                        />
+                      </a>
+                    )}
                     {entry.notes && (
                       /<\/?[a-z][\s\S]*>/i.test(entry.notes) ? (
                         <div
@@ -1108,6 +1174,42 @@ const ColoristLog = () => {
 
               {!loadingFormData && (
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Photo</label>
+                  {entryImage.previewUrl ? (
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={entryImage.previewUrl}
+                        alt="Journal entry"
+                        className="max-h-48 max-w-[16rem] rounded-lg border border-slate-200 object-contain bg-white"
+                      />
+                      <div className="flex flex-col gap-2">
+                        <label className="px-3 py-1.5 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors text-center">
+                          Replace
+                          <input type="file" accept="image/*" className="hidden" onChange={handleEntryImageSelected} />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleRemoveEntryImage}
+                          className="px-3 py-1.5 text-sm text-red-600 bg-white border border-slate-200 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-slate-400 hover:bg-white cursor-pointer transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Add a photo of your work</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEntryImageSelected} />
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {!loadingFormData && (
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
                   <RichTextEditor
                     value={formData.notes}
@@ -1129,12 +1231,13 @@ const ColoristLog = () => {
                 </button>
                 <button
                   onClick={handleSaveEntry}
-                  className="px-4 py-2 text-white rounded-lg font-medium transition-colors"
+                  disabled={savingEntry}
+                  className="px-4 py-2 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#ea3663' }}
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
                 >
-                  Save Entry
+                  {savingEntry ? 'Saving...' : 'Save Entry'}
                 </button>
               </div>
             </div>
