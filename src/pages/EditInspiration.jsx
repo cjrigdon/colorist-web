@@ -51,6 +51,7 @@ const EditInspiration = () => {
   const [colorAlongPencilSetSizeId, setColorAlongPencilSetSizeId] = useState('');
   const [colorAlongBookId, setColorAlongBookId] = useState('');
   const [pencilSetSizes, setPencilSetSizes] = useState([]);
+  const [loadingPencilSetSizes, setLoadingPencilSetSizes] = useState(false);
 
   useEffect(() => {
     // Early return if no ID or type
@@ -65,24 +66,14 @@ const EditInspiration = () => {
         setError(null);
         let data;
         if (type === 'video') {
-          const [videoRes, playlistsRes, systemSetSizesRes] = await Promise.all([
+          const [videoRes, playlistsRes] = await Promise.all([
             videosAPI.getById(id),
-            playlistsAPI.getAll(),
-            coloredPencilSetsAPI.getAvailableSetSizes(1, 1000, true, { excludePencils: true }).catch((setErr) => {
-              console.error('Error loading pencil sets:', setErr);
-              return [];
-            })
+            playlistsAPI.getAll()
           ]);
           const raw = videoRes?.data && !('id' in videoRes) ? videoRes.data : videoRes;
           if (raw) data = raw;
           const plList = Array.isArray(playlistsRes) ? playlistsRes : (playlistsRes?.data || []);
           setPlaylists(plList);
-          const systemSetSizes = Array.isArray(systemSetSizesRes) ? systemSetSizesRes : (systemSetSizesRes?.data || []);
-          setPencilSetSizes(
-            systemSetSizes
-              .filter((setSize) => setSize?.id)
-              .sort((a, b) => getSetSizeLabel(a).localeCompare(getSetSizeLabel(b)))
-          );
         }
         if (type === 'video' && data) {
           // Handle null/undefined values properly
@@ -138,6 +129,30 @@ const EditInspiration = () => {
 
     fetchData();
   }, [id, type]);
+
+  // Load system pencil sets in the background so they don't hold up the rest of the form
+  useEffect(() => {
+    if (type !== 'video') return undefined;
+    let cancelled = false;
+    setLoadingPencilSetSizes(true);
+    coloredPencilSetsAPI.getAvailableSetSizes(1, 1000, true, { excludePencils: true })
+      .then((response) => {
+        if (cancelled) return;
+        const systemSetSizes = Array.isArray(response) ? response : (response?.data || []);
+        setPencilSetSizes(
+          systemSetSizes
+            .filter((setSize) => setSize?.id)
+            .sort((a, b) => getSetSizeLabel(a).localeCompare(getSetSizeLabel(b)))
+        );
+      })
+      .catch((setErr) => console.error('Error loading pencil sets:', setErr))
+      .finally(() => {
+        if (!cancelled) setLoadingPencilSetSizes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [type]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -511,12 +526,16 @@ const EditInspiration = () => {
                       options={[
                         ...pencilSetSizes.map((setSize) => ({ value: String(setSize.id), label: getSetSizeLabel(setSize) })),
                         ...(colorAlongPencilSetSizeId && !pencilSetSizes.some((setSize) => String(setSize.id) === colorAlongPencilSetSizeId)
-                          ? [{ value: colorAlongPencilSetSizeId, label: 'Saved set (no longer available)' }]
+                          ? [{ value: colorAlongPencilSetSizeId, label: loadingPencilSetSizes ? 'Loading pencil sets...' : 'Saved set (no longer available)' }]
                           : [])
                       ]}
                       value={colorAlongPencilSetSizeId}
                       onChange={(value) => setColorAlongPencilSetSizeId(value || '')}
-                      placeholder={pencilSetSizes.length === 0 ? 'No pencil sets available' : 'Select a pencil set...'}
+                      placeholder={
+                        loadingPencilSetSizes
+                          ? 'Loading pencil sets...'
+                          : (pencilSetSizes.length === 0 ? 'No pencil sets available' : 'Select a pencil set...')
+                      }
                       searchable
                       searchPlaceholder="Search pencil sets..."
                     />

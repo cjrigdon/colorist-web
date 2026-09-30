@@ -31,34 +31,40 @@ const BookDropdown = ({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [booksLoaded, setBooksLoaded] = useState(false);
+  const [selectedBookDetails, setSelectedBookDetails] = useState(null);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  // Load books when dropdown opens, or up front when a book is preselected so it can be shown
+  // The full list can be large, so only load it once the dropdown is opened
   useEffect(() => {
-    if ((isOpen || value) && !booksLoaded && !loading) {
+    if (isOpen && !booksLoaded && !loading) {
       loadBooks();
     }
-  }, [isOpen, value]);
+  }, [isOpen]);
 
-  // A preselected book (e.g. from a shared link) may not be in the user's library, so fetch it directly
+  // Fetch just the preselected book so it can be shown without loading the whole list;
+  // it may also not be in the user's library (e.g. from a shared link)
   useEffect(() => {
-    if (!value || !booksLoaded || books.some((book) => book.id.toString() === value)) {
-      return;
+    if (
+      !value ||
+      selectedBookDetails?.id?.toString() === value ||
+      books.some((book) => book.id.toString() === value)
+    ) {
+      return undefined;
     }
     let cancelled = false;
     booksAPI.getById(value)
       .then((response) => {
         const book = response?.data ?? response;
         if (!cancelled && book?.id) {
-          setBooks((prev) => (prev.some((b) => b.id === book.id) ? prev : [book, ...prev]));
+          setSelectedBookDetails(book);
         }
       })
       .catch((error) => console.error('Error loading selected book:', error));
     return () => {
       cancelled = true;
     };
-  }, [value, booksLoaded, books]);
+  }, [value, books, selectedBookDetails]);
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -119,7 +125,11 @@ const BookDropdown = ({
     };
   }, [isOpen]);
 
-  const selectedBook = books.find(book => book.id.toString() === value);
+  const displayBooks = selectedBookDetails && !books.some((book) => book.id === selectedBookDetails.id)
+    ? [selectedBookDetails, ...books]
+    : books;
+
+  const selectedBook = displayBooks.find(book => book.id.toString() === value);
 
   const handleSelect = (book) => {
     onChange(book.id.toString());
@@ -128,7 +138,7 @@ const BookDropdown = ({
   };
 
   // Filter books based on search query
-  const filteredBooks = books.filter(book => {
+  const filteredBooks = displayBooks.filter(book => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     const title = (book.title || '').toLowerCase();
