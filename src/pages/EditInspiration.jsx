@@ -9,8 +9,22 @@ import BookDropdown from '../components/BookDropdown';
 const getSetSizeLabel = (setSize) => {
   const setName = setSize.set?.name || setSize.name || 'Unknown set';
   const brand = setSize.set?.brand?.name || setSize.set?.brand || '';
-  const count = setSize.count ? ` - ${setSize.count} pencils` : '';
-  return `${setName}${typeof brand === 'string' && brand ? ` (${brand})` : ''}${count}`;
+  return `${setName}${typeof brand === 'string' && brand ? ` (${brand})` : ''}`;
+};
+
+const getSetKey = (setSize) => setSize.set?.id ?? `size-${setSize.id}`;
+
+// One entry per set, using its largest size
+const getLargestSizePerSet = (setSizes) => {
+  const largestBySet = new Map();
+  setSizes.forEach((setSize) => {
+    const key = getSetKey(setSize);
+    const current = largestBySet.get(key);
+    if (!current || (setSize.count || 0) > (current.count || 0)) {
+      largestBySet.set(key, setSize);
+    }
+  });
+  return Array.from(largestBySet.values());
 };
 
 const EditInspiration = () => {
@@ -285,6 +299,18 @@ const EditInspiration = () => {
     }
   };
 
+  // A video saved before sizes were collapsed may point at a smaller size; keep it in place of its set's largest
+  const savedSetSize = pencilSetSizes.find((setSize) => String(setSize.id) === colorAlongPencilSetSizeId);
+  const pencilSetOptions = getLargestSizePerSet(pencilSetSizes)
+    .map((setSize) => (savedSetSize && getSetKey(savedSetSize) === getSetKey(setSize) ? savedSetSize : setSize))
+    .map((setSize) => ({ value: String(setSize.id), label: getSetSizeLabel(setSize) }));
+  if (colorAlongPencilSetSizeId && !savedSetSize) {
+    pencilSetOptions.push({
+      value: colorAlongPencilSetSizeId,
+      label: loadingPencilSetSizes ? 'Loading pencil sets...' : 'Saved set (no longer available)'
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -523,12 +549,7 @@ const EditInspiration = () => {
                       )}
                     </div>
                     <DropdownMenu
-                      options={[
-                        ...pencilSetSizes.map((setSize) => ({ value: String(setSize.id), label: getSetSizeLabel(setSize) })),
-                        ...(colorAlongPencilSetSizeId && !pencilSetSizes.some((setSize) => String(setSize.id) === colorAlongPencilSetSizeId)
-                          ? [{ value: colorAlongPencilSetSizeId, label: loadingPencilSetSizes ? 'Loading pencil sets...' : 'Saved set (no longer available)' }]
-                          : [])
-                      ]}
+                      options={pencilSetOptions}
                       value={colorAlongPencilSetSizeId}
                       onChange={(value) => setColorAlongPencilSetSizeId(value || '')}
                       placeholder={
