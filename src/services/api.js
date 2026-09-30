@@ -783,8 +783,8 @@ export const adminAPI = {
     createSetSizeFromPencils: (setId, { name, count, pencilIds }) =>
       apiPost(`/admin/colored-pencil-sets/${setId}/set-sizes`, { name, count, pencil_ids: pencilIds }, true),
     // perPage may be 'all' to return every pencil in the size unpaginated
-    getPencilsBySetSize: (sizeId, page = 1, perPage = 15) => {
-      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    getPencilsBySetSize: (sizeId, page = 1, perPage = 15, sort = 'color_name', direction = 'asc') => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString(), sort, direction });
       return apiGet(`/admin/colored-pencil-set-sizes/${sizeId}/pencils?${params.toString()}`, true);
     },
     updateSetSize: (id, data) => {

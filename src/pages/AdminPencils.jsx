@@ -14,6 +14,8 @@ const AdminPencils = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(15);
+  const [sortField, setSortField] = useState('color_name');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [totalPages, setTotalPages] = useState(1);
   const [totalPencils, setTotalPencils] = useState(0);
   const [selectedPencilIds, setSelectedPencilIds] = useState(() => new Set());
@@ -52,7 +54,7 @@ const AdminPencils = () => {
       setTotalPages(1);
       setTotalPencils(0);
     }
-  }, [setId, selectedSizeId, page, perPage]);
+  }, [setId, selectedSizeId, page, perPage, sortField, sortDirection]);
 
   useEffect(() => {
     setSelectedPencilIds(new Set());
@@ -93,7 +95,7 @@ const AdminPencils = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage);
+      const response = await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage, sortField, sortDirection);
       if (response.data && Array.isArray(response.data)) {
         setPencils(response.data);
         setTotalPages(response.last_page ?? 1);
@@ -112,6 +114,16 @@ const AdminPencils = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setPage(1);
   };
 
   const handleEdit = (pencil) => {
@@ -413,9 +425,28 @@ const AdminPencils = () => {
                       className="w-4 h-4 rounded border-slate-300"
                     />
                   </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Color #</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Color Name</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Hex</th>
+                  {[
+                    { field: 'color_number', label: 'Color #' },
+                    { field: 'color_name', label: 'Color Name' },
+                    { field: 'hex', label: 'Hex' }
+                  ].map(({ field, label }) => (
+                    <th
+                      key={field}
+                      className="text-left py-3 px-4 text-sm font-semibold text-slate-700"
+                      aria-sort={sortField === field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSort(field)}
+                        className="inline-flex items-center gap-1 hover:text-slate-900"
+                      >
+                        {label}
+                        <span className={sortField === field ? 'text-slate-700' : 'text-slate-300'}>
+                          {sortField === field && sortDirection === 'desc' ? '▼' : '▲'}
+                        </span>
+                      </button>
+                    </th>
+                  ))}
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Lightfast</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Barcode</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>

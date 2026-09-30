@@ -350,7 +350,7 @@ const PencilInventory = ({ user }) => {
                 </div>
               </div>
               <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">Loading Media...</h3>
-              <p className="text-slate-600">Fetching your colored media</p>
+              <p className="text-slate-600">Fetching your media</p>
             </div>
           ) : sortedMediaTypes.length === 0 ? (
             <div className="p-12 text-center">
