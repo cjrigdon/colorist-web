@@ -6,6 +6,7 @@ import UpgradeBanner from './UpgradeBanner';
 import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 
 // Constants for hover colors
 const HOVER_BORDER_COLOR = '#ea3663';
@@ -782,6 +783,8 @@ const StudioOverview = ({ user }) => {
             ...baseItem,
             thumbnail: getThumbnailUrl(data.thumb),
             videoId: data.embed_id,
+            pencilSetSizeId: data.colored_pencil_set_size_id ?? null,
+            bookId: data.book_id ?? null,
             duration: null, // Duration not available in API response
           };
         } else if (itemType === 'file' || itemType === 'pdf' || itemType === 'image') {
@@ -1011,7 +1014,11 @@ const StudioOverview = ({ user }) => {
                   }}
                   onColorAlong={() => {
                     if (item.type === 'video' && item.videoId) {
-                      navigate(`/color-along?video=${item.videoId}`);
+                      navigate(buildColorAlongVideoPath({
+                        embedId: item.videoId,
+                        pencilSetSizeId: item.pencilSetSizeId,
+                        bookId: item.bookId,
+                      }));
                     } else if (item.type === 'image') {
                       navigate(`/color-along?image=${item.id}`);
                     }

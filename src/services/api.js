@@ -349,6 +349,9 @@ export const coloredPencilSetsAPI = {
     if (options.setId) {
       params.append('filter[colored_pencil_set_id]', options.setId.toString());
     }
+    if (options.id) {
+      params.append('filter[id]', options.id.toString());
+    }
     // Add sorting - default to count descending (largest to smallest) when adding media
     if (options.sort) {
       params.append('sort', options.sort);

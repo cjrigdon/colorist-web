@@ -7,6 +7,7 @@ import RichTextEditor, { isRichTextEmpty } from './RichTextEditor';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, playlistsAPI, videosAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
 import { extractYouTubeVideoId } from '../utils/youtubeUtils';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 import AdSpace from './AdSpace';
 import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
@@ -378,39 +379,43 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     }
   }, [searchParams, inspirations, onInspirationClick]);
 
-  // Get pencil set from query string parameter - only set video set (system set)
+  // Get pencil set from query string parameter - sets the video set (system set), never the user's set
+  const pencilSetParam = searchParams.get('pencilSet');
   useEffect(() => {
-    const pencilSetParam = searchParams.get('pencilSet');
-    
-    if (pencilSetParam && userPencilSetSizes.length > 0) {
-      // The pencilSetParam should be a set size ID
-      const pencilSetSizeId = parseInt(pencilSetParam);
-      
-      // Find the set size in userPencilSetSizes
-      const foundSetSize = userPencilSetSizes.find(setSize => setSize.id === pencilSetSizeId);
-      
-      if (foundSetSize) {
-        // Set the video set (system set) from the set size
-        // Get the set ID from the set size (this is the parent set)
-        const setId = foundSetSize.set?.id || foundSetSize.colored_pencil_set_id;
-        
-        if (setId) {
-          // Set the video set ID (for "Video Set")
-          setVideoSetId(setId);
-          
-          // Set the selected video set size for display
-          setVideoSelectedSetSize(foundSetSize);
-          
-          // Reset the video step selection UI
-          setVideoStep('brand');
-          setVideoSelectedBrand(null);
-          setVideoSelectedSet(null);
-          setVideoSetsForBrand([]);
-          setVideoSizesForSet([]);
-        }
-      }
+    if (!pencilSetParam || !/^\d+$/.test(pencilSetParam)) {
+      return undefined;
     }
-  }, [searchParams, userPencilSetSizes]);
+
+    // The pencilSetParam should be a set size ID
+    const pencilSetSizeId = parseInt(pencilSetParam, 10);
+    let cancelled = false;
+
+    coloredPencilSetsAPI.getAvailableSetSizes(1, 1, true, { excludePencils: true, id: pencilSetSizeId })
+      .then((response) => {
+        const setSize = (Array.isArray(response) ? response : response?.data || [])[0];
+        // Get the set ID from the set size (this is the parent set)
+        const setId = setSize?.set?.id || setSize?.colored_pencil_set_id;
+        if (cancelled || !setId) return;
+
+        // Set the video set ID (for "Video Set")
+        setVideoSetId(setId);
+
+        // Set the selected video set size for display
+        setVideoSelectedSetSize(setSize);
+
+        // Reset the video step selection UI
+        setVideoStep('brand');
+        setVideoSelectedBrand(null);
+        setVideoSelectedSet(null);
+        setVideoSetsForBrand([]);
+        setVideoSizesForSet([]);
+      })
+      .catch((error) => console.error('Error loading pencil set from URL:', error));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pencilSetParam]);
 
   // Fetch brands on mount (for video set selection - system sets)
   useEffect(() => {
@@ -1521,6 +1526,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       });
       setVideoId(inspiration.embed_id);
       setSelectedImage(null);
+      // Put the video (and its saved pencil set/book) on the URL so the set is applied and the journal preselects the book
+      navigate(buildColorAlongVideoPath({
+        embedId: inspiration.embed_id,
+        pencilSetSizeId: inspiration.colored_pencil_set_size_id,
+        bookId: inspiration.book_id,
+      }));
     } else if (inspiration.type === 'file') {
       setSelectedImage({
         id: inspiration.id,

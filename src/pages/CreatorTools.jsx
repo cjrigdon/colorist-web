@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { inspirationAPI, coloredPencilSetsAPI } from '../services/api';
 import BookDropdown from '../components/BookDropdown';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 
 const CreatorTools = () => {
   const [selectedInspiration, setSelectedInspiration] = useState(null);
@@ -84,6 +85,31 @@ const CreatorTools = () => {
            brandName.toLowerCase().includes(pencilSetSearch.toLowerCase());
   });
 
+  const getPencilSetSearchLabel = (set) => {
+    const setName = set.set?.name || set.name || 'Unknown';
+    const brandName = set.set?.brand?.name || set.brand || 'Unknown';
+    return `${brandName} - ${setName}`;
+  };
+
+  const handleSelectInspiration = (item) => {
+    setSelectedInspiration(item);
+    setInspirationSearch(item.title || 'Untitled');
+    setShowInspirationDropdown(false);
+    setGeneratedLink(null);
+
+    // Preselect the pencil set and book saved on the video, when it has them
+    if (item.colored_pencil_set_size_id) {
+      const savedSet = pencilSets.find((set) => set.id === item.colored_pencil_set_size_id);
+      if (savedSet) {
+        setSelectedPencilSet(savedSet);
+        setPencilSetSearch(getPencilSetSearchLabel(savedSet));
+      }
+    }
+    if (item.book_id) {
+      setSelectedBookId(String(item.book_id));
+    }
+  };
+
   const handleGenerateLink = () => {
     if (!selectedInspiration || !selectedPencilSet) {
       setError('Please select both a video and a pencil set');
@@ -113,11 +139,8 @@ const CreatorTools = () => {
       const pencilSetId = selectedPencilSet.id;
       
       // Generate Color Along URL with query parameters
-      const params = new URLSearchParams({ video: videoEmbedId, pencilSet: String(pencilSetId) });
-      if (selectedBookId) {
-        params.set('book', selectedBookId);
-      }
-      setGeneratedLink(`${window.location.origin}/color-along?${params.toString()}`);
+      const path = buildColorAlongVideoPath({ embedId: videoEmbedId, pencilSetSizeId: pencilSetId, bookId: selectedBookId });
+      setGeneratedLink(`${window.location.origin}${path}`);
     } catch (err) {
       console.error('Error generating link:', err);
       setError(err.message || 'Failed to generate shareable link');
@@ -202,11 +225,7 @@ const CreatorTools = () => {
                     filteredInspirations.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => {
-                          setSelectedInspiration(item);
-                          setInspirationSearch(item.title || 'Untitled');
-                          setShowInspirationDropdown(false);
-                        }}
+                        onClick={() => handleSelectInspiration(item)}
                         className="w-full text-left p-3 hover:bg-slate-50 flex items-center space-x-3 border-b border-slate-100 last:border-b-0"
                       >
                         <img

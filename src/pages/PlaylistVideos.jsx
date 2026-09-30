@@ -8,6 +8,7 @@ import ErrorState from '../components/ErrorState';
 import YouTubeImportBanner from '../components/YouTubeImportBanner';
 import YouTubeImportPlaceholder from '../components/YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 
 const PlaylistVideos = () => {
   const navigate = useNavigate();
@@ -49,6 +50,8 @@ const PlaylistVideos = () => {
         title: video.title || 'Untitled Video',
         thumbnail: video.thumb || `https://img.youtube.com/vi/${video.embed_id}/hqdefault.jpg`,
         videoId: video.embed_id,
+        pencilSetSizeId: video.colored_pencil_set_size_id ?? null,
+        bookId: video.book_id ?? null,
       }));
       setVideos(transformedVideos);
     } catch (err) {
@@ -137,7 +140,13 @@ const PlaylistVideos = () => {
                 </button>
                 <PrimaryButton
                   onClick={() => {
-                    if (video.videoId) navigate(`/color-along?video=${video.videoId}`);
+                    if (video.videoId) {
+                      navigate(buildColorAlongVideoPath({
+                        embedId: video.videoId,
+                        pencilSetSizeId: video.pencilSetSizeId,
+                        bookId: video.bookId,
+                      }));
+                    }
                   }}
                   className="w-40 min-h-10 justify-center"
                   icon={<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>}

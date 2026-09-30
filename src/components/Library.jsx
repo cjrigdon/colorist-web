@@ -13,6 +13,7 @@ import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 
 const Library = ({ user }) => {
   const navigate = useNavigate();
@@ -86,6 +87,8 @@ const Library = ({ user }) => {
         thumbnail: item.thumb || 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop',
         videoId: item.embed_id,
         embedId: item.embed_id,
+        pencilSetSizeId: item.colored_pencil_set_size_id ?? null,
+        bookId: item.book_id ?? null,
         createdAt: item.created_at || item.createdAt || null,
         tags: item.tags || [],
       };
@@ -119,6 +122,8 @@ const Library = ({ user }) => {
         thumbnail: item.thumb || `https://img.youtube.com/vi/${item.embed_id}/hqdefault.jpg`,
         videoId: item.embed_id,
         embedId: item.embed_id,
+        pencilSetSizeId: item.colored_pencil_set_size_id ?? null,
+        bookId: item.book_id ?? null,
       };
     }
     return {
@@ -162,6 +167,8 @@ const Library = ({ user }) => {
             thumbnail: video.thumb || `https://img.youtube.com/vi/${video.embed_id}/hqdefault.jpg`,
             videoId: video.embed_id,
             embedId: video.embed_id,
+            pencilSetSizeId: video.colored_pencil_set_size_id ?? null,
+            bookId: video.book_id ?? null,
             createdAt: video.created_at || video.createdAt || null,
           }));
         }
@@ -842,7 +849,11 @@ const Library = ({ user }) => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (item.type === 'video' && item.videoId) {
-                                  navigate(`/color-along?video=${item.videoId}`);
+                                  navigate(buildColorAlongVideoPath({
+                                    embedId: item.videoId,
+                                    pencilSetSizeId: item.pencilSetSizeId,
+                                    bookId: item.bookId,
+                                  }));
                                 } else if (item.type === 'image') {
                                   navigate(`/color-along?image=${item.id}`);
                                 }

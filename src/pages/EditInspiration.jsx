@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { videosAPI, filesAPI, playlistsAPI } from '../services/api';
+import { videosAPI, filesAPI, playlistsAPI, coloredPencilSetsAPI } from '../services/api';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import TagSelect from '../components/TagSelect';
+import DropdownMenu from '../components/DropdownMenu';
+import BookDropdown from '../components/BookDropdown';
+
+const getSetSizeLabel = (setSize) => {
+  const setName = setSize.set?.name || setSize.name || 'Unknown set';
+  const brand = setSize.set?.brand?.name || setSize.set?.brand || '';
+  const count = setSize.count ? ` - ${setSize.count} pencils` : '';
+  return `${setName}${typeof brand === 'string' && brand ? ` (${brand})` : ''}${count}`;
+};
 
 const EditInspiration = () => {
   const location = useLocation();
@@ -38,6 +47,10 @@ const EditInspiration = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState([]);
+  // Pencil set size and book used for this video's Color Along links
+  const [colorAlongPencilSetSizeId, setColorAlongPencilSetSizeId] = useState('');
+  const [colorAlongBookId, setColorAlongBookId] = useState('');
+  const [pencilSetSizes, setPencilSetSizes] = useState([]);
 
   useEffect(() => {
     // Early return if no ID or type
@@ -52,14 +65,24 @@ const EditInspiration = () => {
         setError(null);
         let data;
         if (type === 'video') {
-          const [videoRes, playlistsRes] = await Promise.all([
+          const [videoRes, playlistsRes, systemSetSizesRes] = await Promise.all([
             videosAPI.getById(id),
-            playlistsAPI.getAll()
+            playlistsAPI.getAll(),
+            coloredPencilSetsAPI.getAvailableSetSizes(1, 1000, true, { excludePencils: true }).catch((setErr) => {
+              console.error('Error loading pencil sets:', setErr);
+              return [];
+            })
           ]);
           const raw = videoRes?.data && !('id' in videoRes) ? videoRes.data : videoRes;
           if (raw) data = raw;
           const plList = Array.isArray(playlistsRes) ? playlistsRes : (playlistsRes?.data || []);
           setPlaylists(plList);
+          const systemSetSizes = Array.isArray(systemSetSizesRes) ? systemSetSizesRes : (systemSetSizesRes?.data || []);
+          setPencilSetSizes(
+            systemSetSizes
+              .filter((setSize) => setSize?.id)
+              .sort((a, b) => getSetSizeLabel(a).localeCompare(getSetSizeLabel(b)))
+          );
         }
         if (type === 'video' && data) {
           // Handle null/undefined values properly
@@ -74,6 +97,8 @@ const EditInspiration = () => {
           const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
           setSelectedTags(tags);
           setSelectedPlaylistIds(Array.isArray(data.playlist_ids) ? data.playlist_ids.map(Number) : []);
+          setColorAlongPencilSetSizeId(data.colored_pencil_set_size_id ? String(data.colored_pencil_set_size_id) : '');
+          setColorAlongBookId(data.book_id ? String(data.book_id) : '');
         } else if (type === 'file') {
           const [fileRes, playlistsRes] = await Promise.all([
             filesAPI.getById(id),
@@ -157,7 +182,12 @@ const EditInspiration = () => {
 
     try {
       if (type === 'video') {
-        await videosAPI.update(id, { ...formData, ...tagPayload() });
+        await videosAPI.update(id, {
+          ...formData,
+          ...tagPayload(),
+          colored_pencil_set_size_id: colorAlongPencilSetSizeId ? Number(colorAlongPencilSetSizeId) : null,
+          book_id: colorAlongBookId ? Number(colorAlongBookId) : null,
+        });
         await videosAPI.updatePlaylists(id, selectedPlaylistIds);
         navigate('/studio/inspiration');
       } else if (type === 'file') {
@@ -455,6 +485,66 @@ const EditInspiration = () => {
 
           {type === 'video' && (
             <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Color Along Defaults
+                </label>
+                <p className="text-xs text-slate-500 mb-3">
+                  Optional. Used when you open this video in Color Along and preselected in the Color Along link generator.
+                </p>
+                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="block text-sm text-slate-700">Pencil Set</span>
+                      {colorAlongPencilSetSizeId && (
+                        <button
+                          type="button"
+                          onClick={() => setColorAlongPencilSetSizeId('')}
+                          className="text-xs text-slate-500 hover:text-slate-700"
+                          disabled={saving}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <DropdownMenu
+                      options={[
+                        ...pencilSetSizes.map((setSize) => ({ value: String(setSize.id), label: getSetSizeLabel(setSize) })),
+                        ...(colorAlongPencilSetSizeId && !pencilSetSizes.some((setSize) => String(setSize.id) === colorAlongPencilSetSizeId)
+                          ? [{ value: colorAlongPencilSetSizeId, label: 'Saved set (no longer available)' }]
+                          : [])
+                      ]}
+                      value={colorAlongPencilSetSizeId}
+                      onChange={(value) => setColorAlongPencilSetSizeId(value || '')}
+                      placeholder={pencilSetSizes.length === 0 ? 'No pencil sets available' : 'Select a pencil set...'}
+                      searchable
+                      searchPlaceholder="Search pencil sets..."
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="block text-sm text-slate-700">Book</span>
+                      {colorAlongBookId && (
+                        <button
+                          type="button"
+                          onClick={() => setColorAlongBookId('')}
+                          className="text-xs text-slate-500 hover:text-slate-700"
+                          disabled={saving}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <BookDropdown
+                      value={colorAlongBookId}
+                      onChange={(value) => setColorAlongBookId(value || '')}
+                      placeholder="Select a book..."
+                      includeCatalog
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Description

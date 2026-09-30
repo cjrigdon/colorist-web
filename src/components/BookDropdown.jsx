@@ -1,12 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { booksAPI } from '../services/api';
 
+const BOOKS_PAGE_SIZE = 100;
+const MAX_BOOK_PAGES = 50;
+
+const fetchAllBookPages = async (filters = {}) => {
+  const allBooks = [];
+  for (let page = 1; page <= MAX_BOOK_PAGES; page += 1) {
+    const response = await booksAPI.getAll(page, BOOKS_PAGE_SIZE, filters);
+    const pageBooks = Array.isArray(response) ? response : (response?.data || []);
+    allBooks.push(...pageBooks);
+    if (Array.isArray(response) || pageBooks.length === 0 || page >= (response?.last_page ?? page)) {
+      break;
+    }
+  }
+  return allBooks;
+};
+
 const BookDropdown = ({ 
   value, 
   onChange, 
   placeholder = 'Select book...',
   label,
-  className = ''
+  className = '',
+  // Also list approved catalog books that aren't in the user's library
+  includeCatalog = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [books, setBooks] = useState([]);
@@ -54,12 +72,23 @@ const BookDropdown = ({
   const loadBooks = async () => {
     try {
       setLoading(true);
-      const response = await booksAPI.getAll(1, 1000);
-      let booksData = [];
-      if (Array.isArray(response)) {
-        booksData = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        booksData = response.data;
+      const [libraryBooks, catalogBooks] = await Promise.all([
+        fetchAllBookPages(),
+        includeCatalog
+          ? fetchAllBookPages({ is_system: 1 }).catch((error) => {
+              console.error('Error loading catalog books:', error);
+              return [];
+            })
+          : Promise.resolve([])
+      ]);
+      const seenIds = new Set();
+      const booksData = [...libraryBooks, ...catalogBooks].filter((book) => {
+        if (!book?.id || seenIds.has(book.id)) return false;
+        seenIds.add(book.id);
+        return true;
+      });
+      if (includeCatalog) {
+        booksData.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       }
       // Filter out archived books
       const filteredBooks = booksData.filter(book => !book.archived);
@@ -179,6 +208,10 @@ const BookDropdown = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Don't submit a surrounding form while searching
+                if (e.key === 'Enter') e.preventDefault();
+              }}
               placeholder="Search books..."
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-0"
               style={{ focusRingColor: '#ea3663' }}

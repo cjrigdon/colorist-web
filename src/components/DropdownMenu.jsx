@@ -6,15 +6,20 @@ const DropdownMenu = ({
   onChange, 
   placeholder = 'Select...',
   label,
-  className = ''
+  className = '',
+  searchable = false,
+  searchPlaceholder = 'Search...'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
+        setSearchQuery('');
       }
     };
 
@@ -27,11 +32,25 @@ const DropdownMenu = ({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen && searchable) {
+      searchInputRef.current?.focus();
+    }
+  }, [isOpen, searchable]);
+
   const selectedOption = options.find(opt => opt.value === value);
+
+  const visibleOptions = searchable && searchQuery
+    ? options.filter((option) => {
+        const text = typeof option.label === 'string' ? option.label : String(option.value ?? '');
+        return text.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+    : options;
 
   const handleSelect = (option) => {
     onChange(option.value);
     setIsOpen(false);
+    setSearchQuery('');
   };
 
   return (
@@ -62,11 +81,30 @@ const DropdownMenu = ({
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-2 bg-slate-50 rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+          {searchable && (
+            <div className="p-3 border-b border-slate-200">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Don't submit a surrounding form while searching
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
+                placeholder={searchPlaceholder}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-0"
+                style={{ focusRingColor: '#ea3663' }}
+              />
+            </div>
+          )}
           <div className="max-h-60 overflow-y-auto">
-            {options.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-slate-500 text-center">No options available</div>
+            {visibleOptions.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                {searchQuery ? 'No matches found' : 'No options available'}
+              </div>
             ) : (
-              options.map((option) => (
+              visibleOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -89,4 +127,3 @@ const DropdownMenu = ({
 };
 
 export default DropdownMenu;
-
