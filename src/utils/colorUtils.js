@@ -28,3 +28,25 @@ export const deltaEToPercentage = (deltaE) => {
   return number.toFixed(1);
 };
 
+/**
+ * Whether dark text reads better than white text on the given background (WCAG relative luminance)
+ * @param {string} hex - A #rgb or #rrggbb color
+ * @returns {boolean}
+ */
+export const prefersDarkText = (hex) => {
+  if (!hex || typeof hex !== 'string') return true;
+  let value = hex.trim().replace(/^#/, '');
+  if (value.length === 3) {
+    value = value.split('').map((c) => c + c).join('');
+  }
+  if (!/^[0-9a-f]{6}$/i.test(value)) return true;
+
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const channel = parseInt(value.slice(i, i + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return luminance > 0.179;
+};
+

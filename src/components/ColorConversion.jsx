@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, brandsAPI, apiGet } from '../services/api';
-import { deltaEToPercentage } from '../utils/colorUtils';
+import { deltaEToPercentage, prefersDarkText } from '../utils/colorUtils';
 import AdSpace from './AdSpace';
 
 const getMatchQualityColor = (quality) => {
@@ -20,6 +20,34 @@ const getMatchQualityColor = (quality) => {
     default:
       return 'text-slate-600 bg-slate-50';
   }
+};
+
+const MatchResultCard = ({ hex, title, colorNumber, match }) => {
+  const dark = prefersDarkText(hex);
+  const textClass = dark ? 'text-slate-900' : 'text-white';
+  const subTextClass = dark ? 'text-slate-800/80' : 'text-white/85';
+
+  return (
+    <div
+      className={`w-full min-w-[13rem] min-h-[8rem] rounded-xl shadow-sm border border-black/10 p-4 flex flex-col justify-between gap-3 ${textClass}`}
+      style={{ backgroundColor: hex }}
+      title={hex}
+    >
+      <div className="min-w-0">
+        <p className="text-base font-semibold leading-tight break-words">{title}</p>
+        {colorNumber && <p className={`text-xs mt-1 ${subTextClass}`}>#{colorNumber}</p>}
+        <p className={`text-xs font-mono mt-0.5 ${subTextClass}`}>{hex}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`text-xs font-medium px-2 py-0.5 rounded shadow-sm ${getMatchQualityColor(match.match_quality)}`}>
+          {match.match_quality.replace(/_/g, ' ')}
+        </span>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white/85 text-slate-800 shadow-sm">
+          {deltaEToPercentage(match.delta_e)}% match
+        </span>
+      </div>
+    </div>
+  );
 };
 
 // Normalize hex color value - ensure it's a valid hex string
@@ -1119,25 +1147,7 @@ const ColorConversion = ({ user }) => {
                           return (
                             <td key={setSize.id} className="px-6 py-4">
                               <div className="space-y-2">
-                                {/* Mixed color swatch */}
-                                <div className="flex items-center space-x-3">
-                                  <div
-                                    className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                                    style={{ backgroundColor: match.mixed_hex }}
-                                    title={`Mixed: ${match.mixed_hex}`}
-                                  ></div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-700 mb-1">Two-color mix</p>
-                                    <div className="flex items-center space-x-2 mt-1">
-                                      <span className={`text-xs px-2 py-0.5 rounded ${getMatchQualityColor(match.match_quality)}`}>
-                                        {match.match_quality.replace(/_/g, ' ')}
-                                      </span>
-                                      <span className="text-xs text-slate-400">
-                                        {deltaEToPercentage(match.delta_e)}% match
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
+                                <MatchResultCard hex={match.mixed_hex} title="Two-color mix" match={match} />
                                 {/* Color 1 */}
                                 <div className="flex items-center space-x-2 pl-2 border-l-2 border-slate-200">
                                   <div
@@ -1176,27 +1186,12 @@ const ColorConversion = ({ user }) => {
                         // Display single color match
                         return (
                           <td key={setSize.id} className="px-6 py-4">
-                            <div className="flex items-center space-x-3">
-                              <div
-                                className="color-swatch w-12 h-12 rounded-lg shadow-sm border border-slate-200 flex-shrink-0"
-                                style={{ backgroundColor: match.hex }}
-                              ></div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-800">{match.name}</p>
-                                {match.color_number && (
-                                  <p className="text-xs text-slate-400">#{match.color_number}</p>
-                                )}
-                                <p className="text-xs text-slate-500 font-mono">{match.hex}</p>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <span className={`text-xs px-2 py-0.5 rounded ${getMatchQualityColor(match.match_quality)}`}>
-                                    {match.match_quality.replace(/_/g, ' ')}
-                                  </span>
-                                  <span className="text-xs text-slate-400">
-                                    {deltaEToPercentage(match.delta_e)}% match
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
+                            <MatchResultCard
+                              hex={match.hex}
+                              title={match.name}
+                              colorNumber={match.color_number}
+                              match={match}
+                            />
                           </td>
                         );
                       })}
