@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { videosAPI, filesAPI, playlistsAPI } from '../services/api';
 import TagSelect from './TagSelect';
+import UpgradeBanner from './UpgradeBanner';
 
-const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
+const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab, videoLimitReached = false, fileLimitReached = false }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video' or 'file'
   const [fileInputMode, setFileInputMode] = useState('upload'); // 'upload' or 'link'
 
@@ -265,8 +266,15 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
             </div>
           )}
 
+          {activeTab === 'video' && videoLimitReached && (
+            <UpgradeBanner itemType="videos" />
+          )}
+          {activeTab === 'file' && fileLimitReached && (
+            <UpgradeBanner itemType="other files" />
+          )}
+
           {/* Video Tab */}
-          {activeTab === 'video' && (
+          {activeTab === 'video' && !videoLimitReached && (
             <form onSubmit={handleVideoSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -374,7 +382,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab }) => {
           )}
 
           {/* File Tab */}
-          {activeTab === 'file' && (
+          {activeTab === 'file' && !fileLimitReached && (
             <form onSubmit={handleFileSubmit} className="space-y-4">
               <div className="flex space-x-2 mb-4">
                 <button

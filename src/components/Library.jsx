@@ -23,6 +23,8 @@ const Library = ({ user }) => {
   const [section, setSection] = useState('videos');
   const [inspirations, setInspirations] = useState([]);
   const [playlists, setPlaylists] = useState([]);
+  // Library-wide totals from the API (not affected by search/tag filters), used for free plan limits
+  const [libraryCounts, setLibraryCounts] = useState({ videos: 0, files: 0, playlists: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -231,6 +233,10 @@ const Library = ({ user }) => {
         setInspirations(transformedItems);
       }
 
+      if (response.meta?.counts) {
+        setLibraryCounts(response.meta.counts);
+      }
+
       // Check if there are more pages
       setHasMore(response.current_page < response.last_page);
       setCurrentPage(response.current_page);
@@ -390,8 +396,20 @@ const Library = ({ user }) => {
   // Inspirations are already filtered, sorted, and limited by the API
   const limitedInspirations = inspirations;
   
-  // Check limit from API response meta if available
-  const hasReachedLimit = isFreePlan && inspirations.length >= FREE_PLAN_LIMIT;
+  // Videos, other files, and playlists each have their own free plan limit
+  const hasReachedVideoLimit = isFreePlan && libraryCounts.videos >= FREE_PLAN_LIMIT;
+  const hasReachedFileLimit = isFreePlan && libraryCounts.files >= FREE_PLAN_LIMIT;
+  const hasReachedPlaylistLimit = isFreePlan && libraryCounts.playlists >= FREE_PLAN_LIMIT;
+  const hasReachedInspirationLimit = hasReachedVideoLimit && hasReachedFileLimit;
+  const sectionLimit = {
+    videos: { reached: hasReachedVideoLimit, label: 'videos' },
+    files: { reached: hasReachedFileLimit, label: 'other files' },
+    playlists: { reached: hasReachedPlaylistLimit, label: 'playlists' },
+  }[section];
+  // Open the add modal on the current section's type, unless that type is full and the other isn't
+  const addModalTab = section === 'files'
+    ? (hasReachedFileLimit && !hasReachedVideoLimit ? 'video' : 'file')
+    : (hasReachedVideoLimit && !hasReachedFileLimit ? 'file' : 'video');
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
@@ -609,13 +627,13 @@ const Library = ({ user }) => {
             </div>
             <PrimaryButton
               onClick={() => {
-                if (hasReachedLimit) {
-                  alert('You\'ve reached the limit of 5 inspirations on the free plan. Please upgrade to Premium to add more.');
+                if (hasReachedPlaylistLimit) {
+                  alert('You\'ve reached the limit of 5 playlists on the free plan. Please upgrade to Premium to add more.');
                   return;
                 }
                 setIsAddPlaylistModalOpen(true);
               }}
-              disabled={hasReachedLimit}
+              disabled={hasReachedPlaylistLimit}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -626,13 +644,13 @@ const Library = ({ user }) => {
             </PrimaryButton>
             <PrimaryButton
               onClick={() => {
-                if (hasReachedLimit) {
-                  alert('You\'ve reached the limit of 5 inspirations on the free plan. Please upgrade to Premium to add more.');
+                if (hasReachedInspirationLimit) {
+                  alert('You\'ve reached the free plan limit of 5 videos and 5 other files. Please upgrade to Premium to add more.');
                   return;
                 }
                 setIsAddModalOpen(true);
               }}
-              disabled={hasReachedLimit}
+              disabled={hasReachedInspirationLimit}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -647,8 +665,8 @@ const Library = ({ user }) => {
 
       {/* Grid Section */}
       <div className="bg-white p-6">
-        {hasReachedLimit && (
-          <UpgradeBanner itemType="inspirations" />
+        {sectionLimit?.reached && (
+          <UpgradeBanner itemType={sectionLimit.label} />
         )}
         {loading && inspirations.length === 0 && !loadingPlaylists && section !== 'playlists' && (
           <div className="bg-white p-12 text-center">
@@ -919,7 +937,9 @@ const Library = ({ user }) => {
           await refreshLibraryListing();
           setIsAddModalOpen(false);
         }}
-        defaultTab="video"
+        defaultTab={addModalTab}
+        videoLimitReached={hasReachedVideoLimit}
+        fileLimitReached={hasReachedFileLimit}
       />
       <AddPlaylistModal
         isOpen={isAddPlaylistModalOpen}

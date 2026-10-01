@@ -31,7 +31,8 @@ function App() {
               <Route path="/register" element={<Register />}></Route>
               <Route path="/verify-email" element={<VerifyEmail />}></Route>
               <Route path="/forgot-password" element={<ForgotPassword />}></Route>
-              <Route path="/privacy-policy" element={<PrivacyPolicy />}></Route>
+              {/* Signed-in users see it inside the app layout; it stays public for everyone else */}
+              <Route path="/privacy-policy" element={isAuthenticated() ? <Dashboard /> : <PrivacyPolicy />}></Route>
               <Route path="/support" element={<Support />}></Route>
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
               <Route path="/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
