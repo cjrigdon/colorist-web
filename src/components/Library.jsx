@@ -396,10 +396,14 @@ const Library = ({ user }) => {
   // Inspirations are already filtered, sorted, and limited by the API
   const limitedInspirations = inspirations;
   
-  // Videos, other files, and playlists each have their own free plan limit
-  const hasReachedVideoLimit = isFreePlan && libraryCounts.videos >= FREE_PLAN_LIMIT;
-  const hasReachedFileLimit = isFreePlan && libraryCounts.files >= FREE_PLAN_LIMIT;
-  const hasReachedPlaylistLimit = isFreePlan && libraryCounts.playlists >= FREE_PLAN_LIMIT;
+  // Videos, other files, and playlists each have their own free plan limit.
+  // Loaded items are a lower bound on the totals, which covers APIs that don't send meta.counts.
+  const videoCount = Math.max(libraryCounts.videos || 0, section !== 'files' ? inspirations.length : 0);
+  const fileCount = Math.max(libraryCounts.files || 0, section === 'files' ? inspirations.length : 0);
+  const playlistCount = Math.max(libraryCounts.playlists || 0, playlists.length);
+  const hasReachedVideoLimit = isFreePlan && videoCount >= FREE_PLAN_LIMIT;
+  const hasReachedFileLimit = isFreePlan && fileCount >= FREE_PLAN_LIMIT;
+  const hasReachedPlaylistLimit = isFreePlan && playlistCount >= FREE_PLAN_LIMIT;
   const hasReachedInspirationLimit = hasReachedVideoLimit && hasReachedFileLimit;
   const sectionLimit = {
     videos: { reached: hasReachedVideoLimit, label: 'videos' },

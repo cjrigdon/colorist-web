@@ -195,8 +195,14 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab, videoLimi
         } catch (err) {
           console.error('Error creating file:', err);
           setError(err.data?.message || 'Failed to upload file');
+        } finally {
           setLoading(false);
         }
+      };
+      reader.onerror = () => {
+        console.error('Error reading file:', reader.error);
+        setError('Failed to read the selected file');
+        setLoading(false);
       };
       reader.readAsDataURL(fileData.file);
     } catch (err) {
