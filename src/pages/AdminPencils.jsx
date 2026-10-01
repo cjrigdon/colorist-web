@@ -90,10 +90,11 @@ const AdminPencils = () => {
     }
   };
 
-  const fetchPencils = async () => {
+  // A silent refresh keeps the current table rendered so the scroll position isn't lost
+  const fetchPencils = async ({ silent = false } = {}) => {
     if (!selectedSizeId) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const response = await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage, sortField, sortDirection);
       if (response.data && Array.isArray(response.data)) {
@@ -152,7 +153,7 @@ const AdminPencils = () => {
         next.delete(id);
         return next;
       });
-      fetchPencils();
+      fetchPencils({ silent: true });
     } catch (err) {
       setError(err.message || 'Failed to delete pencil');
     }
@@ -195,7 +196,7 @@ const AdminPencils = () => {
         shopping_link: '',
         barcode: ''
       });
-      fetchPencils();
+      fetchPencils({ silent: true });
     } catch (err) {
       setError(err.message || 'Failed to save pencil');
     } finally {
