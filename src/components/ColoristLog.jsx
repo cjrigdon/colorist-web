@@ -1,12 +1,73 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import InspirationDropdown, { parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
+import PrimaryButton from './PrimaryButton';
+import TagIcon from './TagIcon';
+import TagSelect from './TagSelect';
+import MultiSelectDropdown from './MultiSelectDropdown';
 import { shrinkImageForUpload } from '../utils/imageUtils';
+import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
+
+const ENTRY_PREVIEW_WORD_LIMIT = 50;
+
+// Same icons as the Studio sections in the main menu
+const ENTRY_TAG_ICONS = {
+  inspiration: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/inspiration.png',
+  book: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/books.png',
+  pencils: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/media.png',
+  palette: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/palettes.png',
+  combo: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/combos.png',
+};
+
+const EntryTag = ({ icon, children }) => (
+  <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+    <img src={ENTRY_TAG_ICONS[icon]} alt="" aria-hidden="true" className="w-8 h-8 object-contain flex-shrink-0" />
+    <span>{children}</span>
+  </span>
+);
+
+const htmlToPlainText = (html) => {
+  const withBreaks = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ');
+  const doc = new DOMParser().parseFromString(withBreaks, 'text/html');
+  return (doc.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+};
+
+// Returns the text cut after `limit` words with an ellipsis, or null when it's already short enough
+const truncateWords = (text, limit) => {
+  const wordPattern = /\S+/g;
+  let count = 0;
+  while (wordPattern.exec(text) !== null) {
+    count += 1;
+    if (count === limit) {
+      const cutAt = wordPattern.lastIndex;
+      return /\S/.test(text.slice(cutAt)) ? `${text.slice(0, cutAt)}…` : null;
+    }
+  }
+  return null;
+};
+
+// Entry dates are stored as YYYY-MM-DD; parse the parts directly so time zones can't shift the day
+const getEntryDateParts = (dateValue) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateValue || ''));
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  return {
+    month: new Date(year, monthIndex, day).toLocaleString(undefined, { month: 'short' }),
+    day,
+    year,
+  };
+};
 
 // Filtered Combo Checkbox List Component
 const FilteredComboCheckboxList = ({ combos, selectedCombos, onSelectionChange, pencilSetIds }) => {
@@ -153,8 +214,31 @@ const buildSetDropdownOptions = (setSizes = []) => {
     }));
 };
 
+const formatDate = (date) => {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const getEntryColorAlongPath = (inspiration, bookId) => {
+  if (inspiration?.type === 'video' && inspiration.embed_id) {
+    return buildColorAlongVideoPath({
+      embedId: inspiration.embed_id,
+      pencilSetSizeId: inspiration.colored_pencil_set_size_id,
+      bookId: bookId || inspiration.book_id,
+    });
+  }
+  if (inspiration && (inspiration.type === 'image' || inspiration.mime_type?.startsWith('image/'))) {
+    return `/color-along?image=${inspiration.id}`;
+  }
+  return bookId ? `/color-along?book=${bookId}` : '/color-along';
+};
+
 const ColoristLog = () => {
-  const [selectedDate, setSelectedDate] = useState(null);
+  const navigate = useNavigate();
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [hoverDate, setHoverDate] = useState(null);
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
   const [showCalendar, setShowCalendar] = useState(false);
   const [entries, setEntries] = useState([]);
   const [showEntryForm, setShowEntryForm] = useState(false);
@@ -187,6 +271,9 @@ const ColoristLog = () => {
 
   // API data states
   const [inspirations, setInspirations] = useState([]);
+  const [videoFilter, setVideoFilter] = useState('');
+  const [bookFilter, setBookFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState([]);
   // Books are now loaded lazily in BookDropdown component, but we still need books state for displaying entries
   const [books, setBooks] = useState([]);
   const [pencilSets, setPencilSets] = useState([]);
@@ -197,10 +284,6 @@ const ColoristLog = () => {
     () => buildSetDropdownOptions(pencilSets),
     [pencilSets]
   );
-
-  const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
-  };
 
   // Release the object URL for a locally chosen photo once it's replaced or the form closes
   useEffect(() => {
@@ -292,15 +375,11 @@ const ColoristLog = () => {
   }, []);
 
 
-  // Get entries for selected date (or all most recent if no date selected)
   useEffect(() => {
     const fetchEntries = async () => {
       try {
         setLoadingEntries(true);
-        // If no date is selected, fetch all entries (most recent first)
-        // If date is selected, filter by that date
-        const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
-        const response = await journalEntriesAPI.getAll(filters);
+        const response = await journalEntriesAPI.getAll();
         
         let entriesData = [];
         if (Array.isArray(response)) {
@@ -324,6 +403,7 @@ const ColoristLog = () => {
           combos: entry.combos || [],
           notes: entry.notes || '',
           image_url: entry.image_url || null,
+          tags: entry.tags || [],
           // Related objects will be looked up at render time
           inspiration: null,
           book: null,
@@ -341,7 +421,7 @@ const ColoristLog = () => {
     };
 
     fetchEntries();
-  }, [selectedDate]);
+  }, []);
 
   // Get all dates with entries (for calendar indicators)
   useEffect(() => {
@@ -398,35 +478,41 @@ const ColoristLog = () => {
     }
   }, [showColorSelector]);
 
-  const formatDisplayDate = (date) => {
-    if (!date) return 'All Entries';
-    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formatRangeLabel = ({ start, end }) => {
+    if (!start) return 'Most Recent Entries';
+    const full = { month: 'short', day: 'numeric', year: 'numeric' };
+    if (!end || isSameDate(start, end)) {
+      return start.toLocaleDateString('en-US', { weekday: 'long', ...full });
+    }
+    const startOptions = start.getFullYear() === end.getFullYear() ? { month: 'short', day: 'numeric' } : full;
+    return `${start.toLocaleDateString('en-US', startOptions)} – ${end.toLocaleDateString('en-US', full)}`;
   };
 
-  const navigateDate = (direction) => {
-    if (!selectedDate) {
-      // If no date selected, start from today
-      setSelectedDate(new Date());
+  const handleRangeDayClick = (date) => {
+    const { start, end } = dateRange;
+    if (!start || end) {
+      setDateRange({ start: date, end: null });
       return;
     }
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + direction);
-    setSelectedDate(newDate);
+    setDateRange(date < start ? { start: date, end: start } : { start, end: date });
+    setHoverDate(null);
+    setShowCalendar(false);
   };
 
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setShowCalendar(false);
+  const clearDateRange = () => {
+    setDateRange({ start: null, end: null });
+    setHoverDate(null);
   };
 
   const handleCreateEntry = () => {
     setEditingEntry(null);
     setFormData({
-      date: selectedDate ? formatDate(selectedDate) : formatDate(new Date()),
+      date: formatDate(new Date()),
       inspiration: '',
       book: '',
       palettes: [],
       combos: [],
+      tags: [],
       notes: ''
     });
     setEntryImage({ file: null, previewUrl: null, removed: false });
@@ -449,6 +535,7 @@ const ColoristLog = () => {
       book: entry.book_id ? entry.book_id.toString() : '',
       palettes: entry.palettes ? entry.palettes.map(id => id.toString()) : (entry.palette_id ? [entry.palette_id.toString()] : []),
       combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
+      tags: (entry.tags || []).map(t => ({ id: t.id, tag: t.tag, icon: t.icon || null })),
       notes: entry.notes || ''
     });
     setEntryImage({ file: null, previewUrl: entry.image_url || null, removed: false });
@@ -503,6 +590,8 @@ const ColoristLog = () => {
         book: formData.book || null,
         palettes: selectedPalettes.map(id => parseInt(id)),
         combos: selectedCombos.map(id => parseInt(id)),
+        tag_ids: (formData.tags || []).filter(t => t.id).map(t => t.id),
+        tag_names: (formData.tags || []).filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag)),
         notes: notesValue
       };
 
@@ -534,9 +623,7 @@ const ColoristLog = () => {
         alert(`Your entry was saved, but the photo couldn't be ${entryImage.file ? 'uploaded' : 'removed'}.${detail ? ` ${detail}` : ''}`);
       }
 
-      // Refresh entries for the selected date (or all if no date selected)
-      const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
-      const response = await journalEntriesAPI.getAll(filters);
+      const response = await journalEntriesAPI.getAll();
       
       let entriesData = [];
       if (Array.isArray(response)) {
@@ -559,6 +646,7 @@ const ColoristLog = () => {
         combos: entry.combos || [],
         notes: entry.notes || '',
         image_url: entry.image_url || null,
+          tags: entry.tags || [],
         inspiration: null,
         book: null,
         pencilSet: null,
@@ -590,9 +678,7 @@ const ColoristLog = () => {
     try {
       await journalEntriesAPI.delete(entryId);
       
-      // Refresh entries for the selected date (or all if no date selected)
-      const filters = selectedDate ? { date: formatDate(selectedDate) } : {};
-      const response = await journalEntriesAPI.getAll(filters);
+      const response = await journalEntriesAPI.getAll();
       
       let entriesData = [];
       if (Array.isArray(response)) {
@@ -614,6 +700,7 @@ const ColoristLog = () => {
         combos: entry.combos || [],
         notes: entry.notes || '',
         image_url: entry.image_url || null,
+          tags: entry.tags || [],
         inspiration: null,
         book: null,
         pencilSet: null,
@@ -631,8 +718,7 @@ const ColoristLog = () => {
     }
   };
 
-  const getCalendarDays = () => {
-    const displayDate = selectedDate || new Date();
+  const getCalendarDays = (displayDate) => {
     const year = displayDate.getFullYear();
     const month = displayDate.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -651,6 +737,10 @@ const ColoristLog = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       days.push(date);
+    }
+
+    while (days.length % 7 !== 0) {
+      days.push(null);
     }
     
     return days;
@@ -702,167 +792,263 @@ const ColoristLog = () => {
     return combos.filter(combo => matchingCombos.has(combo.id));
   }, [combos, pencilSelection]);
 
+  const videoFilterOptions = useMemo(() => {
+    const usedIds = new Set(entries.map(entry => entry.inspiration_id).filter(Boolean));
+    const options = inspirations
+      .filter(item => item.type === 'video' && usedIds.has(item.id))
+      .map(item => ({ value: String(item.id), label: item.title || `Video ${item.id}` }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: '', label: 'All videos' }, ...options];
+  }, [entries, inspirations]);
+
+  const bookFilterOptions = useMemo(() => {
+    const usedIds = new Set(entries.map(entry => entry.book_id).filter(Boolean));
+    const options = [...usedIds]
+      .map(id => {
+        const book = books.find(b => b.id === id);
+        return { value: String(id), label: book?.title || book?.name || `Book ${id}` };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: '', label: 'All books' }, ...options];
+  }, [entries, books]);
+
+  const entryTagIconByDate = useMemo(() => {
+    const iconsByDate = new Map();
+    entries.forEach(entry => {
+      const dateKey = String(entry.date || '').slice(0, 10);
+      const icon = (entry.tags || []).find(tag => tag.icon)?.icon;
+      if (dateKey && icon && !iconsByDate.has(dateKey)) {
+        iconsByDate.set(dateKey, icon);
+      }
+    });
+    return iconsByDate;
+  }, [entries]);
+
+  const tagFilterOptions = useMemo(() => {
+    const tagsById = new Map();
+    entries.forEach(entry => (entry.tags || []).forEach(tag => tagsById.set(tag.id, tag)));
+    return [...tagsById.values()]
+      .sort((a, b) => a.tag.localeCompare(b.tag))
+      .map(tag => ({ value: String(tag.id), label: tag.tag, icon: <TagIcon icon={tag.icon} size={16} /> }));
+  }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    const rangeStart = dateRange.start ? formatDate(dateRange.start) : null;
+    const rangeEnd = dateRange.start ? formatDate(dateRange.end || dateRange.start) : null;
+    return entries.filter(entry => {
+      const entryDate = String(entry.date || '').slice(0, 10);
+      return (!rangeStart || (entryDate >= rangeStart && entryDate <= rangeEnd)) &&
+        (!videoFilter || String(entry.inspiration_id) === videoFilter) &&
+        (!bookFilter || String(entry.book_id) === bookFilter) &&
+        (tagFilter.length === 0 || (entry.tags || []).some(tag => tagFilter.includes(String(tag.id))));
+    });
+  }, [entries, dateRange, videoFilter, bookFilter, tagFilter]);
+
+  const calendarMonths = useMemo(() => {
+    const today = new Date();
+    return [-1, 0].map(delta => new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset + delta, 1));
+  }, [calendarMonthOffset]);
+
+  const isInPreviewRange = (date) => {
+    const { start, end } = dateRange;
+    if (!start) return false;
+    const rangeEnd = end || hoverDate;
+    if (!rangeEnd) return false;
+    const [low, high] = start <= rangeEnd ? [start, rangeEnd] : [rangeEnd, start];
+    return date >= low && date <= high;
+  };
+
+  const hasActiveEntryFilters = Boolean(videoFilter || bookFilter || tagFilter.length > 0);
+
+  const clearEntryFilters = () => {
+    setVideoFilter('');
+    setBookFilter('');
+    setTagFilter([]);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Date Navigation Section */}
+      {showCalendar && (
       <div className="px-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            {selectedDate && (
-              <>
-                <button
-                  onClick={() => navigateDate(-1)}
-                  className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 font-venti">{formatDisplayDate(selectedDate)}</h3>
-                </div>
-                <button
-                  onClick={() => navigateDate(1)}
-                  className="p-2 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-            {!selectedDate && (
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 font-venti">Most Recent Entries</h3>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {selectedDate && (
-              <>
-                <button
-                  onClick={() => setSelectedDate(new Date())}
-                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  Clear Date
-                </button>
-              </>
-            )}
-            {!selectedDate && (
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-3">
               <button
-                onClick={() => setSelectedDate(new Date())}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                type="button"
+                onClick={() => setCalendarMonthOffset(offset => offset - 1)}
+                className="p-1 rounded hover:bg-slate-100"
+                aria-label="Previous month"
               >
-                Today
+                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <p className="text-xs text-slate-500">
+                {dateRange.start && !dateRange.end ? 'Now choose an end date' : 'Choose a start date'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCalendarMonthOffset(offset => offset + 1)}
+                disabled={calendarMonthOffset >= 0}
+                className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default"
+                aria-label="Next month"
+              >
+                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onMouseLeave={() => setHoverDate(null)}>
+              {calendarMonths.map(monthDate => (
+                <div key={formatDate(monthDate)}>
+                  <h4 className="text-sm font-semibold text-slate-800 font-venti text-center mb-2">
+                    {monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h4>
+                  <div className="grid grid-cols-7">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="text-xs font-medium text-slate-600 text-center py-1">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 border-l border-t border-slate-300 bg-white">
+                    {getCalendarDays(monthDate).map((date, index) => {
+                      if (!date) {
+                        return <div key={index} className="aspect-square border-r border-b border-slate-300 bg-slate-100" />;
+                      }
+                      const isEndpoint = isSameDate(date, dateRange.start) || isSameDate(date, dateRange.end);
+                      const inRange = !isEndpoint && isInPreviewRange(date);
+                      const today = isToday(date);
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleRangeDayClick(date)}
+                          onMouseEnter={() => setHoverDate(date)}
+                          className={`relative aspect-square border-r border-b border-slate-300 p-1 text-left align-top transition-colors ${
+                            isEndpoint || inRange ? '' : 'hover:bg-slate-50'
+                          }`}
+                          style={isEndpoint ? { backgroundColor: '#ea3663' } : inRange ? { backgroundColor: '#fde3ea' } : undefined}
+                        >
+                          <span
+                            className={`absolute top-1 left-1.5 text-xs leading-none ${
+                              isEndpoint ? 'text-white font-semibold' : today ? 'font-bold' : 'text-slate-700'
+                            }`}
+                            style={today && !isEndpoint ? { color: '#ea3663' } : undefined}
+                          >
+                            {date.getDate()}
+                          </span>
+                          {hasEntry(date) && (
+                            entryTagIconByDate.has(formatDate(date)) ? (
+                              <span className="absolute bottom-1 right-1">
+                                <TagIcon
+                                  icon={entryTagIconByDate.get(formatDate(date))}
+                                  size={18}
+                                  color={isEndpoint ? '#ffffff' : '#ea3663'}
+                                />
+                              </span>
+                            ) : (
+                              <span
+                                className="absolute bottom-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: isEndpoint ? '#ffffff' : '#ea3663' }}
+                              ></span>
+                            )
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+      </div>
+      )}
+
+      {/* Entries Section */}
+      <div className="bg-white p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 font-venti">{formatRangeLabel(dateRange)}</h3>
+            <button
+              type="button"
+              onClick={() => setShowCalendar(open => !open)}
+              className={`p-2 rounded-lg transition-colors ${showCalendar ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
+              title={showCalendar ? 'Hide calendar' : 'Filter by date range'}
+              aria-label={showCalendar ? 'Hide calendar' : 'Filter by date range'}
+              aria-pressed={showCalendar}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            {dateRange.start && (
+              <button
+                type="button"
+                onClick={clearDateRange}
+                className="p-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors"
+                title="Remove date filter"
+                aria-label="Remove date filter"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             )}
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {hasActiveEntryFilters && (
+              <button
+                type="button"
+                onClick={clearEntryFilters}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                Clear filters
+              </button>
+            )}
+            {(entries.length > 0 || hasActiveEntryFilters) && (
+              <>
+                <DropdownMenu
+                  className="w-full sm:w-56"
+                  options={videoFilterOptions}
+                  value={videoFilter}
+                  onChange={setVideoFilter}
+                  placeholder="All videos"
+                  searchable
+                  searchPlaceholder="Search videos..."
+                />
+                <DropdownMenu
+                  className="w-full sm:w-56"
+                  options={bookFilterOptions}
+                  value={bookFilter}
+                  onChange={setBookFilter}
+                  placeholder="All books"
+                  searchable
+                  searchPlaceholder="Search books..."
+                />
+                <MultiSelectDropdown
+                  className="w-full sm:w-56"
+                  options={tagFilterOptions}
+                  value={tagFilter}
+                  onChange={setTagFilter}
+                  placeholder="All tags"
+                  searchPlaceholder="Search tags..."
+                  emptyMessage="No tagged entries yet"
+                />
+              </>
+            )}
             <button
-              onClick={() => setShowCalendar(!showCalendar)}
-              className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+              onClick={handleCreateEntry}
+              className="px-4 py-3 text-sm font-medium text-white rounded-xl transition-colors flex items-center space-x-2"
               style={{ backgroundColor: '#ea3663' }}
               onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
               onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
             >
-              {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Entry</span>
             </button>
           </div>
-        </div>
-
-        {/* Calendar */}
-        {showCalendar && (
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4 mt-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-slate-800 font-venti">
-                {(selectedDate || new Date()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h4>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => {
-                    const currentDate = selectedDate || new Date();
-                    const newDate = new Date(currentDate);
-                    newDate.setMonth(newDate.getMonth() - 1);
-                    setSelectedDate(newDate);
-                  }}
-                  className="p-1 rounded hover:bg-slate-100"
-                >
-                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => {
-                    const currentDate = selectedDate || new Date();
-                    const newDate = new Date(currentDate);
-                    newDate.setMonth(newDate.getMonth() + 1);
-                    setSelectedDate(newDate);
-                  }}
-                  className="p-1 rounded hover:bg-slate-100"
-                >
-                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="text-xs font-medium text-slate-600 text-center p-2">
-                  {day}
-                </div>
-              ))}
-              {getCalendarDays().map((date, index) => (
-                <button
-                  key={index}
-                  onClick={() => date && handleDateSelect(date)}
-                  className={`p-2 rounded text-sm transition-all ${
-                    !date
-                      ? 'cursor-default'
-                      : selectedDate && isSameDate(date, selectedDate)
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : isToday(date)
-                      ? 'bg-slate-100 font-medium'
-                      : hasEntry(date)
-                      ? 'bg-white hover:bg-slate-100 border-2 border-slate-300'
-                      : 'hover:bg-white'
-                  }`}
-                >
-                  {date ? (
-                    <div className="flex flex-col items-center">
-                      <span>{date.getDate()}</span>
-                      {hasEntry(date) && (
-                        <span className="w-1 h-1 rounded-full mt-0.5" style={{ backgroundColor: '#ea3663' }}></span>
-                      )}
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Entries Section */}
-      <div className="bg-white p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-800 font-venti">Journal Entries</h3>
-          <button
-            onClick={handleCreateEntry}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center space-x-2"
-            style={{ backgroundColor: '#ea3663' }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Entry</span>
-          </button>
         </div>
 
         {loadingEntries ? (
@@ -873,11 +1059,7 @@ const ColoristLog = () => {
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📔</div>
             <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Entries Yet</h3>
-            <p className="text-slate-600 mb-4">
-              {selectedDate 
-                ? `Create your first journal entry for ${formatDisplayDate(selectedDate)}`
-                : 'Create your first journal entry'}
-            </p>
+            <p className="text-slate-600 mb-4">Create your first journal entry</p>
             <button
               onClick={handleCreateEntry}
               className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
@@ -888,54 +1070,89 @@ const ColoristLog = () => {
               Create Entry
             </button>
           </div>
+        ) : filteredEntries.length === 0 ? (
+          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+            <p className="text-slate-600 mb-4">No entries match these filters.</p>
+            <button
+              type="button"
+              onClick={() => {
+                clearEntryFilters();
+                clearDateRange();
+              }}
+              className="text-sm font-medium text-slate-600 hover:text-slate-900 underline"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <div className="space-y-4">
-            {entries.map((entry) => {
+            {filteredEntries.map((entry) => {
               // Look up related objects at render time (prevents re-fetching when related data loads)
               const inspiration = entry.inspiration_id ? inspirations.find(i => i.id === entry.inspiration_id) : null;
               const book = entry.book_id ? books.find(b => b.id === entry.book_id) : null;
               const pencilSet = entry.pencilSet_id ? pencilSets.find(p => p.id === entry.pencilSet_id) : null;
               // Support both old single palette_id and new palettes array
               const entryPalettes = entry.palettes || (entry.palette_id ? [entry.palette_id] : []);
+              const dateParts = getEntryDateParts(entry.date);
+              const notesAreHtml = Boolean(entry.notes) && /<\/?[a-z][\s\S]*>/i.test(entry.notes);
+              const truncatedNotes = entry.notes
+                ? truncateWords(notesAreHtml ? htmlToPlainText(entry.notes) : entry.notes, ENTRY_PREVIEW_WORD_LIMIT)
+                : null;
               
               return (
               <div
                 key={entry.id}
-                className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
+                className="group relative bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all"
                 onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
                 onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="flex items-start justify-between gap-4">
+                  {dateParts && (
+                    <div
+                      className="flex-shrink-0 w-16 rounded-lg overflow-hidden border border-slate-200 bg-white text-center shadow-sm"
+                      aria-label={`${dateParts.month} ${dateParts.day}, ${dateParts.year}`}
+                    >
+                      <div className="py-1 text-xs font-semibold uppercase tracking-wide text-white" style={{ backgroundColor: '#ea3663' }}>
+                        {dateParts.month}
+                      </div>
+                      <div className="pt-1 pb-1 text-2xl font-bold leading-none text-slate-800">
+                        {dateParts.day}
+                      </div>
+                      {dateParts.year < new Date().getFullYear() && (
+                        <div className="pb-1 text-[11px] leading-none text-slate-500">{dateParts.year}</div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2 last:mb-0">
                       {inspiration && (
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📚 {inspiration.title || inspiration.name || `Inspiration ${entry.inspiration_id}`}
-                        </span>
+                        <EntryTag icon="inspiration">
+                          {inspiration.title || inspiration.name || `Inspiration ${entry.inspiration_id}`}
+                        </EntryTag>
                       )}
                       {book && (
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          📖 {book.title || book.name || `Book ${entry.book_id}`}
-                        </span>
+                        <EntryTag icon="book">
+                          {book.title || book.name || `Book ${entry.book_id}`}
+                        </EntryTag>
                       )}
                       {pencilSet && (
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          ✏️ {pencilSet.name} {pencilSet.brand ? `(${pencilSet.brand})` : ''}
-                        </span>
+                        <EntryTag icon="pencils">
+                          {pencilSet.name} {pencilSet.brand ? `(${pencilSet.brand})` : ''}
+                        </EntryTag>
                       )}
                       {entry.pencils && entry.pencils.length > 0 && (
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                          ✏️ {entry.pencils.length} individual pencil{entry.pencils.length !== 1 ? 's' : ''}
-                        </span>
+                        <EntryTag icon="pencils">
+                          {entry.pencils.length} individual pencil{entry.pencils.length !== 1 ? 's' : ''}
+                        </EntryTag>
                       )}
                       {entryPalettes && entryPalettes.length > 0 && (
                         <>
                           {entryPalettes.map((paletteId, idx) => {
                             const palette = palettes.find(p => p.id === paletteId);
                             return palette ? (
-                              <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                                🌈 {palette.name || palette.title || `Palette ${paletteId}`}
-                              </span>
+                              <EntryTag key={idx} icon="palette">
+                                {palette.name || palette.title || `Palette ${paletteId}`}
+                              </EntryTag>
                             ) : null;
                           })}
                         </>
@@ -945,20 +1162,26 @@ const ColoristLog = () => {
                           {entry.combos.map((comboId, idx) => {
                             const combo = combos.find(c => c.id === comboId);
                             return combo ? (
-                              <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
-                                🎨 {combo.name || combo.title || `Combo ${comboId}`}
-                              </span>
+                              <EntryTag key={idx} icon="combo">
+                                {combo.name || combo.title || `Combo ${comboId}`}
+                              </EntryTag>
                             ) : null;
                           })}
                         </>
                       )}
+                      {entry.tags.map(tag => (
+                        <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-xs">
+                          <TagIcon icon={tag.icon} size={14} />
+                          {tag.tag}
+                        </span>
+                      ))}
                     </div>
                     {entry.image_url && (
                       <a
                         href={entry.image_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-fit mb-3"
+                        className="block w-fit mb-3 last:mb-0"
                         title="Open full-size photo"
                       >
                         <img
@@ -970,34 +1193,49 @@ const ColoristLog = () => {
                       </a>
                     )}
                     {entry.notes && (
-                      /<\/?[a-z][\s\S]*>/i.test(entry.notes) ? (
+                      truncatedNotes ? (
+                        <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{truncatedNotes}</p>
+                      ) : notesAreHtml ? (
                         <div
-                          className="text-slate-700 mb-3 whitespace-pre-wrap [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_li]:my-1"
+                          className="text-[12px] text-slate-700 whitespace-pre-wrap [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_li]:my-1"
                           dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(entry.notes) }}
                         />
                       ) : (
-                        <p className="text-slate-700 mb-3 whitespace-pre-wrap">{entry.notes}</p>
+                        <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{entry.notes}</p>
                       )
                     )}
                   </div>
-                  <div className="flex space-x-2 ml-4">
-                    <button
-                      onClick={() => handleEditEntry(entry)}
-                      className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </div>
+                <div className="absolute inset-0 z-10 bg-black bg-opacity-70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-wrap items-center justify-center gap-3 p-4 rounded-xl">
+                  <PrimaryButton
+                    onClick={() => navigate(getEntryColorAlongPath(inspiration, entry.book_id))}
+                    className="w-40 min-h-10 justify-center"
+                    icon={
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
                       </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEntry(entry.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                    }
+                  >
+                    Continue
+                  </PrimaryButton>
+                  <button
+                    onClick={() => handleEditEntry(entry)}
+                    className="w-40 min-h-10 text-xs px-3 py-2 bg-white text-slate-800 rounded-lg font-medium hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteEntry(entry.id)}
+                    className="w-40 min-h-10 text-xs px-3 py-2 bg-white text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
                 </div>
               </div>
               );
@@ -1170,6 +1408,14 @@ const ColoristLog = () => {
                     )}
                   </div>
                 </>
+              )}
+
+              {!loadingFormData && (
+                <TagSelect
+                  value={formData.tags || []}
+                  onChange={(tags) => setFormData({ ...formData, tags })}
+                  disabled={savingEntry}
+                />
               )}
 
               {!loadingFormData && (

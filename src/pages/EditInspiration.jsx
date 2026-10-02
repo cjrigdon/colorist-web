@@ -99,7 +99,7 @@ const EditInspiration = () => {
             path: '',
             mime_type: ''
           }));
-          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
+          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t, icon: t.icon || null }));
           setSelectedTags(tags);
           setSelectedPlaylistIds(Array.isArray(data.playlist_ids) ? data.playlist_ids.map(Number) : []);
           setColorAlongPencilSetSizeId(data.colored_pencil_set_size_id ? String(data.colored_pencil_set_size_id) : '');
@@ -130,7 +130,7 @@ const EditInspiration = () => {
             mime_type: (data.mime_type !== null && data.mime_type !== undefined) ? String(data.mime_type) : '',
             thumbnail_path: (data.thumbnail_path !== null && data.thumbnail_path !== undefined) ? String(data.thumbnail_path) : ''
           }));
-          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t }));
+          const tags = (data.tags || []).map(t => ({ id: t.id, tag: t.tag || t, icon: t.icon || null }));
           setSelectedTags(tags);
           setSelectedPlaylistIds(Array.isArray(data.playlist_ids) ? data.playlist_ids.map(Number) : []);
         }
@@ -205,7 +205,7 @@ const EditInspiration = () => {
 
     const tagPayload = () => {
       const tagIds = selectedTags.filter(t => t.id).map(t => t.id);
-      const tagNames = selectedTags.filter(t => !t.id).map(t => t.tag);
+      const tagNames = selectedTags.filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag));
       return { tag_ids: tagIds, tag_names: tagNames };
     };
 

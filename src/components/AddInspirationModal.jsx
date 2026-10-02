@@ -36,7 +36,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, defaultTab, videoLimi
 
   const tagPayload = () => {
     const tagIds = selectedTags.filter(t => t.id).map(t => t.id);
-    const tagNames = selectedTags.filter(t => !t.id).map(t => t.tag);
+    const tagNames = selectedTags.filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag));
     return { tag_ids: tagIds, tag_names: tagNames };
   };
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../services/api';
+import TagIcon from '../components/TagIcon';
+import TagIconPicker from '../components/TagIconPicker';
 
 const AdminTags = () => {
   const [tags, setTags] = useState([]);
@@ -7,7 +9,7 @@ const AdminTags = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingTag, setEditingTag] = useState(null);
-  const [formData, setFormData] = useState({ tag: '' });
+  const [formData, setFormData] = useState({ tag: '', icon: null });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ const AdminTags = () => {
 
   const handleEdit = (tag) => {
     setEditingTag(tag);
-    setFormData({ tag: tag.tag || '' });
+    setFormData({ tag: tag.tag || '', icon: tag.icon || null });
     setShowModal(true);
   };
 
@@ -59,7 +61,7 @@ const AdminTags = () => {
       }
       setShowModal(false);
       setEditingTag(null);
-      setFormData({ tag: '' });
+      setFormData({ tag: '', icon: null });
       fetchTags();
     } catch (err) {
       setError(err.message || 'Failed to save tag');
@@ -70,7 +72,7 @@ const AdminTags = () => {
 
   const handleNew = () => {
     setEditingTag(null);
-    setFormData({ tag: '' });
+    setFormData({ tag: '', icon: null });
     setShowModal(true);
   };
 
@@ -130,7 +132,12 @@ const AdminTags = () => {
                 ) : (
                   tags.map((tag) => (
                     <tr key={tag.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-3 px-4 text-sm text-slate-800 font-medium">{tag.tag}</td>
+                      <td className="py-3 px-4 text-sm text-slate-800 font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          <TagIcon icon={tag.icon} size={20} />
+                          {tag.tag}
+                        </span>
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center space-x-2">
                           <button
@@ -169,12 +176,19 @@ const AdminTags = () => {
                   <input
                     type="text"
                     value={formData.tag}
-                    onChange={(e) => setFormData({ tag: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent"
                     placeholder="e.g. tutorial, nature"
                     required
                   />
                   <p className="mt-1 text-xs text-slate-500">Tags are stored in lowercase.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Icon</label>
+                  <TagIconPicker
+                    value={formData.icon}
+                    onChange={(icon) => setFormData({ ...formData, icon })}
+                  />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button

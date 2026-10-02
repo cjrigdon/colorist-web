@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { tagsAPI } from '../services/api';
+import TagIcon from './TagIcon';
+import TagIconPicker from './TagIconPicker';
 
 /**
  * TagSelect - multi-select for inspiration tags.
- * value: array of { id?: number, tag: string }
- * onChange: (tags: { id?: number, tag: string }[]) => void
+ * value: array of { id?: number, tag: string, icon?: string }
+ * onChange: (tags: { id?: number, tag: string, icon?: string }[]) => void
  */
 const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled }) => {
   const [knownTags, setKnownTags] = useState([]);
   const [loadingTags, setLoadingTags] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [pendingTag, setPendingTag] = useState(null);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -36,6 +39,7 @@ const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setShowSuggestions(false);
+        setPendingTag(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -49,10 +53,22 @@ const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled
     const already = selectedTags.some(t => (t.tag || '').toLowerCase() === tag);
     if (already) return;
     const known = knownTags.find(t => (t.tag || '').toLowerCase() === tag);
-    const newTag = known ? { id: known.id, tag: known.tag } : { tag };
-    onChange([...selectedTags, newTag]);
+    if (!known) {
+      setPendingTag(tag);
+      setShowSuggestions(false);
+      return;
+    }
+    onChange([...selectedTags, { id: known.id, tag: known.tag, icon: known.icon || null }]);
     setInputValue('');
     setShowSuggestions(false);
+  };
+
+  const addPendingTag = (icon) => {
+    if (!pendingTag) return;
+    onChange([...selectedTags, { tag: pendingTag, icon: icon || null }]);
+    setPendingTag(null);
+    setInputValue('');
+    inputRef.current?.focus();
   };
 
   const removeTag = (index) => {
@@ -88,6 +104,7 @@ const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled
             key={t.id ? `id-${t.id}` : `name-${i}-${t.tag}`}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-sm bg-slate-200 text-slate-700"
           >
+            <TagIcon icon={t.icon} size={16} />
             {t.tag}
             {!disabled && (
               <button
@@ -113,7 +130,31 @@ const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled
           className="flex-1 min-w-[120px] outline-none border-0 bg-transparent py-1 text-sm"
         />
       </div>
-      {showSuggestions && (suggestions.length > 0 || inputValue.trim()) && (
+      {pendingTag && (
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg p-3">
+          <p className="text-sm text-slate-700 mb-2">
+            Pick an icon for <span className="font-semibold">&quot;{pendingTag}&quot;</span>
+          </p>
+          <TagIconPicker value={null} onChange={(icon) => addPendingTag(icon)} />
+          <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setPendingTag(null)}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => addPendingTag(null)}
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"
+            >
+              Add without icon
+            </button>
+          </div>
+        </div>
+      )}
+      {!pendingTag && showSuggestions && (suggestions.length > 0 || inputValue.trim()) && (
         <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1">
           {inputValue.trim() && (
             <li>
@@ -130,9 +171,10 @@ const TagSelect = ({ value = [], onChange, placeholder = 'Add tags...', disabled
             <li key={t.id}>
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
                 onClick={() => addTag({ id: t.id, tag: t.tag })}
               >
+                <TagIcon icon={t.icon} size={18} />
                 {t.tag}
               </button>
             </li>

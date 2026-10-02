@@ -6,6 +6,7 @@ import EditPlaylistModal from './EditPlaylistModal';
 import AddInspirationModal from './AddInspirationModal';
 import PrimaryButton from './PrimaryButton';
 import HoverableCard from './HoverableCard';
+import TagIcon from './TagIcon';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import VideoThumbnail from './VideoThumbnail';
@@ -571,6 +572,7 @@ const Library = ({ user }) => {
                                     </svg>
                                   )}
                                 </span>
+                                <TagIcon icon={t.icon} size={18} />
                                 {t.tag}
                               </button>
                             );
@@ -835,7 +837,8 @@ const Library = ({ user }) => {
                               {item.tags?.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-2">
                                   {item.tags.slice(0, 3).map((t) => (
-                                    <span key={t.id || t.tag} className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">
+                                    <span key={t.id || t.tag} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">
+                                      <TagIcon icon={t.icon} size={14} />
                                       {t.tag || t}
                                     </span>
                                   ))}

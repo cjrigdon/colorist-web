@@ -6,6 +6,7 @@ import InfiniteScrollLoader from './InfiniteScrollLoader';
 import AddColorComboModal from './AddColorComboModal';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import TagIcon from './TagIcon';
 
 const ColorCombos = ({ user }) => {
   const navigate = useNavigate();
@@ -297,8 +298,9 @@ const ColorCombos = ({ user }) => {
                   {combo.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium"
                     >
+                      <TagIcon icon={tag.icon} size={14} />
                       {tag.tag}
                     </span>
                   ))}

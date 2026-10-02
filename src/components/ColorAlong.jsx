@@ -4,6 +4,8 @@ import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import InspirationDropdown, { getInspirationKey, parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty } from './RichTextEditor';
+import MultiSelectDropdown from './MultiSelectDropdown';
+import TagSelect from './TagSelect';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, playlistsAPI, videosAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
 import { extractYouTubeVideoId } from '../utils/youtubeUtils';
@@ -240,6 +242,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [pickerVideos, setPickerVideos] = useState([]);
   const [loadingPickerVideos, setLoadingPickerVideos] = useState(true);
   const [playlists, setPlaylists] = useState([]);
+  const [loadVideoPlaylistId, setLoadVideoPlaylistId] = useState('');
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
   const [librarySearch, setLibrarySearch] = useState('');
   const [debouncedLibrarySearch, setDebouncedLibrarySearch] = useState('');
@@ -264,6 +267,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     book: '',
     palette: '',
     combos: [],
+    tags: [],
     notes: ''
   });
   const [loadingJournalData, setLoadingJournalData] = useState(false);
@@ -1180,6 +1184,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       book: urlBookId,
       palette: '',
       combos: [],
+      tags: [],
       notes: ''
     });
     setJournalVideoStep('brand');
@@ -1599,6 +1604,16 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         title: saved?.title || 'Custom Video',
         inspirationId: saved?.id,
       });
+      if (loadVideoPlaylistId && saved?.id) {
+        try {
+          await videosAPI.addToPlaylist(saved.id, Number(loadVideoPlaylistId));
+          setLoadVideoPlaylistId('');
+          fetchPlaylists();
+        } catch (playlistError) {
+          console.error('Error adding loaded video to playlist:', playlistError);
+          setVideoLoadError(playlistError.data?.message || 'Video loaded, but it could not be added to the playlist.');
+        }
+      }
       fetchInspirations();
       fetchPickerVideos();
     } catch (error) {
@@ -2172,6 +2187,23 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-offset-2"
                     style={{ focusRingColor: '#ea3663' }}
                   />
+                  {playlists.length > 0 && (
+                    <DropdownMenu
+                      className="w-full sm:w-56 flex-shrink-0"
+                      options={[
+                        { value: '', label: 'No playlist', selectedLabel: 'Add to playlist (optional)' },
+                        ...playlists.map(playlist => ({
+                          value: String(playlist.id),
+                          label: playlist.title || playlist.name || `Playlist ${playlist.id}`,
+                        })),
+                      ]}
+                      value={loadVideoPlaylistId}
+                      onChange={setLoadVideoPlaylistId}
+                      placeholder="Add to playlist (optional)"
+                      searchable={playlists.length > 8}
+                      searchPlaceholder="Search playlists..."
+                    />
+                  )}
                   <button
                     onClick={handleLoadVideo}
                     disabled={!videoId.trim() || loadingVideo}
@@ -2245,9 +2277,19 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                 ) : (
                   <>
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                        {debouncedLibrarySearch ? 'Videos' : 'Recent Videos'}
-                      </h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          {debouncedLibrarySearch ? 'Videos' : 'Recent Videos'}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/studio/inspiration')}
+                          className="text-sm font-medium hover:underline"
+                          style={{ color: '#ea3663' }}
+                        >
+                          View all
+                        </button>
+                      </div>
                       {loadingPickerVideos ? (
                         <p className="text-slate-500 py-8 text-center">Loading videos...</p>
                       ) : pickerVideos.length === 0 && importing ? (
@@ -2765,37 +2807,26 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
                       Color Combos
                     </label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2">
-                      {combos.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-2">No color combos available</p>
-                      ) : (
-                        combos.map(combo => (
-                          <label key={combo.id} className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={journalFormData.combos.includes(combo.id.toString())}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setJournalFormData({
-                                    ...journalFormData,
-                                    combos: [...journalFormData.combos, combo.id.toString()]
-                                  });
-                                } else {
-                                  setJournalFormData({
-                                    ...journalFormData,
-                                    combos: journalFormData.combos.filter(id => id !== combo.id.toString())
-                                  });
-                                }
-                              }}
-                              className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500"
-                            />
-                            <span className="text-sm text-slate-700">
-                              {combo.name || combo.title || `Combo ${combo.id}`}
-                            </span>
-                          </label>
-                        ))
-                      )}
-                    </div>
+                    <MultiSelectDropdown
+                      options={combos.map(combo => ({
+                        value: combo.id.toString(),
+                        label: combo.name || combo.title || `Combo ${combo.id}`
+                      }))}
+                      value={journalFormData.combos}
+                      onChange={(value) => setJournalFormData({ ...journalFormData, combos: value })}
+                      placeholder="Select color combos (optional)..."
+                      searchPlaceholder="Search combos..."
+                      emptyMessage="No color combos available"
+                    />
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <TagSelect
+                      value={journalFormData.tags || []}
+                      onChange={(tags) => setJournalFormData({ ...journalFormData, tags })}
+                      disabled={savingJournal}
+                    />
                   </div>
 
                   {/* Notes */}
@@ -2838,6 +2869,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       book: journalFormData.book || null,
                       palette: journalFormData.palette || null,
                       combos: journalFormData.combos.map(id => parseInt(id)),
+                      tag_ids: (journalFormData.tags || []).filter(t => t.id).map(t => t.id),
+                      tag_names: (journalFormData.tags || []).filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag)),
                       notes: notesValue
                     };
 
@@ -2869,6 +2902,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       book: '',
                       palette: '',
                       combos: [],
+                      tags: [],
                       notes: ''
                     });
                   } catch (error) {
