@@ -9,6 +9,7 @@ import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 // Component for individual set size item - displayed as a box
 const SetSizeItem = ({ setSize, onSelect, onDelete, onToggleFavorite, isFavorited, isToggling }) => {
@@ -288,6 +289,7 @@ const PencilInventory = ({ user }) => {
           <div className="flex items-center justify-between">
             <div>
             <h3 className="text-xl font-semibold text-slate-800 font-venti">Media</h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.media}</p>
             </div>
             <div className="flex items-center gap-3">
               <button 

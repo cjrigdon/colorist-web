@@ -7,6 +7,8 @@ import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
+import { getPaletteHexes } from '../utils/colorUtils';
 
 // Constants for hover colors
 const HOVER_BORDER_COLOR = '#ea3663';
@@ -234,13 +236,12 @@ const StudioOverview = ({ user }) => {
     });
   }, [navigate]);
 
-  const navigateToMedia = useCallback((openAddModal = false, selectedSetId = null) => {
+  const navigateToMedia = useCallback((openAddModal = false) => {
     navigate('/studio/media', { 
       state: { 
         activeTab: 'studio', 
         activeSection: 'pencils',
-        ...(openAddModal && { openAddModal: true }),
-        ...(selectedSetId && { selectedSetId })
+        ...(openAddModal && { openAddModal: true })
       } 
     });
   }, [navigate]);
@@ -919,7 +920,12 @@ const StudioOverview = ({ user }) => {
       {/* Inspiration Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspiration</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">
+              <button type="button" onClick={() => navigateToInspiration(false)} className="text-left">Inspiration</button>
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.inspiration}</p>
+          </div>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedInspirations, inspirationHasMore) && (
               <div className="flex items-center space-x-2">
@@ -1033,7 +1039,12 @@ const StudioOverview = ({ user }) => {
       {/* Pencil Sets Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Media</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">
+              <button type="button" onClick={() => navigateToMedia(false)} className="text-left">Media</button>
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.media}</p>
+          </div>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedPencilSets, pencilSetHasMore) && (
               <div className="flex items-center space-x-2">
@@ -1112,7 +1123,7 @@ const StudioOverview = ({ user }) => {
                 key={id}
                 set={set}
                 thumbnailUrl={thumbnailUrl}
-                onNavigate={() => navigateToMedia(false, id)}
+                onNavigate={() => navigate(`/studio/media/set-size/${id}`)}
                 isFavorite={isFavorite}
               />
             ))}
@@ -1123,7 +1134,12 @@ const StudioOverview = ({ user }) => {
       {/* Color Combos Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">
+              <button type="button" onClick={() => navigateToCombos(false)} className="text-left">Color Combos</button>
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.combos}</p>
+          </div>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedCombos, comboHasMore) && (
               <div className="flex items-center space-x-2">
@@ -1237,7 +1253,12 @@ const StudioOverview = ({ user }) => {
       {/* Color Palettes Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">
+              <button type="button" onClick={() => navigateToPalettes(false)} className="text-left">Color Palettes</button>
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.palettes}</p>
+          </div>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedPalettes, paletteHasMore) && (
               <div className="flex items-center space-x-2">
@@ -1322,12 +1343,12 @@ const StudioOverview = ({ user }) => {
               >
                 {/* Color Strip */}
                 <div className="flex h-24">
-                  {palette.colors && palette.colors.length > 0 ? (
-                    palette.colors.map((color, index) => (
+                  {getPaletteHexes(palette).length > 0 ? (
+                    getPaletteHexes(palette).map((hex, index) => (
                       <div
                         key={index}
                         className="flex-1"
-                        style={{ backgroundColor: color.hex }}
+                        style={{ backgroundColor: hex }}
                       ></div>
                     ))
                   ) : (
@@ -1367,7 +1388,12 @@ const StudioOverview = ({ user }) => {
       {/* Coloring Books Section */}
       <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">
+              <button type="button" onClick={() => navigateToBooks(false)} className="text-left">Coloring Books</button>
+            </h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.books}</p>
+          </div>
           <div className="flex items-center space-x-4">
             {needsCarousel(sortedBooks, bookHasMore) && (
               <div className="flex items-center space-x-2">

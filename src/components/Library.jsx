@@ -15,6 +15,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 const Library = ({ user }) => {
   const navigate = useNavigate();
@@ -515,96 +516,9 @@ const Library = ({ user }) => {
       {/* Main row: type tabs + actions — stable layout, no jumping */}
       <div className="px-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div>
             <h3 className="text-xl font-semibold text-slate-800 font-venti">Inspiration</h3>
-            {knownTags.length > 0 && (section === 'videos' || section === 'files') && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div ref={tagFilterDropdownRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setTagFilterDropdownOpen((o) => !o)}
-                    className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#ea3663]"
-                  >
-                    Tags
-                    {tagFilterIds.length > 0 && (
-                      <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: '#ea3663' }}>
-                        {tagFilterIds.length}
-                      </span>
-                    )}
-                    <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {tagFilterDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-50 w-72 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-                      <div className="p-2 border-b border-slate-100">
-                        <input
-                          type="text"
-                          value={tagFilterSearch}
-                          onChange={(e) => setTagFilterSearch(e.target.value)}
-                          placeholder="Search tags..."
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ea3663] focus:border-transparent"
-                        />
-                      </div>
-                      <div className="max-h-56 overflow-y-auto py-1">
-                        {knownTags
-                          .filter((t) => !tagFilterSearch.trim() || (t.tag || '').toLowerCase().includes(tagFilterSearch.trim().toLowerCase()))
-                          .map((t) => {
-                            const isSelected = tagFilterIds.includes(Number(t.id));
-                            return (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => {
-                                  setTagFilterIds((prev) => {
-                                    const id = Number(t.id);
-                                    if (prev.includes(id)) return prev.filter((x) => x !== id);
-                                    return [...prev, id];
-                                  });
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 ${isSelected ? 'font-medium bg-slate-50' : 'text-slate-700'}`}
-                                style={isSelected ? { color: '#ea3663' } : undefined}
-                              >
-                                <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${isSelected ? '' : 'border-slate-300'}`} style={isSelected ? { backgroundColor: '#ea3663', borderColor: '#ea3663' } : undefined}>
-                                  {isSelected && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  )}
-                                </span>
-                                <TagIcon icon={t.icon} size={18} />
-                                {t.tag}
-                              </button>
-                            );
-                          })}
-                        {knownTags.filter((t) => !tagFilterSearch.trim() || (t.tag || '').toLowerCase().includes(tagFilterSearch.trim().toLowerCase())).length === 0 && (
-                          <p className="px-3 py-4 text-sm text-slate-500 text-center">No tags match</p>
-                        )}
-                      </div>
-                      {tagFilterIds.length > 0 && (
-                        <div className="p-2 border-t border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => setTagFilterIds([])}
-                            className="w-full px-3 py-2 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                            style={{ color: '#ea3663' }}
-                          >
-                            Clear all
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  value={itemSearch}
-                  onChange={(e) => setItemSearch(e.target.value)}
-                  placeholder={section === 'videos' ? 'Search videos...' : 'Search files...'}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#ea3663] focus:border-transparent"
-                />
-              </div>
-            )}
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.inspiration}</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Section options: Playlists | All Videos | Other Files */}
@@ -671,6 +585,94 @@ const Library = ({ user }) => {
 
       {/* Grid Section */}
       <div className="bg-white p-6">
+          {knownTags.length > 0 && (section === 'videos' || section === 'files') && (
+            <div className="flex items-center justify-end gap-2 flex-wrap mb-6">
+              <div ref={tagFilterDropdownRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTagFilterDropdownOpen((o) => !o)}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#ea3663]"
+                >
+                  Tags
+                  {tagFilterIds.length > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: '#ea3663' }}>
+                      {tagFilterIds.length}
+                    </span>
+                  )}
+                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {tagFilterDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                      <input
+                        type="text"
+                        value={tagFilterSearch}
+                        onChange={(e) => setTagFilterSearch(e.target.value)}
+                        placeholder="Search tags..."
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ea3663] focus:border-transparent"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {knownTags
+                        .filter((t) => !tagFilterSearch.trim() || (t.tag || '').toLowerCase().includes(tagFilterSearch.trim().toLowerCase()))
+                        .map((t) => {
+                          const isSelected = tagFilterIds.includes(Number(t.id));
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                setTagFilterIds((prev) => {
+                                  const id = Number(t.id);
+                                  if (prev.includes(id)) return prev.filter((x) => x !== id);
+                                  return [...prev, id];
+                                });
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 ${isSelected ? 'font-medium bg-slate-50' : 'text-slate-700'}`}
+                              style={isSelected ? { color: '#ea3663' } : undefined}
+                            >
+                              <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${isSelected ? '' : 'border-slate-300'}`} style={isSelected ? { backgroundColor: '#ea3663', borderColor: '#ea3663' } : undefined}>
+                                {isSelected && (
+                                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </span>
+                              <TagIcon icon={t.icon} size={18} />
+                              {t.tag}
+                            </button>
+                          );
+                        })}
+                      {knownTags.filter((t) => !tagFilterSearch.trim() || (t.tag || '').toLowerCase().includes(tagFilterSearch.trim().toLowerCase())).length === 0 && (
+                        <p className="px-3 py-4 text-sm text-slate-500 text-center">No tags match</p>
+                      )}
+                    </div>
+                    {tagFilterIds.length > 0 && (
+                      <div className="p-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setTagFilterIds([])}
+                          className="w-full px-3 py-2 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                          style={{ color: '#ea3663' }}
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <input
+                type="text"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder={section === 'videos' ? 'Search videos...' : 'Search files...'}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#ea3663] focus:border-transparent"
+              />
+            </div>
+          )}
         {sectionLimit?.reached && (
           <UpgradeBanner itemType={sectionLimit.label} />
         )}

@@ -29,6 +29,62 @@ export const deltaEToPercentage = (deltaE) => {
 };
 
 /**
+ * Normalize user-entered hex (with or without #, 3 or 6 digits) to uppercase #RRGGBB
+ * @param {string} hex
+ * @returns {string|null} - null when the value is not a valid hex color
+ */
+export const normalizeHex = (hex) => {
+  if (!hex || typeof hex !== 'string') return null;
+  let value = hex.trim().replace(/^#/, '');
+  if (value.length === 3) {
+    value = value.split('').map((c) => c + c).join('');
+  }
+  if (!/^[0-9a-f]{6}$/i.test(value)) return null;
+  return `#${value.toUpperCase()}`;
+};
+
+/**
+ * All hex codes in a color palette: system colors first, then the palette's custom colors
+ * @param {object} palette
+ * @returns {string[]}
+ */
+export const getPaletteHexes = (palette) => [
+  ...(palette?.colors || []).map((color) => color.hex).filter(Boolean),
+  ...(palette?.custom_colors || []),
+];
+
+/**
+ * Add hex codes to a palette selection: exact system color matches are selected, anything else becomes a custom color
+ * @param {string[]} hexes
+ * @param {object[]} availableColors - system colors
+ * @param {object[]} selectedColors - currently selected system colors
+ * @param {string[]} customColors - current custom hex codes
+ * @returns {{ selectedColors: object[], customColors: string[] }}
+ */
+export const mergeHexesIntoPalette = (hexes, availableColors, selectedColors, customColors) => {
+  const systemByHex = new Map();
+  availableColors.forEach((color) => {
+    const hex = normalizeHex(color.hex);
+    if (hex && !systemByHex.has(hex)) systemByHex.set(hex, color);
+  });
+
+  const nextSelected = [...selectedColors];
+  const nextCustom = [...customColors];
+  hexes.forEach((raw) => {
+    const hex = normalizeHex(raw);
+    if (!hex) return;
+    const systemColor = systemByHex.get(hex);
+    if (systemColor) {
+      if (!nextSelected.some((color) => color.id === systemColor.id)) nextSelected.push(systemColor);
+    } else if (!nextCustom.includes(hex)) {
+      nextCustom.push(hex);
+    }
+  });
+
+  return { selectedColors: nextSelected, customColors: nextCustom };
+};
+
+/**
  * Whether dark text reads better than white text on the given background (WCAG relative luminance)
  * @param {string} hex - A #rgb or #rrggbb color
  * @returns {boolean}

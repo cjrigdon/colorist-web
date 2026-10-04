@@ -7,6 +7,7 @@ import AddColorComboModal from './AddColorComboModal';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import TagIcon from './TagIcon';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 const ColorCombos = ({ user }) => {
   const navigate = useNavigate();
@@ -180,7 +181,10 @@ const ColorCombos = ({ user }) => {
         )}
         <div className="px-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
+            <div>
+              <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
+              <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.combos}</p>
+            </div>
             <button 
             onClick={() => {
               if (hasReachedLimit) {

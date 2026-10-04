@@ -248,6 +248,8 @@ export const colorPalettesAPI = {
   },
   getById: (id) => apiGet(`/color-palettes/${id}`, true),
   create: (palette) => apiPost('/color-palettes', palette, true),
+  // Returns suggested palettes ({ title, base_color, colors: [hex] }) built around a hex; nothing is saved
+  generateFromHex: (hex) => apiPost('/color-palettes/create/hex', { hex }, true),
   update: (id, palette) => apiPut(`/color-palettes/${id}`, palette, true),
   delete: (id) => apiDelete(`/color-palettes/${id}`, true),
   toggleFavorite: (id) => apiPost(`/color-palettes/${id}/favorite`, {}, true)
@@ -789,6 +791,7 @@ export const adminAPI = {
       return apiPut(`/admin/colored-pencil-sets/${id}`, dataToSend, true);
     },
     delete: (id) => apiDelete(`/admin/colored-pencil-sets/${id}`, true),
+    // perPage may be 'all' to return every pencil in the set unpaginated
     getPencils: (id, page = 1, perPage = 15) => {
       const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
       return apiGet(`/admin/colored-pencil-sets/${id}/pencils?${params.toString()}`, true);
@@ -804,6 +807,8 @@ export const adminAPI = {
       const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString(), sort, direction });
       return apiGet(`/admin/colored-pencil-set-sizes/${sizeId}/pencils?${params.toString()}`, true);
     },
+    addPencilsToSetSize: (sizeId, pencilIds) =>
+      apiPost(`/admin/colored-pencil-set-sizes/${sizeId}/pencils`, { pencil_ids: pencilIds }, true),
     updateSetSize: (id, data) => {
       // Handle file upload for thumbnail
       // Check if thumbFile exists and is a File object

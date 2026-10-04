@@ -10,6 +10,8 @@ import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
+import { getPaletteHexes } from '../utils/colorUtils';
 
 const ColorPalettes = ({ user }) => {
   const navigate = useNavigate();
@@ -126,7 +128,10 @@ const ColorPalettes = ({ user }) => {
     <div className="space-y-6">
       <div className="px-4">
       <div className="flex items-center justify-between">
-      <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
+      <div>
+        <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
+        <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.palettes}</p>
+      </div>
           <PrimaryButton 
             onClick={() => {
               if (hasReachedLimit) {
@@ -206,12 +211,12 @@ const ColorPalettes = ({ user }) => {
             </div>
             {/* Color Strip */}
             <div className="flex h-24">
-              {palette.colors && palette.colors.length > 0 ? (
-                palette.colors.map((color, index) => (
+              {getPaletteHexes(palette).length > 0 ? (
+                getPaletteHexes(palette).map((hex, index) => (
                   <div
                     key={index}
                     className="flex-1"
-                    style={{ backgroundColor: color.hex }}
+                    style={{ backgroundColor: hex }}
                   ></div>
                 ))
               ) : (

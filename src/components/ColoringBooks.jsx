@@ -11,6 +11,7 @@ import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 const ColoringBooks = ({ user }) => {
   const navigate = useNavigate();
@@ -172,7 +173,10 @@ const ColoringBooks = ({ user }) => {
     <div className="space-y-6">
       <div className="px-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-800 font-venti">Coloring Books</h3>
+            <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.books}</p>
+          </div>
           <PrimaryButton 
             onClick={() => {
               if (hasReachedLimit) {

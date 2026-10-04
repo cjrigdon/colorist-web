@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { adminAPI, mediaTypesAPI } from '../services/api';
 import DropdownMenu from '../components/DropdownMenu';
+import SetSizePencilAdder from '../components/SetSizePencilAdder';
 import AdminBrands from './AdminBrands';
 import AdminMediaTypes from './AdminMediaTypes';
 
@@ -883,7 +884,7 @@ const AdminPencilSets = () => {
     {/* Modal for Edit Set Size */}
     {showSizeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-lg max-w-lg w-full mx-4">
+            <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <h3 className="text-xl font-semibold text-slate-800 font-venti mb-4">
                   Edit Set Size
@@ -959,6 +960,11 @@ const AdminPencilSets = () => {
                     )}
                     <p className="mt-1 text-xs text-slate-500">Upload a new thumbnail image (JPG, PNG, max 2MB)</p>
                   </div>
+                  {editingSet && editingSize && (
+                    <div className="pt-4 border-t border-slate-200">
+                      <SetSizePencilAdder setId={editingSet.id} sizeId={editingSize.id} />
+                    </div>
+                  )}
                   <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
                     <button
                       type="button"
