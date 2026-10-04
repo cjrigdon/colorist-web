@@ -28,10 +28,8 @@ body {
   --color-accent-dark: #3a6560;
 }
 
-/* VentiCFDEMO font is loaded via @font-face in index.html */
-
 .font-venti {
-  font-family: 'VentiCFDEMO', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Print Styles for Color Conversion */

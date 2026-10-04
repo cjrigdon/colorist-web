@@ -21,6 +21,7 @@ const AdSpace = ({ width, height, className = '' }) => {
     <div
       className={`relative overflow-hidden bg-slate-100 border border-slate-200 rounded-lg ${className}`}
       style={{
+        boxSizing: 'content-box',
         width: `${width}px`,
         height: `${height}px`,
         minWidth: `${width}px`,
@@ -36,11 +37,10 @@ const AdSpace = ({ width, height, className = '' }) => {
       <ins
         ref={adRef}
         className="adsbygoogle relative"
-        style={{ display: 'block', width: '100%', height: '100%' }}
+        // Responsive units (data-ad-format="auto") ignore the container and can render taller than requested
+        style={{ display: 'inline-block', width: `${width}px`, height: `${height}px` }}
         data-ad-client={AD_CLIENT}
         data-ad-slot={AD_SLOT}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
       />
     </div>
   );
