@@ -299,7 +299,7 @@ const AddPlaylistModal = ({ isOpen, onClose, onSuccess }) => {
                             setThumbnailPreview('');
                             if (error) setError(null);
                           }}
-                          className={`rounded-lg border-2 overflow-hidden h-16 ${selectedBookThumbnail === bookThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
+                          className={`rounded-lg border-2 overflow-hidden aspect-video bg-slate-100 ${selectedBookThumbnail === bookThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
                           title={bookThumb.title}
                         >
                           <img
@@ -323,7 +323,7 @@ const AddPlaylistModal = ({ isOpen, onClose, onSuccess }) => {
                   <img
                     src={selectedThumbnail}
                     alt="Playlist thumbnail preview"
-                    className="w-28 h-20 object-cover rounded border border-slate-200"
+                    className="w-48 aspect-video object-cover rounded-lg border border-slate-200 bg-slate-100"
                   />
                 </div>
               )}

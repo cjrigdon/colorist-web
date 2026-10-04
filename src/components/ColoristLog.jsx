@@ -798,7 +798,7 @@ const ColoristLog = () => {
       .filter(item => item.type === 'video' && usedIds.has(item.id))
       .map(item => ({ value: String(item.id), label: item.title || `Video ${item.id}` }))
       .sort((a, b) => a.label.localeCompare(b.label));
-    return [{ value: '', label: 'All videos' }, ...options];
+    return options;
   }, [entries, inspirations]);
 
   const bookFilterOptions = useMemo(() => {
@@ -809,7 +809,7 @@ const ColoristLog = () => {
         return { value: String(id), label: book?.title || book?.name || `Book ${id}` };
       })
       .sort((a, b) => a.label.localeCompare(b.label));
-    return [{ value: '', label: 'All books' }, ...options];
+    return options;
   }, [entries, books]);
 
   const entryTagIconByDate = useMemo(() => {
@@ -859,12 +859,6 @@ const ColoristLog = () => {
   };
 
   const hasActiveEntryFilters = Boolean(videoFilter || bookFilter || tagFilter.length > 0);
-
-  const clearEntryFilters = () => {
-    setVideoFilter('');
-    setBookFilter('');
-    setTagFilter([]);
-  };
 
   return (
     <div className="space-y-6">
@@ -996,15 +990,6 @@ const ColoristLog = () => {
             )}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {hasActiveEntryFilters && (
-              <button
-                type="button"
-                onClick={clearEntryFilters}
-                className="text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
-                Clear filters
-              </button>
-            )}
             {(entries.length > 0 || hasActiveEntryFilters) && (
               <>
                 <DropdownMenu
@@ -1012,18 +997,22 @@ const ColoristLog = () => {
                   options={videoFilterOptions}
                   value={videoFilter}
                   onChange={setVideoFilter}
-                  placeholder="All videos"
+                  placeholder="Select video"
                   searchable
                   searchPlaceholder="Search videos..."
+                  clearable
+                  clearLabel="Clear video filter"
                 />
                 <DropdownMenu
                   className="w-full sm:w-56"
                   options={bookFilterOptions}
                   value={bookFilter}
                   onChange={setBookFilter}
-                  placeholder="All books"
+                  placeholder="Select book"
                   searchable
                   searchPlaceholder="Search books..."
+                  clearable
+                  clearLabel="Clear book filter"
                 />
                 <MultiSelectDropdown
                   className="w-full sm:w-56"
@@ -1033,6 +1022,8 @@ const ColoristLog = () => {
                   placeholder="All tags"
                   searchPlaceholder="Search tags..."
                   emptyMessage="No tagged entries yet"
+                  clearable
+                  clearLabel="Clear tag filter"
                 />
               </>
             )}
@@ -1072,17 +1063,7 @@ const ColoristLog = () => {
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-            <p className="text-slate-600 mb-4">No entries match these filters.</p>
-            <button
-              type="button"
-              onClick={() => {
-                clearEntryFilters();
-                clearDateRange();
-              }}
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 underline"
-            >
-              Clear filters
-            </button>
+            <p className="text-slate-600">No entries match these filters.</p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -8,7 +8,9 @@ const DropdownMenu = ({
   label,
   className = '',
   searchable = false,
-  searchPlaceholder = 'Search...'
+  searchPlaceholder = 'Search...',
+  clearable = false,
+  clearLabel = 'Clear selection'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +41,7 @@ const DropdownMenu = ({
   }, [isOpen, searchable]);
 
   const selectedOption = options.find(opt => opt.value === value);
+  const showClear = clearable && Boolean(selectedOption);
 
   const visibleOptions = searchable && searchQuery
     ? options.filter((option) => {
@@ -61,16 +64,16 @@ const DropdownMenu = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm font-medium cursor-pointer transition-all duration-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent flex items-center justify-between group"
+        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm font-medium cursor-pointer transition-all duration-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent flex items-center justify-between gap-2 group"
         style={{ 
           focusRingColor: '#ea3663'
         }}
       >
-        <span className={selectedOption ? 'text-slate-800 font-medium' : 'text-slate-500'}>
+        <span className={`${clearable ? 'truncate' : ''} ${selectedOption ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
           {selectedOption ? (selectedOption.selectedLabel || selectedOption.label) : placeholder}
         </span>
         <svg 
-          className={`w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 flex-shrink-0 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${showClear ? 'ml-6' : ''} ${isOpen ? 'rotate-180' : ''}`}
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -78,6 +81,23 @@ const DropdownMenu = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
+      {showClear && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange('');
+            setIsOpen(false);
+            setSearchQuery('');
+          }}
+          className={`absolute right-8 ${label ? 'bottom-3' : 'top-1/2 -translate-y-1/2'} p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors`}
+          title={clearLabel}
+          aria-label={clearLabel}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-2 bg-slate-50 rounded-xl shadow-xl border border-slate-200 overflow-hidden">

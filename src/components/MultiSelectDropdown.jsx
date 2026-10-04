@@ -8,6 +8,8 @@ const MultiSelectDropdown = ({
   searchPlaceholder = 'Search...',
   emptyMessage = 'No options available',
   className = '',
+  clearable = false,
+  clearLabel = 'Clear selection',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +67,7 @@ const MultiSelectDropdown = ({
               {selectedOptions.length}
             </span>
           )}
+          {clearable && selectedOptions.length > 0 && <span className="w-6" aria-hidden="true" />}
           <svg
             className={`w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-all duration-200 ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
@@ -75,6 +78,23 @@ const MultiSelectDropdown = ({
           </svg>
         </span>
       </button>
+      {clearable && selectedOptions.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange([]);
+            setIsOpen(false);
+            setSearchQuery('');
+          }}
+          className="absolute right-10 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+          title={clearLabel}
+          aria-label={clearLabel}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-2 bg-slate-50 rounded-xl shadow-xl border border-slate-200 overflow-hidden">

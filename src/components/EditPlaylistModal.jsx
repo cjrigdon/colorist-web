@@ -271,7 +271,7 @@ const EditPlaylistModal = ({ isOpen, onClose, onSuccess, playlist }) => {
                           setThumbnailFile(null);
                           setThumbnailPreview('');
                         }}
-                        className={`rounded-lg border-2 overflow-hidden h-16 ${selectedBookThumbnail === bookThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
+                        className={`rounded-lg border-2 overflow-hidden aspect-video bg-slate-100 ${selectedBookThumbnail === bookThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
                         title={bookThumb.title}
                       >
                         <img src={bookThumb.image} alt={bookThumb.title} className="w-full h-full object-cover" />
@@ -300,7 +300,7 @@ const EditPlaylistModal = ({ isOpen, onClose, onSuccess, playlist }) => {
                           setThumbnailFile(null);
                           setThumbnailPreview('');
                         }}
-                        className={`rounded-lg border-2 overflow-hidden h-16 ${selectedVideoThumbnail === videoThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
+                        className={`rounded-lg border-2 overflow-hidden aspect-video bg-slate-100 ${selectedVideoThumbnail === videoThumb.image ? 'border-pink-500' : 'border-slate-200 hover:border-slate-300'}`}
                         title={videoThumb.title}
                       >
                         <img src={videoThumb.image} alt={videoThumb.title} className="w-full h-full object-cover" />
@@ -317,7 +317,7 @@ const EditPlaylistModal = ({ isOpen, onClose, onSuccess, playlist }) => {
                 <img
                   src={selectedThumbnail}
                   alt="Playlist thumbnail preview"
-                  className="w-28 h-20 object-cover rounded border border-slate-200"
+                  className="w-48 aspect-video object-cover rounded-lg border border-slate-200 bg-slate-100"
                 />
               </div>
             )}

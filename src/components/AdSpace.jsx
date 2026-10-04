@@ -32,18 +32,15 @@ const AdSpace = ({ width, height, className = '' }) => {
         </div>
         <div className="font-medium">Advertisement</div>
         <div className="text-xs mt-1">{width} × {height}</div>
-        {/* TODO: Replace with actual ad network code (e.g., Google AdSense) */}
-        {/* Example:
-        <ins className="adsbygoogle"
-          style={{ display: 'block' }}
-          data-ad-client="ca-pub-XXXXXXXXXX"
-          data-ad-slot="XXXXXXXXXX"
-          data-ad-format="auto"
-          data-full-width-responsive="true"></ins>
-        <script>
-          (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-        */}
+          <ins class="adsbygoogle"
+              style="display:block"
+              data-ad-client="ca-pub-4114815321990959"
+              data-ad-slot="5825940616"
+              data-ad-format="auto"
+              data-full-width-responsive="true"></ins>
+          <script>
+              (adsbygoogle = window.adsbygoogle || []).push({});
+          </script>
       </div>
     </div>
   );
