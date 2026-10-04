@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { adminAPI, mediaTypesAPI } from '../services/api';
 import DropdownMenu from '../components/DropdownMenu';
-import SetSizePencilAdder from '../components/SetSizePencilAdder';
 import AdminBrands from './AdminBrands';
 import AdminMediaTypes from './AdminMediaTypes';
 
@@ -960,11 +959,6 @@ const AdminPencilSets = () => {
                     )}
                     <p className="mt-1 text-xs text-slate-500">Upload a new thumbnail image (JPG, PNG, max 2MB)</p>
                   </div>
-                  {editingSet && editingSize && (
-                    <div className="pt-4 border-t border-slate-200">
-                      <SetSizePencilAdder setId={editingSet.id} sizeId={editingSize.id} />
-                    </div>
-                  )}
                   <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
                     <button
                       type="button"

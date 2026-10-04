@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import DropdownMenu from '../components/DropdownMenu';
+import SetSizePencilManager from '../components/SetSizePencilManager';
+
+const ALL_SIZES = 'all';
+
+const sizeLabel = (size) => size.name || `${size.count || '?'} ct`;
 
 const AdminPencils = () => {
   const [searchParams] = useSearchParams();
@@ -24,6 +29,8 @@ const AdminPencils = () => {
   const [newSizeCount, setNewSizeCount] = useState('');
   const [creatingSize, setCreatingSize] = useState(false);
   const [sizeError, setSizeError] = useState(null);
+  const [showPencilManager, setShowPencilManager] = useState(false);
+  const [notice, setNotice] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingPencil, setEditingPencil] = useState(null);
   const [formData, setFormData] = useState({
@@ -58,6 +65,7 @@ const AdminPencils = () => {
 
   useEffect(() => {
     setSelectedPencilIds(new Set());
+    setNotice(null);
   }, [selectedSizeId]);
 
   const fetchSetDetails = async () => {
@@ -81,9 +89,8 @@ const AdminPencils = () => {
         setSelectedSizeId(sizeIdToSelect.toString());
         setPage(1);
       } else {
-        setSelectedSizeId((prev) => (prev ? prev : sizes[0] ? sizes[0].id.toString() : ''));
+        setSelectedSizeId((prev) => (prev ? prev : sizes[0] ? sizes[0].id.toString() : ALL_SIZES));
       }
-      if (sizes.length === 0) setLoading(false);
     } catch (err) {
       setError(err.message || 'Failed to load set sizes');
       setLoading(false);
@@ -96,7 +103,9 @@ const AdminPencils = () => {
     try {
       if (!silent) setLoading(true);
       setError(null);
-      const response = await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage, sortField, sortDirection);
+      const response = selectedSizeId === ALL_SIZES
+        ? await adminAPI.pencilSets.getPencils(setId, page, perPage, sortField, sortDirection)
+        : await adminAPI.pencilSets.getPencilsBySetSize(selectedSizeId, page, perPage, sortField, sortDirection);
       if (response.data && Array.isArray(response.data)) {
         setPencils(response.data);
         setTotalPages(response.last_page ?? 1);
@@ -181,7 +190,7 @@ const AdminPencils = () => {
         const createData = {
           ...submitData,
           colored_pencil_set_id: parseInt(setId, 10),
-          sizes: selectedSizeId ? [parseInt(selectedSizeId, 10)] : []
+          sizes: selectedSizeId && !isAllPencils ? [parseInt(selectedSizeId, 10)] : []
         };
         await adminAPI.pencils.create(createData);
       }
@@ -283,7 +292,18 @@ const AdminPencils = () => {
     }
   };
 
-  const selectedSize = setSizes.find((s) => s.id === parseInt(selectedSizeId, 10));
+  const handlePencilsSynced = (result) => {
+    setShowPencilManager(false);
+    const parts = [];
+    if (result.added) parts.push(`added ${result.added}`);
+    if (result.removed) parts.push(`removed ${result.removed}`);
+    setNotice(`Pencils updated: ${parts.join(', ') || 'no changes'}. This size now has ${result.pencil_count} ${result.pencil_count === 1 ? 'pencil' : 'pencils'}.`);
+    fetchPencils({ silent: true });
+  };
+
+  const isAllPencils = selectedSizeId === ALL_SIZES;
+  const selectedSize = isAllPencils ? null : setSizes.find((s) => s.id === parseInt(selectedSizeId, 10));
+  const sizeLabelsById = new Map(setSizes.map((s) => [s.id, sizeLabel(s)]));
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -298,11 +318,12 @@ const AdminPencils = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            {setId && setSizes.length > 0 && (
+            {setId && (
               <div className="w-64">
                 <DropdownMenu
                   options={[
                     { value: '', label: 'Select a size...' },
+                    { value: ALL_SIZES, label: 'All pencils (all sizes)' },
                     ...setSizes.map((size) => ({
                       value: size.id.toString(),
                       label: size.name ? `${size.name} (${size.count || ''} ct)` : `${size.count || '?'} ct`
@@ -316,6 +337,14 @@ const AdminPencils = () => {
                   placeholder="Select a size..."
                 />
               </div>
+            )}
+            {selectedSize && (
+              <button
+                onClick={() => setShowPencilManager(true)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                Add / Remove Pencils
+              </button>
             )}
             {selectedSizeId && (
               <button
@@ -337,13 +366,27 @@ const AdminPencils = () => {
           </div>
         )}
 
+        {notice && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start justify-between gap-4">
+            <p className="text-sm text-green-700">{notice}</p>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="text-green-700 hover:text-green-900 text-sm"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {setDetails && (
           <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
             <p className="text-sm text-slate-700">
               <span className="font-semibold">Set:</span> {setDetails.brand} - {setDetails.name}
-              {selectedSize && (
+              {(selectedSize || isAllPencils) && (
                 <span className="ml-2">
-                  · <span className="font-semibold">Size:</span> {selectedSize.name || `${selectedSize.count} ct`}
+                  · <span className="font-semibold">Size:</span> {isAllPencils ? 'All pencils (all sizes)' : sizeLabel(selectedSize)}
                 </span>
               )}
             </p>
@@ -353,10 +396,6 @@ const AdminPencils = () => {
         {!setId ? (
           <div className="text-center py-12">
             <p className="text-slate-500">Go to Pencil Sets and click &quot;Manage Pencils&quot; on a set to manage its pencils.</p>
-          </div>
-        ) : setSizes.length === 0 && !loading ? (
-          <div className="text-center py-12">
-            <p className="text-slate-500">No sizes defined for this set. Add set sizes in Pencil Sets first.</p>
           </div>
         ) : !selectedSizeId ? (
           <div className="text-center py-12">
@@ -448,6 +487,9 @@ const AdminPencils = () => {
                       </button>
                     </th>
                   ))}
+                  {isAllPencils && (
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Sizes</th>
+                  )}
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Lightfast</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Barcode</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
@@ -456,8 +498,8 @@ const AdminPencils = () => {
               <tbody>
                 {pencils.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-8 text-center text-slate-500">
-                      No pencils in this set size
+                    <td colSpan={isAllPencils ? 8 : 7} className="py-8 text-center text-slate-500">
+                      {isAllPencils ? 'No pencils in this set' : 'No pencils in this set size'}
                     </td>
                   </tr>
                 ) : (
@@ -490,6 +532,21 @@ const AdminPencils = () => {
                           )}
                         </div>
                       </td>
+                      {isAllPencils && (
+                        <td className="py-3 px-4">
+                          {pencil.sizes?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {pencil.sizes.map((sizeId) => (
+                                <span key={sizeId} className="px-2 py-0.5 text-xs text-slate-700 bg-slate-100 rounded-full whitespace-nowrap">
+                                  {sizeLabelsById.get(sizeId) || `Size ${sizeId}`}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">No size</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-4 text-sm text-slate-600">{pencil.lightfast_rating}</td>
                       <td className="py-3 px-4 text-sm text-slate-600">{pencil.barcode || '-'}</td>
                       <td className="py-3 px-4">
@@ -598,6 +655,16 @@ const AdminPencils = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showPencilManager && selectedSize && (
+        <SetSizePencilManager
+          setId={setId}
+          sizeId={selectedSize.id}
+          sizeLabel={sizeLabel(selectedSize)}
+          onClose={() => setShowPencilManager(false)}
+          onSaved={handlePencilsSynced}
+        />
       )}
 
       {/* Modal for Add/Edit */}
