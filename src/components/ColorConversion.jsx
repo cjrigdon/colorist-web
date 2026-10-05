@@ -26,7 +26,7 @@ const ColorCard = ({ hex, title, colorNumber, match, badge, compact = false }) =
   const dark = prefersDarkText(hex);
   const textClass = dark ? 'text-slate-900' : 'text-white';
   const subTextClass = dark ? 'text-slate-800/80' : 'text-white/85';
-  const sizeClass = compact ? 'min-w-0 min-h-[5.5rem] p-2.5 gap-2' : 'min-w-[13rem] min-h-[8rem] p-4 gap-3';
+  const sizeClass = compact ? 'min-w-[6rem] min-h-[5.5rem] p-2.5 gap-2' : 'min-w-[13rem] min-h-[8rem] p-4 gap-3';
 
   return (
     <div
@@ -548,6 +548,30 @@ const ColorConversion = ({ user }) => {
     <div className="space-y-6">
       {/* Selection Section */}
       <div className="bg-white p-4">
+        {isFreePlan && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl flex flex-col sm:flex-row sm:items-center gap-3">
+            <svg className="w-5 h-5 text-pink-600 flex-shrink-0 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-pink-900">
+                Free plans can compare against 1 target set.
+              </p>
+              <p className="text-xs text-pink-700 mt-0.5">
+                Upgrade to compare up to 5 target sets, include two-color mixes, and print your results.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/subscription')}
+              className="px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap self-start sm:self-auto"
+              style={{ backgroundColor: '#ea3663' }}
+              onMouseEnter={(e) => (e.target.style.backgroundColor = '#d12a4f')}
+              onMouseLeave={(e) => (e.target.style.backgroundColor = '#ea3663')}
+            >
+              Upgrade Now
+            </button>
+          </div>
+        )}
         <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_auto]' : 'grid-cols-1'}`}>
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1.3fr] gap-4">
@@ -772,29 +796,6 @@ const ColorConversion = ({ user }) => {
                     </button>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Upgrade prompt for multiple target sets */}
-            {isFreePlan && targetSets.length === 1 && (
-              <div className="mb-3 p-3 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <svg className="w-5 h-5 text-pink-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-pink-900 mb-1">Upgrade to compare up to 5 target sets</p>
-                    <p className="text-xs text-pink-700 mb-2">Free plans are limited to 1 target set. Upgrade to unlock multiple set comparisons.</p>
-                    <button
-                      onClick={() => navigate('/subscription')}
-                      className="text-xs font-semibold text-pink-700 hover:text-pink-900 underline"
-                    >
-                      Upgrade Now →
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1076,22 +1077,6 @@ const ColorConversion = ({ user }) => {
                     </button>
                   </div>
                 )}
-                {isFreePlan && (
-                  <div className="flex items-center">
-                    <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl">
-                      <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      <span className="text-sm text-pink-900 font-medium">Two-color mixes & Print</span>
-                      <button
-                        onClick={() => navigate('/subscription')}
-                        className="text-xs font-semibold text-pink-600 hover:text-pink-700 underline ml-2"
-                      >
-                        Upgrade to unlock
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="p-6 print-only hidden print:block">
@@ -1152,25 +1137,21 @@ const ColorConversion = ({ user }) => {
                             <td key={setSize.id} className="px-6 py-4 align-top">
                               <div className="space-y-2">
                                 <ColorCard hex={match.mixed_hex} title="Two-color mix" match={match} />
-                                <div className="flex gap-2">
-                                  {[
-                                    { color: match.color1, ratio: ratio1 },
-                                    { color: match.color2, ratio: ratio2 }
-                                  ].map(({ color, ratio }, index) => (
-                                    <div
-                                      key={index}
-                                      className="flex min-w-[6.5rem]"
-                                      style={{ flex: `${ratio} 1 0%` }}
-                                    >
-                                      <ColorCard
-                                        compact
-                                        hex={color.hex}
-                                        title={color.name}
-                                        colorNumber={color.color_number}
-                                        badge={`${Math.round(ratio)}%`}
-                                      />
-                                    </div>
-                                  ))}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <ColorCard
+                                    compact
+                                    hex={match.color1.hex}
+                                    title={match.color1.name}
+                                    colorNumber={match.color1.color_number}
+                                    badge={`${Math.round(ratio1)}%`}
+                                  />
+                                  <ColorCard
+                                    compact
+                                    hex={match.color2.hex}
+                                    title={match.color2.name}
+                                    colorNumber={match.color2.color_number}
+                                    badge={`${Math.round(ratio2)}%`}
+                                  />
                                 </div>
                               </div>
                             </td>

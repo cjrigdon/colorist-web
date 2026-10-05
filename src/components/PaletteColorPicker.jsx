@@ -65,7 +65,7 @@ const PaletteColorPicker = ({
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-2">
-        Colors ({totalCount} / {maxColors}) *
+        Colors (up to {maxColors}) *
       </label>
 
       {totalCount > 0 ? (

@@ -254,7 +254,7 @@ const Dashboard = () => {
         // Check if user has paid subscription
         const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
         if (isFreePlan) {
-          return <UpgradePrompt featureName="Diary" />;
+          return <UpgradePrompt featureName="Coloring Log" />;
         }
         return <ColoristLog />;
       case 'creator-tools':

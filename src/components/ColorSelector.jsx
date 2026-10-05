@@ -146,7 +146,7 @@ const ColorSelector = ({
           {selectionLabel}
           {showSelectionCount && (
             <span className="ml-1">
-              ({selectedIds.length}{maxSelection ? ` / ${maxSelection}` : ''} selected)
+              {maxSelection ? `(up to ${maxSelection})` : `(${selectedIds.length} selected)`}
             </span>
           )}
         </label>
