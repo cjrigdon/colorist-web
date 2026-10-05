@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { normalizeHex } from '../utils/colorUtils';
+import { MAX_PALETTE_COLORS, normalizeHex } from '../utils/colorUtils';
 
 const stripHex = (hex) => (hex || '').replace(/^#/, '').toUpperCase();
 
@@ -19,11 +19,13 @@ const PaletteColorPicker = ({
   onSelectedColorsChange,
   customColors,
   onCustomColorsChange,
+  maxColors = MAX_PALETTE_COLORS,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const selectedIds = new Set(selectedColors.map((color) => color.id));
   const totalCount = selectedColors.length + customColors.length;
+  const atLimit = totalCount >= maxColors;
   const hexQuery = parseHexQuery(searchTerm);
   const searchLower = searchTerm.trim().toLowerCase();
   const searchHexFragment = stripHex(searchTerm.trim());
@@ -43,13 +45,13 @@ const PaletteColorPicker = ({
   const toggleColor = (color) => {
     if (selectedIds.has(color.id)) {
       onSelectedColorsChange(selectedColors.filter((c) => c.id !== color.id));
-    } else {
+    } else if (!atLimit) {
       onSelectedColorsChange([...selectedColors, color]);
     }
   };
 
   const addHexColor = () => {
-    if (!hexQuery || hexAlreadyAdded) return;
+    if (!hexQuery || hexAlreadyAdded || atLimit) return;
     onCustomColorsChange([...customColors, hexQuery]);
     setSearchTerm('');
   };
@@ -63,7 +65,7 @@ const PaletteColorPicker = ({
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-2">
-        Colors ({totalCount}) *
+        Colors ({totalCount} / {maxColors}) *
       </label>
 
       {totalCount > 0 ? (
@@ -109,6 +111,16 @@ const PaletteColorPicker = ({
         </div>
       )}
 
+      {totalCount > maxColors ? (
+        <p className="-mt-1 mb-3 text-sm text-red-600">
+          Palettes can have up to {maxColors} colors. Remove {totalCount - maxColors} to save.
+        </p>
+      ) : atLimit ? (
+        <p className="-mt-1 mb-3 text-sm text-slate-500">
+          You've reached the maximum of {maxColors} colors. Remove one to add a different color.
+        </p>
+      ) : null}
+
       <div className="relative mb-3">
         <input
           type="text"
@@ -152,11 +164,11 @@ const PaletteColorPicker = ({
           <button
             type="button"
             onClick={addHexColor}
-            disabled={hexAlreadyAdded}
-            className="px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            disabled={hexAlreadyAdded || atLimit}
+            className="px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: '#ea3663' }}
           >
-            {hexAlreadyAdded ? 'Added' : 'Add color'}
+            {hexAlreadyAdded ? 'Added' : atLimit ? 'Palette full' : 'Add color'}
           </button>
         </div>
       ) : filteredColors.length === 0 ? (
@@ -168,16 +180,18 @@ const PaletteColorPicker = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {filteredColors.map((color) => {
               const isSelected = selectedIds.has(color.id);
+              const isDisabled = !isSelected && atLimit;
               return (
                 <label
                   key={color.id}
-                  className={`flex items-center space-x-2 p-2 rounded cursor-pointer transition-colors ${
+                  className={`flex items-center space-x-2 p-2 rounded transition-colors ${
                     isSelected ? 'bg-slate-200 border-2 border-slate-300' : 'hover:bg-slate-50 border-2 border-transparent'
-                  }`}
+                  } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <input
                     type="checkbox"
                     checked={isSelected}
+                    disabled={isDisabled}
                     onChange={() => toggleColor(color)}
                     className="w-4 h-4 text-pink-600 border-slate-300 rounded focus:ring-pink-500 flex-shrink-0"
                   />

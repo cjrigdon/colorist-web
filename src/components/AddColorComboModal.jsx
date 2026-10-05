@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colorCombosAPI, coloredPencilSetsAPI, colorsAPI } from '../services/api';
 import DropdownMenu from './DropdownMenu';
 import ColorSelector from './ColorSelector';
+import { MAX_COMBO_COLORS } from '../utils/colorUtils';
 
 const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -111,6 +112,10 @@ const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
       setError('Please select at least one color');
       return;
     }
+    if (selectedPencilIds.length > MAX_COMBO_COLORS) {
+      setError(`A color combo can have up to ${MAX_COMBO_COLORS} colors`);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -177,7 +182,7 @@ const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
                 loading={loadingColors}
                 mode="pencils"
                 allowAddColor={true}
-                maxSelection={null}
+                maxSelection={MAX_COMBO_COLORS}
                 selectionLabel="Select Colors"
                 filterComponent={
                   <DropdownMenu
@@ -216,6 +221,11 @@ const AddColorComboModal = ({ isOpen, onClose, onSuccess }) => {
               {selectedPencilIds.length === 0 && (
                 <div className="mt-2 text-sm text-amber-600 flex-shrink-0">
                   Please select at least one color for your color combo.
+                </div>
+              )}
+              {selectedPencilIds.length >= MAX_COMBO_COLORS && (
+                <div className="mt-2 text-sm text-slate-500 flex-shrink-0">
+                  You've picked the maximum of {MAX_COMBO_COLORS} colors. Uncheck one to choose a different color.
                 </div>
               )}
             </div>

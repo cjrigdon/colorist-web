@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colorPalettesAPI, colorsAPI } from '../services/api';
 import PaletteColorPicker from './PaletteColorPicker';
 import HexPaletteGenerator from './HexPaletteGenerator';
-import { mergeHexesIntoPalette } from '../utils/colorUtils';
+import { MAX_PALETTE_COLORS, mergeHexesIntoPalette } from '../utils/colorUtils';
 
 const AddColorPaletteModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ const AddColorPaletteModal = ({ isOpen, onClose, onSuccess }) => {
   const totalColorCount = selectedColors.length + customColors.length;
 
   const handleGeneratedPalette = (option, baseHex) => {
-    const merged = mergeHexesIntoPalette(option.colors, availableColors, selectedColors, customColors);
+    const merged = mergeHexesIntoPalette(option.colors, availableColors, selectedColors, customColors, MAX_PALETTE_COLORS);
     setSelectedColors(merged.selectedColors);
     setCustomColors(merged.customColors);
     setPaletteData((prev) => ({
@@ -69,6 +69,10 @@ const AddColorPaletteModal = ({ isOpen, onClose, onSuccess }) => {
     }
     if (totalColorCount === 0) {
       setError('Please add at least one color');
+      return;
+    }
+    if (totalColorCount > MAX_PALETTE_COLORS) {
+      setError(`Palettes can have up to ${MAX_PALETTE_COLORS} colors`);
       return;
     }
 

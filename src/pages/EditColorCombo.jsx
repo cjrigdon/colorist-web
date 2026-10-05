@@ -4,6 +4,7 @@ import { colorCombosAPI, coloredPencilSetsAPI } from '../services/api';
 import ColorSelector from '../components/ColorSelector';
 import DropdownMenu from '../components/DropdownMenu';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import { MAX_COMBO_COLORS } from '../utils/colorUtils';
 
 const EditColorCombo = () => {
   const location = useLocation();
@@ -150,6 +151,10 @@ const EditColorCombo = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (selectedPencilIds.length > MAX_COMBO_COLORS) {
+      setError(`A color combo can have up to ${MAX_COMBO_COLORS} colors. Uncheck ${selectedPencilIds.length - MAX_COMBO_COLORS} to save.`);
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -317,7 +322,7 @@ const EditColorCombo = () => {
               loading={loadingColors}
               mode="pencils"
               allowAddColor={true}
-              maxSelection={null}
+              maxSelection={MAX_COMBO_COLORS}
               selectionLabel="Select Colors"
               filterComponent={
                 <DropdownMenu

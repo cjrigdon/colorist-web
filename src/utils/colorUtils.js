@@ -1,3 +1,6 @@
+export const MAX_COMBO_COLORS = 8;
+export const MAX_PALETTE_COLORS = 8;
+
 /**
  * Convert Delta E to percentage match
  * Delta E 0 = 100%, Delta E 1 = ~95%, Delta E 2 = ~90%, Delta E 3 = ~85%, Delta E 5 = ~75%, Delta E 10+ = ~50% or less
@@ -59,9 +62,10 @@ export const getPaletteHexes = (palette) => [
  * @param {object[]} availableColors - system colors
  * @param {object[]} selectedColors - currently selected system colors
  * @param {string[]} customColors - current custom hex codes
+ * @param {number} [maxTotal] - stop adding once the palette holds this many colors
  * @returns {{ selectedColors: object[], customColors: string[] }}
  */
-export const mergeHexesIntoPalette = (hexes, availableColors, selectedColors, customColors) => {
+export const mergeHexesIntoPalette = (hexes, availableColors, selectedColors, customColors, maxTotal = Infinity) => {
   const systemByHex = new Map();
   availableColors.forEach((color) => {
     const hex = normalizeHex(color.hex);
@@ -72,7 +76,7 @@ export const mergeHexesIntoPalette = (hexes, availableColors, selectedColors, cu
   const nextCustom = [...customColors];
   hexes.forEach((raw) => {
     const hex = normalizeHex(raw);
-    if (!hex) return;
+    if (!hex || nextSelected.length + nextCustom.length >= maxTotal) return;
     const systemColor = systemByHex.get(hex);
     if (systemColor) {
       if (!nextSelected.some((color) => color.id === systemColor.id)) nextSelected.push(systemColor);

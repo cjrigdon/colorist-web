@@ -280,16 +280,20 @@ const ColorCombos = ({ user }) => {
 
               {/* Color Swatches */}
               {combo.pencils && combo.pencils.length > 0 && (
-                <div className="flex flex-wrap gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-3 mb-4">
                   {combo.pencils.map((pencil, index) => (
-                    <div key={index} className="flex items-center space-x-2">
+                    <div key={index} className="flex items-center gap-2 min-w-0">
                       <div
-                        className="w-12 h-12 rounded-lg shadow-sm border border-slate-200"
-                        style={{ backgroundColor: pencil.color.hex }}
+                        className="w-12 h-12 flex-shrink-0 rounded-lg shadow-sm border border-slate-200"
+                        style={{ backgroundColor: pencil.color?.hex }}
                       ></div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{pencil.set.brand} {pencil.set.name}</p>
-                        <p className="text-xs text-slate-500 font-mono">{pencil.color_name} ({pencil.color_number})</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate" title={`${pencil.set?.brand || ''} ${pencil.set?.name || ''}`.trim()}>
+                          {pencil.set?.brand} {pencil.set?.name}
+                        </p>
+                        <p className="text-xs text-slate-500 font-mono truncate" title={pencil.color_name}>
+                          {pencil.color_name}{pencil.color_number ? ` (${pencil.color_number})` : ''}
+                        </p>
                       </div>
                     </div>
                   ))}

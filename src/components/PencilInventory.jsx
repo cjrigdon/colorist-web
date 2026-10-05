@@ -292,6 +292,7 @@ const PencilInventory = ({ user }) => {
             <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.media}</p>
             </div>
             <div className="flex items-center gap-3">
+              {!isFreePlan && (
               <button 
                 onClick={() => setIsShoppingListModalOpen(true)}
                 className="px-4 py-2 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
@@ -306,6 +307,7 @@ const PencilInventory = ({ user }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </button>
+              )}
               <button 
                 onClick={() => {
                   if (hasReachedLimit) {
@@ -423,10 +425,12 @@ const PencilInventory = ({ user }) => {
         }}
       />
       
-      <ShoppingListGeneratorModal
-        isOpen={isShoppingListModalOpen}
-        onClose={() => setIsShoppingListModalOpen(false)}
-      />
+      {!isFreePlan && (
+        <ShoppingListGeneratorModal
+          isOpen={isShoppingListModalOpen}
+          onClose={() => setIsShoppingListModalOpen(false)}
+        />
+      )}
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}

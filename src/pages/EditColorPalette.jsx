@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { colorPalettesAPI, colorsAPI } from '../services/api';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import PaletteColorPicker from '../components/PaletteColorPicker';
+import { MAX_PALETTE_COLORS } from '../utils/colorUtils';
 
 const EditColorPalette = () => {
   const location = useLocation();
@@ -112,6 +113,10 @@ const EditColorPalette = () => {
     }
     if (selectedColors.length + customColors.length === 0) {
       setError('Please add at least one color');
+      return;
+    }
+    if (selectedColors.length + customColors.length > MAX_PALETTE_COLORS) {
+      setError(`Palettes can have up to ${MAX_PALETTE_COLORS} colors. Remove ${selectedColors.length + customColors.length - MAX_PALETTE_COLORS} to save.`);
       return;
     }
 
