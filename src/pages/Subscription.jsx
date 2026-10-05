@@ -4,7 +4,7 @@ import { subscriptionAPI } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
 import PremiumFeaturesList from '../components/PremiumFeaturesList';
 
-const Subscription = () => {
+const Subscription = ({ onPlanChange }) => {
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ const Subscription = () => {
 
       await subscriptionAPI.update(selectedPlan, paymentMethodId);
       setSuccess('Subscription updated successfully');
-      await fetchSubscription();
+      await Promise.all([fetchSubscription(), onPlanChange?.()]);
       setShowPaymentForm(false);
     } catch (err) {
       setError(err.message || err.data?.message || 'Failed to update subscription');
@@ -85,7 +85,7 @@ const Subscription = () => {
     try {
       await subscriptionAPI.cancel();
       setSuccess('Subscription cancelled successfully');
-      await fetchSubscription();
+      await Promise.all([fetchSubscription(), onPlanChange?.()]);
       setSelectedPlan('free');
     } catch (err) {
       setError(err.message || err.data?.message || 'Failed to cancel subscription');

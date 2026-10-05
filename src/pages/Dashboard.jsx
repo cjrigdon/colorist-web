@@ -73,6 +73,18 @@ const Dashboard = () => {
     fetchUser();
   }, []);
 
+  // Re-read the user after a plan change so ads and upgrade prompts update without a page reload
+  const refreshUser = async () => {
+    try {
+      const userData = await authAPI.getUser();
+      if (userData?.id || userData?.email) {
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   // Handle stop impersonation
   const handleStopImpersonation = async () => {
     if (!originalAdminId) return;
@@ -164,7 +176,7 @@ const Dashboard = () => {
   const renderContent = () => {
     // Check if we're on profile, subscription, or privacy policy pages
     if (pathname.includes('/subscription')) {
-      return <Subscription />;
+      return <Subscription onPlanChange={refreshUser} />;
     }
     if (pathname.includes('/profile')) {
       return <Profile />;
