@@ -30,7 +30,7 @@ export default function Register() {
   });
 
   const [subscriptionPlan, setSubscriptionPlan] = useState('free');
-  const [paymentMethodId, setPaymentMethodId] = useState(null);
+  const paymentFormRef = useRef(null);
 
   // Resume mid-flow from query params (e.g. after email link or login of unverified user)
   useEffect(() => {
@@ -89,13 +89,6 @@ export default function Register() {
 
   const handlePlanSelect = (plan) => {
     setSubscriptionPlan(plan);
-    if (plan === 'free') {
-      setPaymentMethodId(null);
-    }
-  };
-
-  const handlePaymentMethodReady = (paymentMethod) => {
-    setPaymentMethodId(paymentMethod);
   };
 
   const handleAccountSubmit = async (e) => {
@@ -163,11 +156,12 @@ export default function Register() {
 
     try {
       if (subscriptionPlan === 'paid') {
-        if (!paymentMethodId) {
-          setError('Please enter your payment information');
-          setLoading(false);
+        if (!paymentFormRef.current) {
+          setError('Payments are not available right now. Choose the Free plan or try again later.');
           return;
         }
+        const paymentMethodId = await paymentFormRef.current.createPaymentMethod();
+        if (!paymentMethodId) return;
 
         try {
           await subscriptionAPI.create('paid', paymentMethodId);
@@ -522,10 +516,7 @@ export default function Register() {
               {subscriptionPlan === 'paid' && (
                 <div>
                   <h3 className="text-sm font-medium text-slate-700 mb-3">Payment Information</h3>
-                  <PaymentForm
-                    onPaymentMethodReady={handlePaymentMethodReady}
-                    onError={(err) => setError(err)}
-                  />
+                  <PaymentForm ref={paymentFormRef} />
                 </div>
               )}
 
@@ -535,7 +526,7 @@ export default function Register() {
 
               <button
                 type="submit"
-                disabled={loading || (subscriptionPlan === 'paid' && !paymentMethodId)}
+                disabled={loading}
                 className="w-full px-4 py-3 text-white rounded-lg text-sm font-medium transition-colors min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: '#ea3663' }}
                 onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
@@ -12,8 +12,8 @@ const Subscription = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState('free');
-  const [paymentMethodId, setPaymentMethodId] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const paymentFormRef = useRef(null);
 
   useEffect(() => {
     fetchSubscription();
@@ -37,16 +37,7 @@ const Subscription = () => {
     setSelectedPlan(plan);
     setError(null);
     setSuccess(null);
-    if (plan === 'paid') {
-      setShowPaymentForm(true);
-    } else {
-      setShowPaymentForm(false);
-      setPaymentMethodId(null);
-    }
-  };
-
-  const handlePaymentMethodReady = (paymentMethod) => {
-    setPaymentMethodId(paymentMethod);
+    setShowPaymentForm(plan === 'paid');
   };
 
   const handleUpdateSubscription = async () => {
@@ -60,17 +51,20 @@ const Subscription = () => {
     setSuccess(null);
 
     try {
-      if (selectedPlan === 'paid' && !paymentMethodId) {
-        setError('Please enter your payment information');
-        setUpdating(false);
-        return;
+      let paymentMethodId = null;
+      if (selectedPlan === 'paid') {
+        if (!paymentFormRef.current) {
+          setError('Payments are not available right now. Please try again later.');
+          return;
+        }
+        paymentMethodId = await paymentFormRef.current.createPaymentMethod();
+        if (!paymentMethodId) return;
       }
 
       await subscriptionAPI.update(selectedPlan, paymentMethodId);
       setSuccess('Subscription updated successfully');
       await fetchSubscription();
       setShowPaymentForm(false);
-      setPaymentMethodId(null);
     } catch (err) {
       setError(err.message || err.data?.message || 'Failed to update subscription');
       console.error('Subscription update error:', err);
@@ -246,10 +240,7 @@ const Subscription = () => {
             <h3 className="text-lg font-semibold text-slate-800 mb-4">
               {subscription?.has_payment_method ? 'Update Payment Method' : 'Payment Information'}
             </h3>
-            <PaymentForm
-              onPaymentMethodReady={handlePaymentMethodReady}
-              onError={(err) => setError(err)}
-            />
+            <PaymentForm ref={paymentFormRef} />
           </div>
         )}
 
@@ -276,7 +267,7 @@ const Subscription = () => {
             {selectedPlan !== subscription?.plan && (
               <button
                 onClick={handleUpdateSubscription}
-                disabled={updating || (selectedPlan === 'paid' && !paymentMethodId)}
+                disabled={updating}
                 className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: '#ea3663' }}
                 onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}

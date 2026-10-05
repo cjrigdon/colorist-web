@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -6,11 +6,10 @@ const stripeKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
 
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
-const PaymentFormElement = ({ onPaymentMethodReady, onError }) => {
+const PaymentFormElement = forwardRef(({ onError }, ref) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
-  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (stripe && elements) {
@@ -27,39 +26,37 @@ const PaymentFormElement = ({ onPaymentMethodReady, onError }) => {
     }
   }, [stripe, elements]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    const cardElement = elements.getElement(CardElement);
-
-    try {
-      const { error: createError, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
-      });
-
-      if (createError) {
-        setError(createError.message);
-        onError(createError.message);
-        setProcessing(false);
-        return;
+  // Resolves to a Stripe payment method ID, or null if the card couldn't be used (the error is shown inline)
+  useImperativeHandle(ref, () => ({
+    createPaymentMethod: async () => {
+      if (!stripe || !elements) {
+        const message = 'Payment form is still loading. Please try again.';
+        setError(message);
+        onError?.(message);
+        return null;
       }
 
-      onPaymentMethodReady(paymentMethod.id);
-      setProcessing(false);
-    } catch (err) {
-      setError(err.message);
-      onError(err.message);
-      setProcessing(false);
-    }
-  };
+      setError(null);
+      try {
+        const { error: createError, paymentMethod } = await stripe.createPaymentMethod({
+          type: 'card',
+          card: elements.getElement(CardElement),
+        });
+
+        if (createError) {
+          setError(createError.message);
+          onError?.(createError.message);
+          return null;
+        }
+
+        return paymentMethod.id;
+      } catch (err) {
+        setError(err.message);
+        onError?.(err.message);
+        return null;
+      }
+    },
+  }), [stripe, elements, onError]);
 
   const cardElementOptions = {
     style: {
@@ -77,28 +74,18 @@ const PaymentFormElement = ({ onPaymentMethodReady, onError }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-2">
       <div className="p-4 border border-slate-200 rounded-lg bg-white">
         <CardElement options={cardElementOptions} />
       </div>
       {error && (
         <div className="text-sm text-red-600">{error}</div>
       )}
-      <button
-        type="submit"
-        disabled={!stripe || processing}
-        className="w-full px-4 py-3 text-white rounded-lg text-sm font-medium transition-colors min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: '#ea3663' }}
-        onMouseEnter={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#d12a4f')}
-        onMouseLeave={(e) => !e.target.disabled && (e.target.style.backgroundColor = '#ea3663')}
-      >
-        {processing ? 'Processing...' : 'Continue'}
-      </button>
-    </form>
+    </div>
   );
-};
+});
 
-const PaymentForm = ({ onPaymentMethodReady, onError }) => {
+const PaymentForm = forwardRef(({ onError }, ref) => {
   if (!stripePromise) {
     return (
       <div className="p-4 border border-red-200 rounded-lg bg-red-50 text-red-700 text-sm">
@@ -109,13 +96,9 @@ const PaymentForm = ({ onPaymentMethodReady, onError }) => {
 
   return (
     <Elements stripe={stripePromise}>
-      <PaymentFormElement 
-        onPaymentMethodReady={onPaymentMethodReady}
-        onError={onError}
-      />
+      <PaymentFormElement ref={ref} onError={onError} />
     </Elements>
   );
-};
+});
 
 export default PaymentForm;
-
