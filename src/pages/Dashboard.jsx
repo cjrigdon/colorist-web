@@ -23,6 +23,7 @@ import AdminPencilImport from './AdminPencilImport';
 import AdminPencilSets from './AdminPencilSets';
 import AdminPencils from './AdminPencils';
 import AdminUsers from './AdminUsers';
+import AdminBilling from './AdminBilling';
 import AdminBrands from './AdminBrands';
 import AdminBooks from './AdminBooks';
 import AdminMediaTypes from './AdminMediaTypes';
@@ -141,6 +142,7 @@ const Dashboard = () => {
       else if (pathname.includes('/pencil-sets') || pathname.includes('/brands') || pathname.includes('/media-types')) activeAdminSection = 'pencil-sets';
       else if (pathname.includes('/pencils')) activeAdminSection = 'pencils';
       else if (pathname.includes('/users')) activeAdminSection = 'users';
+      else if (pathname.includes('/billing')) activeAdminSection = 'billing';
       else if (pathname.includes('/books')) activeAdminSection = 'books';
       else if (pathname.includes('/tags')) activeAdminSection = 'tags';
     }
@@ -161,6 +163,7 @@ const Dashboard = () => {
     { id: 'pencil-import', label: 'Pencil Import', icon: '📤', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'pencil-sets', label: 'Pencil Sets', icon: '📦', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'users', label: 'Users', icon: '👥', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
+    { id: 'billing', label: 'Billing', icon: '💳', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'books', label: 'Books', icon: '📖', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
     { id: 'tags', label: 'Tags', icon: '🏷️', image: 'https://colorist.sfo3.cdn.digitaloceanspaces.com/icons/studio.png' },
   ];
@@ -283,6 +286,9 @@ const Dashboard = () => {
         }
         if (activeAdminSection === 'users') {
           return <AdminUsers />;
+        }
+        if (activeAdminSection === 'billing') {
+          return <AdminBilling />;
         }
         if (activeAdminSection === 'books') {
           return <AdminBooks />;

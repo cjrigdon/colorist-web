@@ -869,6 +869,23 @@ export const adminAPI = {
     impersonate: (id) => apiPost(`/admin/users/${id}/impersonate`, {}, true),
     stopImpersonation: (originalAdminId) => apiPost('/admin/users/stop-impersonation', { original_admin_id: originalAdminId }, true)
   },
+  // Billing (amounts are sent in dollars)
+  billing: {
+    getUsers: ({ page = 1, perPage = 20, search = '', status = '' } = {}) => {
+      const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      if (search) params.set('search', search);
+      if (status) params.set('status', status);
+      return apiGet(`/admin/billing/users?${params.toString()}`, true);
+    },
+    getUser: (userId) => apiGet(`/admin/billing/users/${userId}`, true),
+    getHistory: (userId) => apiGet(`/admin/billing/users/${userId}/history`, true),
+    refund: (userId, { chargeId, amount, reason }) =>
+      apiPost(`/admin/billing/users/${userId}/refunds`, { charge_id: chargeId, amount, reason: reason || null }, true),
+    takePayment: (userId, { amount, description }) =>
+      apiPost(`/admin/billing/users/${userId}/payments`, { amount, description }, true),
+    addCredit: (userId, { months, note }) =>
+      apiPost(`/admin/billing/users/${userId}/credits`, { months, note: note || null }, true),
+  },
   // Books
   books: {
     getAll: (page = 1, perPage = 15, additionalParams = {}) => {
