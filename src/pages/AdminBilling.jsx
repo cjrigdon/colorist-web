@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import PaymentForm from '../components/PaymentForm';
 
 const STATUS_FILTERS = [
   { value: '', label: 'All users' },
@@ -155,65 +156,102 @@ const RefundModal = ({ payment, onClose, onSubmit }) => {
   );
 };
 
-const PaymentModal = ({ summary, onClose, onSubmit }) => {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
+// Which phone-card flow applies, based on the user's current subscription
+const getCardMode = (subscription) => {
+  if (!subscription) return 'new';
+  const { status, ends_at: endsAt } = subscription;
+  if (['incomplete', 'incomplete_expired', 'canceled'].includes(status)) return 'new';
+  if (endsAt) return new Date(endsAt) > new Date() ? 'resume' : 'new';
+  if (['past_due', 'unpaid'].includes(status)) return 'past_due';
+  return 'update';
+};
+
+const CARD_MODE_COPY = {
+  new: {
+    title: 'Add Subscription',
+    intro: "Enter the card the customer gives you over the phone to start their Premium subscription.",
+    submit: 'Start Subscription',
+  },
+  resume: {
+    title: 'Resume Subscription',
+    intro: 'Their subscription is canceled but still running. Saving a card resumes it so it renews as normal.',
+    submit: 'Save Card & Resume',
+  },
+  past_due: {
+    title: 'Update Card',
+    intro: 'Their last payment failed. The new card is saved and charged for the overdue bill.',
+    submit: 'Save Card & Pay Bill',
+  },
+  update: {
+    title: 'Update Card',
+    intro: 'Replaces the card used for their Premium renewals. Nothing is charged now.',
+    submit: 'Save Card',
+  },
+};
+
+const SubscriptionCardModal = ({ summary, onClose, onSubmit }) => {
+  const mode = getCardMode(summary.subscription);
+  const copy = CARD_MODE_COPY[mode];
+  const paymentFormRef = useRef(null);
+  const [withTrial, setWithTrial] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const card = summary.payment_method;
+  const { price, payment_method: card } = summary;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
+    if (!paymentFormRef.current) {
+      setError('Card payments are not available. Check the Stripe publishable key.');
+      return;
+    }
+    setSubmitting(true);
+    const paymentMethodId = await paymentFormRef.current.createPaymentMethod();
+    if (!paymentMethodId) {
+      setSubmitting(false);
+      return;
+    }
     try {
-      await onSubmit({ amount: parseFloat(amount), description: description.trim() });
+      await onSubmit({ paymentMethodId, withTrial: mode === 'new' && withTrial });
     } catch (err) {
-      setError(errorMessage(err, 'Payment failed'));
+      setError(errorMessage(err, 'Could not save the card'));
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal title="Take a Payment" onClose={onClose}>
+    <Modal title={copy.title} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-slate-600">
-          Charges the card on file
-          {card ? <> (<span className="font-medium capitalize">{card.brand}</span> ending {card.last4})</> : null} right away.
-        </p>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Amount ({(summary.currency || 'usd').toUpperCase()})</label>
-          <input
-            type="number"
-            min="0.50"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            required
-            autoFocus
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Shown on the customer's receipt"
-            maxLength={255}
-            required
-            className={inputClass}
-          />
-        </div>
+        <p className="text-sm text-slate-600">{copy.intro}</p>
+        {mode !== 'new' && card && (
+          <p className="text-xs text-slate-500">
+            Current card: <span className="capitalize">{card.brand}</span> ending {card.last4}
+          </p>
+        )}
+        <PaymentForm ref={paymentFormRef} />
+        {mode === 'new' && (
+          <>
+            <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={withTrial}
+                onChange={(e) => setWithTrial(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300"
+              />
+              <span>Start with the 7-day free trial</span>
+            </label>
+            {price?.unit_amount && (
+              <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                Premium · {formatMoney(price.unit_amount, price.currency)} / {price.interval || 'month'}.{' '}
+                {withTrial
+                  ? 'The first charge happens when the trial ends.'
+                  : `${formatMoney(price.unit_amount, price.currency)} is charged today, then every ${price.interval || 'month'}.`}
+              </p>
+            )}
+          </>
+        )}
         {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
-        <ModalActions
-          onCancel={onClose}
-          submitting={submitting}
-          submitLabel={amount ? `Charge ${formatMoney(Math.round(parseFloat(amount) * 100), summary.currency)}` : 'Charge'}
-          disabled={!amount || !description.trim()}
-        />
+        <ModalActions onCancel={onClose} submitting={submitting} submitLabel={copy.submit} />
       </form>
     </Modal>
   );
@@ -347,9 +385,16 @@ const BillingDetail = ({ userId, onBack }) => {
     await afterAction(`Refunded ${formatMoney(result.amount, refundTarget?.currency)}.`);
   };
 
-  const handlePayment = async (data) => {
-    const result = await adminAPI.billing.takePayment(userId, data);
-    await afterAction(`Charged ${formatMoney(result.amount, summary?.currency)}.`);
+  const handleSubscriptionCard = async (data) => {
+    const result = await adminAPI.billing.subscribeWithCard(userId, data);
+    const card = result.card ? `${result.card.brand} ending ${result.card.last4}` : 'the new card';
+    const messages = {
+      subscribed: `Premium subscription started (${(result.status || '').replace(/_/g, ' ')}) on ${card}.`,
+      resumed: `Subscription resumed on ${card}.`,
+      past_due_paid: `Card updated to ${card} and the overdue bill was paid.`,
+      card_updated: `Card updated to ${card}.`,
+    };
+    await afterAction(messages[result.action] || 'Card saved.');
   };
 
   const handleCredit = async (data) => {
@@ -391,14 +436,8 @@ const BillingDetail = ({ userId, onBack }) => {
           <button type="button" onClick={() => setShowCredit(true)} className={secondaryButtonClass}>
             Add Credit
           </button>
-          <button
-            type="button"
-            onClick={() => setShowPayment(true)}
-            disabled={!card}
-            title={card ? undefined : 'No card on file'}
-            className={primaryButtonClass}
-          >
-            Take Payment
+          <button type="button" onClick={() => setShowPayment(true)} className={primaryButtonClass}>
+            {getCardMode(subscription) === 'new' ? 'Add Subscription' : 'Update Card'}
           </button>
         </div>
       </div>
@@ -611,7 +650,7 @@ const BillingDetail = ({ userId, onBack }) => {
       )}
 
       {refundTarget && <RefundModal payment={refundTarget} onClose={() => setRefundTarget(null)} onSubmit={handleRefund} />}
-      {showPayment && <PaymentModal summary={summary} onClose={() => setShowPayment(false)} onSubmit={handlePayment} />}
+      {showPayment && <SubscriptionCardModal summary={summary} onClose={() => setShowPayment(false)} onSubmit={handleSubscriptionCard} />}
       {showCredit && <CreditModal summary={summary} onClose={() => setShowCredit(false)} onSubmit={handleCredit} />}
     </div>
   );

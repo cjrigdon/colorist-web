@@ -858,8 +858,9 @@ export const adminAPI = {
   },
   // Users
   users: {
-    getAll: (page = 1, perPage = 15) => {
+    getAll: (page = 1, perPage = 15, { verified } = {}) => {
       const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+      if (verified !== undefined) params.set('filter[verified]', verified ? 'true' : 'false');
       return apiGet(`/admin/users?${params.toString()}`, true);
     },
     getById: (id) => apiGet(`/admin/users/${id}`, true),
@@ -881,8 +882,8 @@ export const adminAPI = {
     getHistory: (userId) => apiGet(`/admin/billing/users/${userId}/history`, true),
     refund: (userId, { chargeId, amount, reason }) =>
       apiPost(`/admin/billing/users/${userId}/refunds`, { charge_id: chargeId, amount, reason: reason || null }, true),
-    takePayment: (userId, { amount, description }) =>
-      apiPost(`/admin/billing/users/${userId}/payments`, { amount, description }, true),
+    subscribeWithCard: (userId, { paymentMethodId, withTrial }) =>
+      apiPost(`/admin/billing/users/${userId}/subscription`, { payment_method: paymentMethodId, with_trial: withTrial }, true),
     addCredit: (userId, { months, note }) =>
       apiPost(`/admin/billing/users/${userId}/credits`, { months, note: note || null }, true),
   },

@@ -2,8 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI, setAuthToken } from '../services/api';
 
+const PURGE_AFTER_DAYS = 60;
+
+const USER_TABS = [
+  { id: 'verified', label: 'Verified' },
+  { id: 'pending', label: 'Pending' },
+];
+
+const daysSince = (iso) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0);
+
 const AdminUsers = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('verified');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,13 +36,13 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [page]);
+  }, [page, activeTab]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await adminAPI.users.getAll(page, perPage);
+      const response = await adminAPI.users.getAll(page, perPage, { verified: activeTab === 'verified' });
       // Handle Laravel pagination response structure
       if (response.data && Array.isArray(response.data)) {
         setUsers(response.data);
@@ -180,14 +190,6 @@ const AdminUsers = () => {
     setShowModal(true);
   };
 
-  if (loading && users.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-slate-500">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -217,12 +219,43 @@ const AdminUsers = () => {
           </div>
         )}
 
+        <div className="mb-4 flex border-b border-slate-200">
+          {USER_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                if (tab.id === activeTab) return;
+                setActiveTab(tab.id);
+                setPage(1);
+                setUsers([]);
+              }}
+              className={`px-4 py-2 -mb-px text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-[#ea3663] text-[#ea3663]'
+                  : 'border-transparent text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'pending' && (
+          <p className="mb-4 text-sm text-slate-600">
+            These users haven't verified their email. Accounts still unverified {PURGE_AFTER_DAYS} days after signing up are deleted automatically.
+          </p>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Name</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Email</th>
+                {activeTab === 'pending' && (
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Signed up</th>
+                )}
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Subscription</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Admin</th>
                 <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Creator</th>
@@ -230,12 +263,33 @@ const AdminUsers = () => {
               </tr>
             </thead>
             <tbody>
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={activeTab === 'pending' ? 7 : 6} className="py-8 text-center text-sm text-slate-500">
+                    {loading
+                      ? 'Loading...'
+                      : activeTab === 'pending' ? 'No users are waiting on email verification' : 'No verified users'}
+                  </td>
+                </tr>
+              )}
               {users.map((user) => (
                 <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="py-3 px-4 text-sm text-slate-800">
                     {user.first_name} {user.last_name}
                   </td>
                   <td className="py-3 px-4 text-sm text-slate-800">{user.email}</td>
+                  {activeTab === 'pending' && (
+                    <td className="py-3 px-4 text-sm text-slate-600 whitespace-nowrap">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      {user.created_at && (
+                        <p className="text-xs text-slate-400">
+                          {Math.max(0, PURGE_AFTER_DAYS - daysSince(user.created_at)) === 0
+                            ? 'Due for deletion'
+                            : `Deleted in ${PURGE_AFTER_DAYS - daysSince(user.created_at)} days`}
+                        </p>
+                      )}
+                    </td>
+                  )}
                   <td className="py-3 px-4 text-center">
                     {user.subscription_plan === 'paid' ? (
                       <span className="px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg capitalize">
