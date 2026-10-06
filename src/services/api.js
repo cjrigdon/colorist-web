@@ -867,6 +867,7 @@ export const adminAPI = {
     create: (user) => apiPost('/admin/users', user, true),
     update: (id, user) => apiPut(`/admin/users/${id}`, user, true),
     delete: (id) => apiDelete(`/admin/users/${id}`, true),
+    markVerified: (id) => apiPost(`/admin/users/${id}/verify`, {}, true),
     impersonate: (id) => apiPost(`/admin/users/${id}/impersonate`, {}, true),
     stopImpersonation: (originalAdminId) => apiPost('/admin/users/stop-impersonation', { original_admin_id: originalAdminId }, true)
   },

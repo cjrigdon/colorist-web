@@ -33,6 +33,8 @@ const AdminUsers = () => {
   });
   const [saving, setSaving] = useState(false);
   const [impersonating, setImpersonating] = useState(false);
+  const [verifyingId, setVerifyingId] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -92,6 +94,27 @@ const AdminUsers = () => {
       fetchUsers();
     } catch (err) {
       setError(err.message || 'Failed to delete user');
+    }
+  };
+
+  const handleMarkVerified = async (user) => {
+    const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+    if (!window.confirm(`Mark ${name} as verified? They'll be able to sign in without confirming their email.`)) {
+      return;
+    }
+
+    try {
+      setVerifyingId(user.id);
+      setError(null);
+      setNotice(null);
+      await adminAPI.users.markVerified(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setNotice(`${name} is now verified.`);
+      fetchUsers();
+    } catch (err) {
+      setError(err.message || 'Failed to mark user as verified');
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -219,6 +242,15 @@ const AdminUsers = () => {
           </div>
         )}
 
+        {notice && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-green-700">{notice}</p>
+            <button type="button" onClick={() => setNotice(null)} className="text-green-700 hover:text-green-900 text-sm">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         <div className="mb-4 flex border-b border-slate-200">
           {USER_TABS.map((tab) => (
             <button
@@ -227,6 +259,7 @@ const AdminUsers = () => {
               onClick={() => {
                 if (tab.id === activeTab) return;
                 setActiveTab(tab.id);
+                setNotice(null);
                 setPage(1);
                 setUsers([]);
               }}
@@ -325,6 +358,15 @@ const AdminUsers = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-center space-x-2">
+                      {activeTab === 'pending' && (
+                        <button
+                          onClick={() => handleMarkVerified(user)}
+                          disabled={verifyingId === user.id}
+                          className="px-3 py-1 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {verifyingId === user.id ? 'Verifying...' : 'Mark Verified'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(user)}
                         className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
