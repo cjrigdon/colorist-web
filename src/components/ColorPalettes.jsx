@@ -10,6 +10,8 @@ import ErrorState from './ErrorState';
 import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import ShareLinkModal from './ShareLinkModal';
+import { useShareSelection, SelectToShareButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
 import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 import { getPaletteHexes } from '../utils/colorUtils';
 
@@ -22,6 +24,8 @@ const ColorPalettes = ({ user }) => {
   const [deleting, setDeleting] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
   const [togglingFavorite, setTogglingFavorite] = useState(null);
+  const [palettesToShare, setPalettesToShare] = useState(null);
+  const shareSelection = useShareSelection();
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -127,11 +131,14 @@ const ColorPalettes = ({ user }) => {
   return (
     <div className="space-y-6">
       <div className="px-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Palettes</h3>
         <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.palettes}</p>
       </div>
+          {!shareSelection.selecting && (
+          <div className="flex items-center gap-3">
+          <SelectToShareButton onClick={shareSelection.start} disabled={palettes.length === 0} />
           <PrimaryButton 
             onClick={() => {
               if (hasReachedLimit) {
@@ -149,7 +156,19 @@ const ColorPalettes = ({ user }) => {
           >
             New Palette
           </PrimaryButton>
+          </div>
+          )}
         </div>
+        {shareSelection.selecting && (
+          <div className="mt-4">
+            <ShareSelectionBar
+              count={shareSelection.selectedItems.length}
+              noun="palettes"
+              onCancel={shareSelection.cancel}
+              onShare={() => setPalettesToShare(shareSelection.selectedItems)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Palettes Grid Section */}
@@ -174,14 +193,24 @@ const ColorPalettes = ({ user }) => {
         {error && <ErrorState error={error} className="mb-6" />}
         {!loading && !error && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {palettes.map((palette) => (
+            {palettes.map((palette) => {
+              const selected = shareSelection.selecting && shareSelection.isSelected(palette.id);
+              return (
               <HoverableCard
                 key={palette.id}
-                onClick={() => palette.id && navigate(`/edit/color-palette/${palette.id}`)}
-                className="relative"
+                onClick={() => {
+                  if (!palette.id) return;
+                  if (shareSelection.selecting) {
+                    shareSelection.toggle(palette);
+                  } else {
+                    navigate(`/edit/color-palette/${palette.id}`);
+                  }
+                }}
+                className={`relative ${selected ? 'ring-2 ring-[#ea3663]' : ''}`}
               >
-            {/* Delete Button - Top Right */}
+            {shareSelection.selecting && <SelectionCheck checked={selected} className="top-2 left-2" />}
             {/* Favorite and Delete Buttons - Top Right */}
+            {!shareSelection.selecting && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
               <button
                 onClick={(e) => handleToggleFavorite(palette.id, e)}
@@ -209,6 +238,7 @@ const ColorPalettes = ({ user }) => {
                 </svg>
               </button>
             </div>
+            )}
             {/* Color Strip */}
             <div className="flex h-24">
               {getPaletteHexes(palette).length > 0 ? (
@@ -240,7 +270,8 @@ const ColorPalettes = ({ user }) => {
               )}
             </div>
           </HoverableCard>
-        ))}
+              );
+            })}
           </div>
         )}
 
@@ -283,6 +314,16 @@ const ColorPalettes = ({ user }) => {
         itemName={paletteToDelete?.title || 'Color Palette'}
         itemType="color palette"
       />
+      {palettesToShare && (
+        <ShareLinkModal
+          type="palette"
+          items={palettesToShare}
+          onClose={() => {
+            setPalettesToShare(null);
+            shareSelection.cancel();
+          }}
+        />
+      )}
     </div>
   );
 };

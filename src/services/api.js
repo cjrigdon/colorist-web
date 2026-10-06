@@ -160,7 +160,9 @@ export const authAPI = {
   login: (email, password) => apiPost('/users/login', { email, password }, false),
   register: (userData) => apiPost('/users/register', userData, false),
   getYoutubeRedirect: () => apiGet('/auth/youtube/redirect', false),
-  getYoutubeCallback: (searchParams) => apiGet(`/auth/youtube/callback${searchParams}`, false),
+  getYoutubeConnect: () => apiGet('/auth/youtube/connect', true),
+  // Sends the session token when present so "connect" callbacks can confirm the same user finished consent
+  getYoutubeCallback: (searchParams) => apiGet(`/auth/youtube/callback${searchParams}`, true),
   getUser: () => apiGet('/user', true),
   getVerificationStatus: () => apiGet('/email/verification-status', true),
   resendVerificationEmail: () => apiPost('/email/verification-notification', {}, true),
@@ -282,6 +284,30 @@ export const colorCombosAPI = {
   update: (id, combo) => apiPut(`/color-combos/${id}`, combo, true),
   delete: (id) => apiDelete(`/color-combos/${id}`, true),
   toggleFavorite: (id) => apiPost(`/color-combos/${id}/favorite`, {}, true)
+};
+
+// Share links for one or more combos/palettes. Items are { type: 'combo' | 'palette', id }.
+// Viewing is public; the token is still sent when present so the API can tell if it's yours or already saved.
+export const youtubeCommentsAPI = {
+  list: (videoId, { order = 'relevance', pageToken = null } = {}) => {
+    const params = new URLSearchParams({ order });
+    if (pageToken) params.set('page_token', pageToken);
+    return apiGet(`/youtube/videos/${encodeURIComponent(videoId)}/comments?${params}`, true);
+  },
+  replies: (videoId, commentId, pageToken = null) => {
+    const params = pageToken ? `?${new URLSearchParams({ page_token: pageToken })}` : '';
+    return apiGet(`/youtube/videos/${encodeURIComponent(videoId)}/comments/${encodeURIComponent(commentId)}/replies${params}`, true);
+  },
+  post: (videoId, text) => apiPost(`/youtube/videos/${encodeURIComponent(videoId)}/comments`, { text }, true),
+  reply: (videoId, commentId, text) =>
+    apiPost(`/youtube/videos/${encodeURIComponent(videoId)}/comments/${encodeURIComponent(commentId)}/replies`, { text }, true)
+};
+
+export const sharedColorsAPI = {
+  createLink: (items) => apiPost('/share-links', { items }, true),
+  get: (token) => apiGet(`/shared/${token}`, true),
+  // Omit items to add everything in the link
+  save: (token, items) => apiPost(`/shared/${token}/save`, items ? { items } : {}, true)
 };
 
 export const brandsAPI = {

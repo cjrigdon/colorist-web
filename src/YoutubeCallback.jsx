@@ -3,6 +3,7 @@
 import React, {useState, useEffect} from 'react';
 import {useLocation, useNavigate} from "react-router-dom";
 import { authAPI, setAuthToken } from './services/api';
+import { consumePostAuthRedirect } from './utils/postAuthRedirect';
 
 function YoutubeCallback() {
     const [loading, setLoading] = useState(true);
@@ -18,15 +19,16 @@ function YoutubeCallback() {
                 // Store the access token if present
                 if (data.access_token) {
                     setAuthToken(data.access_token);
-                    // Redirect to studio overview on success
-                    navigate('/studio/overview');
+                    navigate(consumePostAuthRedirect());
+                } else if (data.connected) {
+                    navigate(consumePostAuthRedirect(), { replace: true });
                 } else {
                     throw new Error('No authentication token received from server.');
                 }
             })
             .catch((error) => {
                 console.error('Error fetching YouTube callback:', error);
-                setError(error.message || error.data?.message || 'An error occurred during authentication. Please try again.');
+                setError(error.data?.message || error.message || 'An error occurred during authentication. Please try again.');
                 setLoading(false);
             });
     }, [location.search, navigate]);

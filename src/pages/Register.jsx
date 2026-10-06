@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI, subscriptionAPI, setAuthToken, isAuthenticated } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
+import { consumePostAuthRedirect } from '../utils/postAuthRedirect';
 
 const STEPS = {
   ACCOUNT: 1,
@@ -172,14 +173,14 @@ export default function Register() {
             await authAPI.completeOnboarding();
           } catch (_) { /* continue to app */ }
           setTimeout(() => {
-            navigate('/studio/overview');
+            navigate(consumePostAuthRedirect());
           }, 2000);
           return;
         }
       }
 
       await authAPI.completeOnboarding();
-      navigate('/studio/overview');
+      navigate(consumePostAuthRedirect());
     } catch (err) {
       setError(err.message || err.data?.message || 'An error occurred. Please try again.');
       console.error('Plan selection error:', err);

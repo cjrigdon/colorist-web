@@ -7,6 +7,8 @@ import AddColorComboModal from './AddColorComboModal';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import TagIcon from './TagIcon';
+import ShareLinkModal from './ShareLinkModal';
+import { useShareSelection, SelectToShareButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
 import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 const ColorCombos = ({ user }) => {
@@ -18,6 +20,8 @@ const ColorCombos = ({ user }) => {
   const [deleting, setDeleting] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
   const [togglingFavorite, setTogglingFavorite] = useState(null);
+  const [combosToShare, setCombosToShare] = useState(null);
+  const shareSelection = useShareSelection();
 
   // Check if we should open the add modal from navigation state
   useEffect(() => {
@@ -180,11 +184,14 @@ const ColorCombos = ({ user }) => {
           </div>
         )}
         <div className="px-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-semibold text-slate-800 font-venti">Color Combos</h3>
               <p className="text-sm text-slate-600 mt-0.5">{STUDIO_SECTION_DESCRIPTIONS.combos}</p>
             </div>
+            {!shareSelection.selecting && (
+            <div className="flex items-center gap-3">
+            <SelectToShareButton onClick={shareSelection.start} disabled={combos.length === 0} />
             <button 
             onClick={() => {
               if (hasReachedLimit) {
@@ -214,7 +221,19 @@ const ColorCombos = ({ user }) => {
             </svg>
             <span>New Combo</span>
           </button>
+            </div>
+            )}
           </div>
+          {shareSelection.selecting && (
+            <div className="mt-4">
+              <ShareSelectionBar
+                count={shareSelection.selectedItems.length}
+                noun="combos"
+                onCancel={shareSelection.cancel}
+                onShare={() => setCombosToShare(shareSelection.selectedItems)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Combos Grid Section */}
@@ -238,15 +257,22 @@ const ColorCombos = ({ user }) => {
             </div>
           ) : null}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {combos.map((combo) => (
+          {combos.map((combo) => {
+            const selected = shareSelection.selecting && shareSelection.isSelected(combo.id);
+            return (
             <div
               key={combo.id}
-              className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all cursor-pointer relative"
+              className={`bg-slate-50 rounded-xl shadow-sm border p-6 hover:shadow-md transition-all cursor-pointer relative ${
+                selected ? 'ring-2 ring-[#ea3663]' : ''
+              }`}
+              style={{ borderColor: selected ? '#ea3663' : '#e2e8f0' }}
               onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ea3663'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-              onClick={() => navigate(`/edit/color-combo/${combo.id}`)}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = selected ? '#ea3663' : '#e2e8f0'}
+              onClick={() => (shareSelection.selecting ? shareSelection.toggle(combo) : navigate(`/edit/color-combo/${combo.id}`))}
             >
+              {shareSelection.selecting && <SelectionCheck checked={selected} />}
               {/* Favorite and Delete Buttons - Top Right */}
+              {!shareSelection.selecting && (
               <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
                 <button
                   onClick={(e) => handleToggleFavorite(combo.id, e)}
@@ -274,7 +300,8 @@ const ColorCombos = ({ user }) => {
                   </svg>
                 </button>
               </div>
-              <div className="mb-4 pr-8">
+              )}
+              <div className={`mb-4 ${shareSelection.selecting ? 'pl-9' : 'pr-24'}`}>
                 <h3 className="text-xl font-semibold text-slate-800 font-venti">{combo.title}</h3>
               </div>
 
@@ -315,7 +342,8 @@ const ColorCombos = ({ user }) => {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           </div>
 
           {/* Infinite scroll trigger */}
@@ -361,6 +389,16 @@ const ColorCombos = ({ user }) => {
         itemName={comboToDelete?.title || 'Color Combo'}
         itemType="color combo"
       />
+      {combosToShare && (
+        <ShareLinkModal
+          type="combo"
+          items={combosToShare}
+          onClose={() => {
+            setCombosToShare(null);
+            shareSelection.cancel();
+          }}
+        />
+      )}
     </>
   );
 };

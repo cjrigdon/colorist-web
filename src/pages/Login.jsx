@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authAPI, setAuthToken } from '../services/api';
+import { consumePostAuthRedirect } from '../utils/postAuthRedirect';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -71,7 +72,7 @@ function Login() {
           return;
         }
 
-        navigate('/studio/overview');
+        navigate(consumePostAuthRedirect());
       } else {
         throw new Error('No authentication token received from server.');
       }

@@ -14,6 +14,9 @@ import AdSpace from './AdSpace';
 import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
+import VideoComments from './VideoComments';
+
+const SHOW_COMMENTS_KEY = 'color_along_show_comments';
 
 // Color distance calculation using Euclidean distance in RGB space
 const colorDistance = (color1, color2) => {
@@ -178,6 +181,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [userSetId, setUserSetId] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showComments, setShowComments] = useState(() => localStorage.getItem(SHOW_COMMENTS_KEY) === '1');
   const journalInspirationKey = useMemo(
     () => getJournalDraftInspirationKey(selectedVideo, selectedImage),
     [selectedVideo, selectedImage]
@@ -284,6 +288,20 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const youtubeApiReadyRef = useRef(false);
   const progressSaveIntervalRef = useRef(null);
   const [youtubeApiLoaded, setYoutubeApiLoaded] = useState(false);
+
+  const toggleComments = useCallback(() => {
+    setShowComments((open) => {
+      localStorage.setItem(SHOW_COMMENTS_KEY, open ? '0' : '1');
+      return !open;
+    });
+  }, []);
+
+  const seekVideo = useCallback((seconds) => {
+    const player = youtubePlayerRef.current;
+    if (!player?.seekTo) return;
+    player.seekTo(seconds, true);
+    player.playVideo?.();
+  }, []);
 
   // Helper functions for video progress
   const getVideoProgressKey = (videoId) => `youtube_progress_${videoId}`;
@@ -2411,7 +2429,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              <div className="flex-1 bg-slate-900 overflow-hidden flex items-center justify-center" style={{ minHeight: '600px' }}>
+              <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+              <div className="flex-1 min-w-0 bg-slate-900 overflow-hidden flex items-center justify-center" style={{ minHeight: '600px' }}>
                 {youtubeApiLoaded ? (
                   <div id="youtube-player-container" className="youtube-player-frame"></div>
                 ) : (
@@ -2436,12 +2455,33 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                   })()
                 )}
               </div>
+              {showComments && (
+                <VideoComments
+                  videoId={selectedVideo.id}
+                  onSeek={youtubeApiLoaded ? seekVideo : undefined}
+                  onClose={toggleComments}
+                  className="w-full lg:w-[360px] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 h-[480px] lg:h-auto"
+                />
+              )}
+              </div>
               <div className="flex items-center justify-between p-2 flex-shrink-0 bg-white border-t border-slate-200">
                 <div>
                   <h4 className="text-sm font-semibold text-slate-800">{selectedVideo.title}</h4>
                   <p className="text-xs text-slate-600">Video ID: {selectedVideo.id}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleComments}
+                    aria-pressed={showComments}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                      showComments ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    Comments
+                  </button>
                   <button
                     onClick={() => {
                       setShowJournalModal(true);

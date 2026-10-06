@@ -13,6 +13,7 @@ import Profile from "./pages/Profile";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Support from "./pages/Support";
 import YoutubeCallback from "./YoutubeCallback";
+import SharedLink from "./pages/SharedLink";
 import { isAuthenticated } from "./services/api";
 
 function ProtectedRoute({ children }) {
@@ -35,6 +36,7 @@ function App() {
               <Route path="/privacy-policy" element={isAuthenticated() ? <Dashboard /> : <PrivacyPolicy />}></Route>
               <Route path="/support" element={<Support />}></Route>
               <Route path="/auth/youtube" element={<YoutubeCallback />}></Route>
+              <Route path="/shared/:token" element={<SharedLink />}></Route>
               <Route path="/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           </Routes>
       </BrowserRouter>

@@ -5,6 +5,9 @@ import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import TagSelect from '../components/TagSelect';
 import DropdownMenu from '../components/DropdownMenu';
 import BookDropdown from '../components/BookDropdown';
+import VideoComments from '../components/VideoComments';
+
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 const getSetSizeLabel = (setSize) => {
   const setName = setSize.set?.name || setSize.name || 'Unknown set';
@@ -57,6 +60,7 @@ const EditInspiration = () => {
   const [filePreview, setFilePreview] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
   const [playlists, setPlaylists] = useState([]);
@@ -653,6 +657,26 @@ const EditInspiration = () => {
           )}
         </form>
       </div>
+
+      {type === 'video' && YOUTUBE_ID_PATTERN.test(formData.embed_id) && (
+        showComments ? (
+          <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <VideoComments
+              videoId={formData.embed_id}
+              onClose={() => setShowComments(false)}
+              className="max-h-[640px]"
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowComments(true)}
+            className="mt-6 w-full px-4 py-3 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-2xl shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            Show YouTube comments
+          </button>
+        )
+      )}
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
