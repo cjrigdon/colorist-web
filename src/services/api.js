@@ -214,15 +214,34 @@ export const subscriptionAPI = {
   getSetupIntent: () => apiPost('/subscription/setup-intent', {}, true)
 };
 
+const COLORS_CACHE_TTL_MS = 10 * 60 * 1000;
+let colorsCache = { promise: null, loadedAt: 0 };
+
+const invalidateColorsCache = (result) => {
+  colorsCache = { promise: null, loadedAt: 0 };
+  return result;
+};
+
 export const colorsAPI = {
-  getAll: () => apiGet('/colors', true),
+  // Shared in-memory cache so palette and pencil set pickers don't refetch the full color list each time they open
+  getAll: () => {
+    const fresh = colorsCache.promise && Date.now() - colorsCache.loadedAt < COLORS_CACHE_TTL_MS;
+    if (!fresh) {
+      const promise = apiGet('/colors', true);
+      colorsCache = { promise, loadedAt: Date.now() };
+      promise.catch(() => {
+        if (colorsCache.promise === promise) invalidateColorsCache();
+      });
+    }
+    return colorsCache.promise;
+  },
   getById: (id) => apiGet(`/colors/${id}`, true),
-  create: (color) => apiPost('/colors', color, true),
-  update: (id, color) => apiPut(`/colors/${id}`, color, true),
-  delete: (id) => apiDelete(`/colors/${id}`, true),
+  create: (color) => apiPost('/colors', color, true).then(invalidateColorsCache),
+  update: (id, color) => apiPut(`/colors/${id}`, color, true).then(invalidateColorsCache),
+  delete: (id) => apiDelete(`/colors/${id}`, true).then(invalidateColorsCache),
   createFromHex: (hex) => {
     // Use the ColorService's upsertColorWithHex via a special endpoint or create with hex
-    return apiPost('/colors', { hex: hex.replace('#', '') }, true);
+    return apiPost('/colors', { hex: hex.replace('#', '') }, true).then(invalidateColorsCache);
   }
 };
 

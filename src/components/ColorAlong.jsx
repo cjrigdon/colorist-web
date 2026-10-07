@@ -248,9 +248,11 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [videoSetsForBrand, setVideoSetsForBrand] = useState([]);
   const [loadingVideoSets, setLoadingVideoSets] = useState(false);
   const [videoSelectedSet, setVideoSelectedSet] = useState(null);
-  const [videoSizesForSet, setVideoSizesForSet] = useState([]);
-  const [loadingVideoSizes, setLoadingVideoSizes] = useState(false);
+  const [pendingVideoSetId, setPendingVideoSetId] = useState(null);
+  const videoSetSizesCacheRef = useRef(new Map());
   const [videoSelectedSetSize, setVideoSelectedSetSize] = useState(null); // Store selected set size for display
+  const videoSelectedSetSizeRef = useRef(null);
+  videoSelectedSetSizeRef.current = videoSelectedSetSize;
   const [videoIncludedSetSizeIds, setVideoIncludedSetSizeIds] = useState([]);
 
   // User Set Selection State (dropdown, same as journal)
@@ -464,7 +466,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         setVideoSelectedBrand(null);
         setVideoSelectedSet(null);
         setVideoSetsForBrand([]);
-        setVideoSizesForSet([]);
       })
       .catch((error) => console.error('Error loading pencil set from URL:', error));
 
@@ -816,52 +817,58 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     }
   };
 
-  const fetchVideoSizesForSet = async (setId) => {
-    try {
-      setLoadingVideoSizes(true);
-      const response = await coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
+  // Sizes (with pencils) per set are cached so hovering, selecting and loading colors share one request
+  const fetchVideoSizesForSet = useCallback((setId) => {
+    const cache = videoSetSizesCacheRef.current;
+    if (!cache.has(setId)) {
+      const request = coloredPencilSetsAPI.getAvailableSetSizes(1, 100, true, {
         setId: setId,
         excludePencils: false
-      });
-      let sizesForThisSet = [];
-      if (Array.isArray(response)) {
-        sizesForThisSet = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        sizesForThisSet = response.data;
-      }
-      
-      const colorAlongEligibleSizes = sizesForThisSet.filter(
-        (setSize) => setSize.include_in_color_along !== false
-      );
-
-      setVideoSizesForSet(colorAlongEligibleSizes);
-      return colorAlongEligibleSizes;
-    } catch (err) {
-      console.error('Error fetching sizes for set:', err);
-      return [];
-    } finally {
-      setLoadingVideoSizes(false);
+      })
+        .then((response) => {
+          const sizesForThisSet = Array.isArray(response) ? response : (response?.data || []);
+          return sizesForThisSet.filter((setSize) => setSize.include_in_color_along !== false);
+        })
+        .catch((err) => {
+          cache.delete(setId);
+          throw err;
+        });
+      cache.set(setId, request);
     }
+    return cache.get(setId);
+  }, []);
+
+  const prefetchVideoSet = (setId) => {
+    fetchVideoSizesForSet(setId).catch(() => {});
   };
 
   const handleVideoBrandSelect = (brand) => {
     setVideoSelectedBrand(brand);
     setVideoSelectedSet(null);
     setVideoSetId(null);
-    setVideoSizesForSet([]);
     fetchVideoSetsForBrand(brand.id);
     setVideoStep('set');
   };
 
   const handleVideoSetSelect = async (set) => {
+    if (pendingVideoSetId) return;
     setVideoSelectedSet(set);
-    const eligibleSizes = await fetchVideoSizesForSet(set.id);
+    setPendingVideoSetId(set.id);
+    let eligibleSizes;
+    try {
+      eligibleSizes = await fetchVideoSizesForSet(set.id);
+    } catch (err) {
+      console.error('Error fetching sizes for set:', err);
+      setPendingVideoSetId(null);
+      setVideoSelectedSet(null);
+      return;
+    }
+    setPendingVideoSetId(null);
     setVideoIncludedSetSizeIds(eligibleSizes.map((size) => size.id));
-    const allPencils = eligibleSizes.flatMap((size) =>
-      Array.isArray(size.pencils) ? size.pencils : []
-    );
-    const uniquePencils = allPencils.filter(
-      (pencil, index, arr) => pencil?.id && arr.findIndex((p) => p?.id === pencil.id) === index
+    const uniquePencilIds = new Set(
+      eligibleSizes.flatMap((size) => (Array.isArray(size.pencils) ? size.pencils : []))
+        .map((pencil) => pencil?.id)
+        .filter(Boolean)
     );
 
     setVideoSetId(set.id);
@@ -873,14 +880,13 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         brand: set.brand || videoSelectedBrand?.name || 'Unknown',
         thumb: set.thumb || eligibleSizes.find((size) => size.thumb)?.thumb || null,
       },
-      count: uniquePencils.length,
+      count: uniquePencilIds.size,
       eligible_sizes_count: eligibleSizes.length,
     });
     setVideoStep('brand');
     setVideoSelectedBrand(null);
     setVideoSelectedSet(null);
     setVideoSetsForBrand([]);
-    setVideoSizesForSet([]);
   };
 
   const handleVideoBack = () => {
@@ -889,7 +895,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       setVideoSelectedBrand(null);
       setVideoSelectedSet(null);
       setVideoSetsForBrand([]);
-      setVideoSizesForSet([]);
     }
   };
 
@@ -1033,16 +1038,16 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       try {
         setLoadingColors(true);
         const eligibleSizes = await fetchVideoSizesForSet(videoSetId);
-        const allPencilsFromEligibleSizes = eligibleSizes.flatMap((setSize) =>
-          Array.isArray(setSize.pencils) ? setSize.pencils : []
-        );
-        const dedupedEligiblePencils = allPencilsFromEligibleSizes.filter(
-          (pencil, index, arr) => pencil?.id && arr.findIndex((p) => p?.id === pencil.id) === index
-        );
-        const pencilsData = dedupedEligiblePencils;
+        const pencilsById = new Map();
+        eligibleSizes.forEach((setSize) => {
+          (Array.isArray(setSize.pencils) ? setSize.pencils : []).forEach((pencil) => {
+            if (pencil?.id && !pencilsById.has(pencil.id)) pencilsById.set(pencil.id, pencil);
+          });
+        });
+        const pencilsData = [...pencilsById.values()];
 
         // Find the set info
-        const setInfo = allPencilSets.find(set => set.id === videoSetId) || videoSelectedSet;
+        const setInfo = allPencilSets.find(set => set.id === videoSetId) || videoSelectedSetSizeRef.current?.set;
         
         // Transform pencils to colors format (API returns pencils ordered by name)
         const colors = pencilsData
@@ -1054,6 +1059,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             inStock: true
           }));
 
+        if (cancelled) return;
         setVideoSet({
           id: videoSetId,
           name: setInfo?.name || 'Unknown',
@@ -1062,6 +1068,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           colors
         });
       } catch (error) {
+        if (cancelled) return;
         console.error('Error fetching video set colors:', error);
         setVideoSet(null);
       } finally {
@@ -1069,8 +1076,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       }
     };
 
+    let cancelled = false;
     fetchVideoSetColors();
-  }, [videoSetId, allPencilSets, videoSelectedSet]);
+    return () => {
+      cancelled = true;
+    };
+  }, [videoSetId, allPencilSets, fetchVideoSizesForSet]);
 
   // Fetch colors for user set when selected
   useEffect(() => {
@@ -1783,7 +1794,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                             setVideoSelectedBrand(null);
                             setVideoSelectedSet(null);
                             setVideoSetsForBrand([]);
-                            setVideoSizesForSet([]);
                           }}
                           className="text-xs text-slate-500 hover:text-slate-700 underline"
                         >
@@ -1812,7 +1822,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                         {videoStep !== 'brand' && (
                           <button
                             onClick={handleVideoBack}
-                            className="flex items-center space-x-1 text-xs text-slate-600 hover:text-slate-800 transition-colors"
+                            disabled={Boolean(pendingVideoSetId)}
+                            className="flex items-center space-x-1 text-xs text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -1861,24 +1872,46 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                             ) : videoSetsForBrand.length === 0 ? (
                               <div className="text-center py-2 text-xs text-slate-500">No sets available for this brand</div>
                             ) : (
-                              <div className="space-y-1">
-                                {videoSetsForBrand.map((set) => (
-                                  <button
-                                    key={set.id}
-                                    onClick={() => handleVideoSetSelect(set)}
-                                    className="w-full flex items-center gap-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                                  >
-                                    <ListThumb src={set.thumb} alt={set.name || 'Set'} icon="set" />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-xs font-medium text-slate-800 truncate">
-                                        {set.name || 'Unknown'}
+                              <div className="space-y-1" aria-busy={Boolean(pendingVideoSetId)}>
+                                {videoSetsForBrand.map((set) => {
+                                  const isPending = pendingVideoSetId === set.id;
+                                  const isDisabled = Boolean(pendingVideoSetId) && !isPending;
+                                  return (
+                                    <button
+                                      key={set.id}
+                                      onClick={() => handleVideoSetSelect(set)}
+                                      onMouseEnter={() => prefetchVideoSet(set.id)}
+                                      onFocus={() => prefetchVideoSet(set.id)}
+                                      disabled={isDisabled}
+                                      aria-busy={isPending}
+                                      className={`w-full flex items-center gap-2 p-1.5 rounded border transition-colors text-left ${
+                                        isPending
+                                          ? 'border-pink-300 bg-pink-50 cursor-wait'
+                                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                      <ListThumb src={set.thumb} alt={set.name || 'Set'} icon="set" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-medium text-slate-800 truncate">
+                                          {set.name || 'Unknown'}
+                                        </div>
+                                        {isPending && (
+                                          <div className="text-[11px] text-pink-600">Loading pencils...</div>
+                                        )}
                                       </div>
-                                    </div>
-                                    <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </button>
-                                ))}
+                                      {isPending ? (
+                                        <svg className="w-3.5 h-3.5 text-pink-500 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>

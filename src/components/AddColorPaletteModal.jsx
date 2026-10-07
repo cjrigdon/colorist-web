@@ -18,6 +18,10 @@ const AddColorPaletteModal = ({ isOpen, onClose, onSuccess }) => {
   const [hasGeneratedPalette, setHasGeneratedPalette] = useState(false);
 
   useEffect(() => {
+    colorsAPI.getAll().catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       fetchAvailableColors();
       setPaletteData({ title: '', base_color: '' });
@@ -44,7 +48,7 @@ const AddColorPaletteModal = ({ isOpen, onClose, onSuccess }) => {
 
   const fetchAvailableColors = async () => {
     try {
-      setLoadingColors(true);
+      if (availableColors.length === 0) setLoadingColors(true);
       const response = await colorsAPI.getAll();
       let colorsData = [];
       if (Array.isArray(response)) {

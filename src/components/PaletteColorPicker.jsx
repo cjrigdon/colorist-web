@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { MAX_PALETTE_COLORS, normalizeHex } from '../utils/colorUtils';
+
+const RENDER_BATCH = 120;
 
 const stripHex = (hex) => (hex || '').replace(/^#/, '').toUpperCase();
 
@@ -22,24 +24,44 @@ const PaletteColorPicker = ({
   maxColors = MAX_PALETTE_COLORS,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [visibleCount, setVisibleCount] = useState(RENDER_BATCH);
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const selectedIds = new Set(selectedColors.map((color) => color.id));
   const totalCount = selectedColors.length + customColors.length;
   const atLimit = totalCount >= maxColors;
   const hexQuery = parseHexQuery(searchTerm);
-  const searchLower = searchTerm.trim().toLowerCase();
-  const searchHexFragment = stripHex(searchTerm.trim());
 
-  const filteredColors = availableColors.filter((color) => {
-    if (!searchLower) return true;
-    if (hexQuery) return stripHex(color.hex) === stripHex(hexQuery);
-    return (
-      color.name?.toLowerCase().includes(searchLower) ||
-      (searchHexFragment && stripHex(color.hex).includes(searchHexFragment))
-    );
-  });
+  const searchIndex = useMemo(
+    () => availableColors.map((color) => ({
+      color,
+      name: (color.name || '').toLowerCase(),
+      hex: stripHex(color.hex),
+    })),
+    [availableColors]
+  );
 
-  const showAddHex = hexQuery && filteredColors.length === 0;
+  const filteredColors = useMemo(() => {
+    const term = deferredSearch.trim();
+    if (!term) return availableColors;
+    const searchLower = term.toLowerCase();
+    const deferredHexQuery = parseHexQuery(term);
+    const searchHexFragment = stripHex(term);
+    const matches = deferredHexQuery
+      ? searchIndex.filter((entry) => entry.hex === stripHex(deferredHexQuery))
+      : searchIndex.filter((entry) => entry.name.includes(searchLower) || (searchHexFragment && entry.hex.includes(searchHexFragment)));
+    return matches.map((entry) => entry.color);
+  }, [availableColors, searchIndex, deferredSearch]);
+
+  useEffect(() => {
+    setVisibleCount(RENDER_BATCH);
+  }, [deferredSearch]);
+
+  const visibleColors = filteredColors.slice(0, visibleCount);
+  const hiddenCount = filteredColors.length - visibleColors.length;
+  const searchPending = deferredSearch !== searchTerm;
+
+  const showAddHex = hexQuery && !searchPending && filteredColors.length === 0;
   const hexAlreadyAdded = hexQuery && customColors.includes(hexQuery);
 
   const toggleColor = (color) => {
@@ -176,9 +198,9 @@ const PaletteColorPicker = ({
           {searchTerm ? `No colors match "${searchTerm}". Enter a hex code like #FF5733 to add your own.` : 'No system colors available.'}
         </div>
       ) : (
-        <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-2">
+        <div className={`max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-2 transition-opacity ${searchPending ? 'opacity-60' : ''}`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {filteredColors.map((color) => {
+            {visibleColors.map((color) => {
               const isSelected = selectedIds.has(color.id);
               const isDisabled = !isSelected && atLimit;
               return (
@@ -206,6 +228,20 @@ const PaletteColorPicker = ({
               );
             })}
           </div>
+          {hiddenCount > 0 && (
+            <div className="flex items-center justify-between gap-3 pt-2 mt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span>
+                Showing {visibleColors.length} of {filteredColors.length}. Search to narrow the list.
+              </span>
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + RENDER_BATCH * 2)}
+                className="font-medium text-[#ea3663] hover:underline flex-shrink-0"
+              >
+                Show more
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
