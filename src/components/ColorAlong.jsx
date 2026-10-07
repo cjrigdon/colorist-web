@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
+import BookPageFields, { EMPTY_BOOK_PAGE, bookPagePayload, describeSavedBookPage } from './BookPageFields';
 import InspirationDropdown, { getInspirationKey, parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty } from './RichTextEditor';
 import MultiSelectDropdown from './MultiSelectDropdown';
@@ -47,6 +48,38 @@ const getThumbnailUrl = (thumb) => {
   if (thumb.startsWith('http')) return thumb;
   const apiBase = process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000';
   return `${apiBase}/storage/${thumb}`;
+};
+
+const LIST_THUMB_ICONS = {
+  brand: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  set: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
+};
+
+const ListThumb = ({ src, alt, icon, className = 'w-7 h-7' }) => {
+  const [failed, setFailed] = useState(false);
+  const url = getThumbnailUrl(src);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={`${className} rounded object-cover flex-shrink-0 bg-white border border-slate-200`}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <div className={`${className} rounded flex items-center justify-center flex-shrink-0 bg-slate-100`}>
+      <svg className="w-1/2 h-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={LIST_THUMB_ICONS[icon]} />
+      </svg>
+    </div>
+  );
 };
 
 const buildSetDropdownOptions = (setSizes = []) => {
@@ -269,6 +302,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     videoPencilSet: '',
     userPencilSet: '',
     book: '',
+    bookPage: EMPTY_BOOK_PAGE,
     palette: '',
     combos: [],
     tags: [],
@@ -837,6 +871,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
         id: set.id,
         name: set.name || 'Unknown',
         brand: set.brand || videoSelectedBrand?.name || 'Unknown',
+        thumb: set.thumb || eligibleSizes.find((size) => size.thumb)?.thumb || null,
       },
       count: uniquePencils.length,
       eligible_sizes_count: eligibleSizes.length,
@@ -1200,6 +1235,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       videoPencilSet: preselectedVideoSetId,
       userPencilSet: userSetId ? userSetId.toString() : '',
       book: urlBookId,
+      bookPage: EMPTY_BOOK_PAGE,
       palette: '',
       combos: [],
       tags: [],
@@ -1757,11 +1793,19 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     </div>
                     
                     {videoSetId && videoSelectedSetSize ? (
-                      <div className="p-2 bg-white rounded text-xs">
-                        <p className="font-medium text-slate-800">{videoSelectedSetSize.set?.name || videoSelectedSetSize.name}</p>
-                        <p className="text-slate-600 mt-0.5">
-                          {videoSelectedSetSize.set?.brand || videoSelectedSetSize.brand} - {videoSelectedSetSize.count || 0} pencils
-                        </p>
+                      <div className="flex items-center gap-2 p-2 bg-white rounded text-xs">
+                        <ListThumb
+                          src={videoSelectedSetSize.thumb || videoSelectedSetSize.set?.thumb}
+                          alt={videoSelectedSetSize.set?.name || videoSelectedSetSize.name || 'Set'}
+                          icon="set"
+                          className="w-9 h-9"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-800 truncate">{videoSelectedSetSize.set?.name || videoSelectedSetSize.name}</p>
+                          <p className="text-slate-600 mt-0.5 truncate">
+                            {videoSelectedSetSize.set?.brand || videoSelectedSetSize.brand} - {videoSelectedSetSize.count || 0} pencils
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -1795,9 +1839,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                                   <button
                                     key={brand.id}
                                     onClick={() => handleVideoBrandSelect(brand)}
-                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                    className="w-full flex items-center gap-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
                                   >
-                                    <span className="text-xs font-medium text-slate-800 truncate">{brand.name}</span>
+                                    <ListThumb src={brand.thumbnail} alt={brand.name} icon="brand" />
+                                    <span className="flex-1 min-w-0 text-xs font-medium text-slate-800 truncate">{brand.name}</span>
                                     <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
@@ -1821,8 +1866,9 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                                   <button
                                     key={set.id}
                                     onClick={() => handleVideoSetSelect(set)}
-                                    className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                    className="w-full flex items-center gap-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
                                   >
+                                    <ListThumb src={set.thumb} alt={set.name || 'Set'} icon="set" />
                                     <div className="flex-1 min-w-0">
                                       <div className="text-xs font-medium text-slate-800 truncate">
                                         {set.name || 'Unknown'}
@@ -2733,9 +2779,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                                       key={`journal-video-brand-${brand.id}`}
                                       type="button"
                                       onClick={() => handleJournalVideoBrandSelect(brand)}
-                                      className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                      className="w-full flex items-center gap-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
                                     >
-                                      <span className="text-xs font-medium text-slate-800 truncate">{brand.name}</span>
+                                      <ListThumb src={brand.thumbnail} alt={brand.name} icon="brand" />
+                                      <span className="flex-1 min-w-0 text-xs font-medium text-slate-800 truncate">{brand.name}</span>
                                       <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                       </svg>
@@ -2759,9 +2806,10 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                                       key={`journal-video-set-${set.id}`}
                                       type="button"
                                       onClick={() => handleJournalVideoSetSelect(set)}
-                                      className="w-full flex items-center justify-between p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
+                                      className="w-full flex items-center gap-2 p-1.5 rounded border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
                                     >
-                                      <span className="text-xs font-medium text-slate-800 truncate">{set.name || 'Unknown'}</span>
+                                      <ListThumb src={set.thumb} alt={set.name || 'Set'} icon="set" />
+                                      <span className="flex-1 min-w-0 text-xs font-medium text-slate-800 truncate">{set.name || 'Unknown'}</span>
                                       <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                       </svg>
@@ -2822,8 +2870,14 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     </label>
                     <BookDropdown
                       value={journalFormData.book}
-                      onChange={(value) => setJournalFormData({ ...journalFormData, book: value })}
+                      onChange={(value) => setJournalFormData({ ...journalFormData, book: value, bookPage: EMPTY_BOOK_PAGE })}
                       placeholder="Select a book (optional)..."
+                    />
+                    <BookPageFields
+                      bookId={journalFormData.book}
+                      value={journalFormData.bookPage}
+                      onChange={(bookPage) => setJournalFormData((prev) => ({ ...prev, bookPage }))}
+                      disabled={savingJournal}
                     />
                   </div>
 
@@ -2912,7 +2966,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       combos: journalFormData.combos.map(id => parseInt(id)),
                       tag_ids: (journalFormData.tags || []).filter(t => t.id).map(t => t.id),
                       tag_names: (journalFormData.tags || []).filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag)),
-                      notes: notesValue
+                      notes: notesValue,
+                      ...(journalFormData.book ? bookPagePayload(journalFormData.bookPage) : {})
                     };
 
                     // Remove null/empty string values (but keep empty arrays for combos)
@@ -2922,12 +2977,12 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       }
                     });
 
-                    await journalEntriesAPI.create(entryData);
+                    const savedEntry = await journalEntriesAPI.create(entryData);
                     
                     discardJournalDraft();
                     
                     // Show success message
-                    setSuccessMessage('Journal entry saved successfully!');
+                    setSuccessMessage(['Journal entry saved successfully!', describeSavedBookPage(savedEntry?.book_page)].filter(Boolean).join(' '));
                     
                     // Auto-dismiss success message after 3 seconds
                     setTimeout(() => {
@@ -2941,6 +2996,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       videoPencilSet: '',
                       userPencilSet: '',
                       book: '',
+                      bookPage: EMPTY_BOOK_PAGE,
                       palette: '',
                       combos: [],
                       tags: [],
@@ -2948,7 +3004,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     });
                   } catch (error) {
                     console.error('Error saving journal entry:', error);
-                    alert('Failed to save journal entry. Please try again.');
+                    const pageError = error.data?.errors?.book_page_id?.[0] || error.data?.errors?.book_page_number?.[0];
+                    alert(pageError || 'Failed to save journal entry. Please try again.');
                   } finally {
                     setSavingJournal(false);
                   }

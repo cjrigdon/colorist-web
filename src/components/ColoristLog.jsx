@@ -4,6 +4,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
+import BookPageFields, { EMPTY_BOOK_PAGE, bookPageFromEntry, bookPagePayload, formatBookPage } from './BookPageFields';
 import InspirationDropdown, { parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
 import PrimaryButton from './PrimaryButton';
@@ -396,6 +397,8 @@ const ColoristLog = () => {
           date: entry.date,
           inspiration_id: entry.inspiration_id,
           book_id: entry.book_id,
+          book_page_id: entry.book_page_id || null,
+          book_page: entry.book_page || null,
           pencilSet_id: entry.colored_pencil_set_id,
           pencils: entry.pencils || [],
           palette_id: entry.color_palette_id, // Keep for backward compatibility
@@ -510,6 +513,7 @@ const ColoristLog = () => {
       date: formatDate(new Date()),
       inspiration: '',
       book: '',
+      bookPage: EMPTY_BOOK_PAGE,
       palettes: [],
       combos: [],
       tags: [],
@@ -533,6 +537,7 @@ const ColoristLog = () => {
       date: entry.date,
       inspiration: entry.inspiration_id ? entry.inspiration_id.toString() : '',
       book: entry.book_id ? entry.book_id.toString() : '',
+      bookPage: bookPageFromEntry(entry),
       palettes: entry.palettes ? entry.palettes.map(id => id.toString()) : (entry.palette_id ? [entry.palette_id.toString()] : []),
       combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
       tags: (entry.tags || []).map(t => ({ id: t.id, tag: t.tag, icon: t.icon || null })),
@@ -601,6 +606,7 @@ const ColoristLog = () => {
           delete entryData[key];
         }
       });
+      Object.assign(entryData, bookPagePayload(formData.book ? formData.bookPage : null));
 
       let savedEntry;
       if (editingEntry) {
@@ -639,6 +645,8 @@ const ColoristLog = () => {
         date: entry.date,
         inspiration_id: entry.inspiration_id,
         book_id: entry.book_id,
+        book_page_id: entry.book_page_id || null,
+        book_page: entry.book_page || null,
         pencilSet_id: entry.colored_pencil_set_id,
         pencils: entry.pencils || [],
         palette_id: entry.color_palette_id, // Keep for backward compatibility
@@ -664,7 +672,8 @@ const ColoristLog = () => {
       setShowPaletteList(false);
     } catch (error) {
       console.error('Error saving entry:', error);
-      alert('Failed to save entry. Please try again.');
+      const pageError = error.data?.errors?.book_page_id?.[0] || error.data?.errors?.book_page_number?.[0];
+      alert(pageError || 'Failed to save entry. Please try again.');
     } finally {
       setSavingEntry(false);
     }
@@ -693,6 +702,8 @@ const ColoristLog = () => {
         date: entry.date,
         inspiration_id: entry.inspiration_id,
         book_id: entry.book_id,
+        book_page_id: entry.book_page_id || null,
+        book_page: entry.book_page || null,
         pencilSet_id: entry.colored_pencil_set_id,
         pencils: entry.pencils || [],
         palette_id: entry.color_palette_id, // Keep for backward compatibility
@@ -1114,6 +1125,7 @@ const ColoristLog = () => {
                       {book && (
                         <EntryTag icon="book">
                           {book.title || book.name || `Book ${entry.book_id}`}
+                          {entry.book_page && ` · ${formatBookPage(entry.book_page)}`}
                         </EntryTag>
                       )}
                       {pencilSet && (
@@ -1279,8 +1291,14 @@ const ColoristLog = () => {
                       <label className="block text-sm font-medium text-slate-700 mb-2">Book</label>
                       <BookDropdown
                         value={formData.book}
-                        onChange={(value) => setFormData({ ...formData, book: value })}
+                        onChange={(value) => setFormData({ ...formData, book: value, bookPage: EMPTY_BOOK_PAGE })}
                         placeholder="Select book..."
+                      />
+                      <BookPageFields
+                        bookId={formData.book}
+                        value={formData.bookPage}
+                        onChange={(bookPage) => setFormData((prev) => ({ ...prev, bookPage }))}
+                        disabled={savingEntry}
                       />
                     </div>
                   </div>

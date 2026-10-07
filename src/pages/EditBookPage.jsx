@@ -124,6 +124,31 @@ const EditBookPage = () => {
   const [combos, setCombos] = useState([]);
   const [loadingPalettes, setLoadingPalettes] = useState(false);
   const [loadingCombos, setLoadingCombos] = useState(false);
+  const [siblingPages, setSiblingPages] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
+
+  useEffect(() => {
+    if (!formData.book_id) {
+      setSiblingPages([]);
+      return undefined;
+    }
+    let cancelled = false;
+    bookPagesAPI.getAll(1, 100, { book_id: formData.book_id })
+      .then((response) => {
+        if (!cancelled) setSiblingPages(Array.isArray(response) ? response : (response?.data || []));
+      })
+      .catch(() => {
+        if (!cancelled) setSiblingPages([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.book_id]);
+
+  const parsedNumber = parseInt(formData.number, 10);
+  const duplicatePage = Number.isInteger(parsedNumber)
+    ? siblingPages.find((page) => page.number === parsedNumber && String(page.id) !== String(id))
+    : null;
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -295,6 +320,7 @@ const EditBookPage = () => {
         }
 
         setExistingFiles(data.files || []);
+        setJournalEntries(data.journal_entries || []);
       } catch (err) {
         setError(err.message || err.data?.message || 'Failed to load book page');
       } finally {
@@ -307,6 +333,10 @@ const EditBookPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (duplicatePage) {
+      setError(`Page ${duplicatePage.number} already exists in this book.`);
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -346,7 +376,7 @@ const EditBookPage = () => {
         }
       }
     } catch (err) {
-      setError(err.data?.message || err.message || 'Failed to save book page');
+      setError(err.data?.errors?.number?.[0] || err.data?.message || err.message || 'Failed to save book page');
     } finally {
       setSaving(false);
     }
@@ -466,10 +496,15 @@ const EditBookPage = () => {
               name="number"
               value={formData.number}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200"
+              className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200 ${duplicatePage ? 'border-red-300' : 'border-slate-200'}`}
               placeholder="e.g., 1"
               min="1"
             />
+            {duplicatePage && (
+              <p className="mt-1.5 text-xs text-red-600">
+                Page {duplicatePage.number} already exists in this book{duplicatePage.name ? ` ("${duplicatePage.name}")` : ''}. Choose a different number.
+              </p>
+            )}
           </div>
 
           <div>
@@ -598,7 +633,7 @@ const EditBookPage = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Add Colors</span>
+                <span>Select Combos/Palettes</span>
               </button>
             ) : (
               <div className="space-y-4">
@@ -680,6 +715,37 @@ const EditBookPage = () => {
             )}
           </div>
 
+          {id && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Journal Entries
+              </label>
+              {journalEntries.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No journal entries for this page yet. Choose this page when you add a journal entry for the book.
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-200 border border-slate-200 rounded-xl">
+                  {journalEntries.map((entry) => (
+                    <li key={entry.id} className="flex items-center gap-3 p-3">
+                      {entry.image_url && (
+                        <img src={entry.image_url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800">
+                          {entry.date ? new Date(`${entry.date}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'No date'}
+                        </p>
+                        {entry.notes_preview && (
+                          <p className="text-xs text-slate-600 truncate">{entry.notes_preview}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-200">
             <button
               type="button"
@@ -690,7 +756,7 @@ const EditBookPage = () => {
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || Boolean(duplicatePage)}
               className="px-6 py-2.5 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: '#ea3663' }}
               onMouseEnter={(e) => !saving && (e.target.style.backgroundColor = '#d12a4f')}

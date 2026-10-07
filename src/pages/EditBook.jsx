@@ -601,6 +601,11 @@ const EditBook = () => {
                           {page.files.length} image{page.files.length !== 1 ? 's' : ''}
                         </span>
                       )}
+                      {page.journal_entries_count > 0 && (
+                        <span>
+                          {page.journal_entries_count} journal entr{page.journal_entries_count !== 1 ? 'ies' : 'y'}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
