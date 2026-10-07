@@ -80,6 +80,196 @@ const normalizeHex = (hex) => {
   return hex;
 };
 
+const API_ORIGIN = process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000';
+
+const storageUrl = (path) => {
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${API_ORIGIN}/storage/${path}`;
+};
+
+const THUMB_ICONS = {
+  pencil: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z',
+  brand: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+};
+
+const Thumb = ({ src, alt, className = 'w-10 h-10', icon = 'pencil' }) => {
+  const [failed, setFailed] = useState(false);
+  const url = storageUrl(src);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={`${className} object-cover rounded-lg flex-shrink-0 bg-white`}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <div className={`${className} rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100`}>
+      <svg className="w-1/2 h-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={THUMB_ICONS[icon]} />
+      </svg>
+    </div>
+  );
+};
+
+const getPencilCount = (setSize) => setSize.pencils?.length || setSize.count || 0;
+const setSizeThumb = (setSize) => setSize.thumb || setSize.set?.thumb || null;
+const setSizeName = (setSize) => setSize.set?.name || setSize.name;
+const setSizeMeta = (setSize) =>
+  [setSize.set?.brand || setSize.brand, `${getPencilCount(setSize)} colors`].filter(Boolean).join(' · ');
+
+const ChevronIcon = ({ direction, className = 'w-4 h-4' }) => {
+  const paths = { left: 'M15 19l-7-7 7-7', right: 'M9 5l7 7-7 7', up: 'M5 15l7-7 7 7', down: 'M19 9l-7 7-7-7' };
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={paths[direction]} />
+    </svg>
+  );
+};
+
+const PickerStatus = ({ children }) => (
+  <div className="text-center py-4 text-slate-500 text-sm">{children}</div>
+);
+
+const SetPicker = ({
+  step,
+  brands,
+  loadingBrands,
+  brand,
+  sets,
+  loadingSets,
+  set,
+  sizes,
+  loadingSizes,
+  emptySizesText,
+  onBack,
+  onBrandSelect,
+  onSetSelect,
+  onSizeSelect,
+}) => {
+  const title = {
+    brand: 'Select a brand',
+    set: `Select a set for ${brand?.name || ''}`,
+    size: `Select a size for ${set?.name || ''}`,
+  }[step];
+  const rowClass = 'w-full flex items-center gap-2.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left';
+
+  return (
+    <div>
+      <div className="flex items-center gap-1 mb-1.5 min-h-[1.5rem]">
+        {step !== 'brand' && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back"
+            className="p-0.5 -ml-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
+          >
+            <ChevronIcon direction="left" />
+          </button>
+        )}
+        <p className="text-sm font-medium text-slate-700 truncate">{title}</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-lg p-1.5 max-h-56 overflow-y-auto">
+        {step === 'brand' && (
+          loadingBrands ? <PickerStatus>Loading brands...</PickerStatus>
+          : brands.length === 0 ? <PickerStatus>No brands available</PickerStatus>
+          : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+              {brands.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => onBrandSelect(b)}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                >
+                  <Thumb src={b.thumbnail} alt={b.name} className="w-9 h-9" icon="brand" />
+                  <span className="text-[11px] font-medium text-slate-800 text-center leading-tight">{b.name}</span>
+                </button>
+              ))}
+            </div>
+          )
+        )}
+
+        {step === 'set' && (
+          loadingSets ? <PickerStatus>Loading sets...</PickerStatus>
+          : sets.length === 0 ? <PickerStatus>No sets available for this brand</PickerStatus>
+          : (
+            <div className="space-y-1">
+              {sets.map((s) => (
+                <button key={s.id} type="button" onClick={() => onSetSelect(s)} className={`${rowClass} px-2.5 py-2`}>
+                  <span className="flex-1 min-w-0 text-sm font-medium text-slate-800 truncate">{s.name || 'Unknown'}</span>
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
+                    {s.sizeCount} size{s.sizeCount !== 1 ? 's' : ''}
+                  </span>
+                  <ChevronIcon direction="right" className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )
+        )}
+
+        {step === 'size' && (
+          loadingSizes ? <PickerStatus>Loading sizes...</PickerStatus>
+          : sizes.length === 0 ? <PickerStatus>{emptySizesText}</PickerStatus>
+          : (
+            <div className="space-y-1">
+              {sizes.map((setSize) => (
+                <button key={setSize.id} type="button" onClick={() => onSizeSelect(setSize)} className={`${rowClass} px-2 py-1.5`}>
+                  <Thumb src={setSizeThumb(setSize)} alt={setSize.name || `${setSize.count} pencils`} className="w-9 h-9" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800 truncate">{setSize.name || `${setSize.count} pencils`}</div>
+                    <div className="text-xs text-slate-500">{setSize.count} pencils</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SelectedSet = ({ setSize, action }) => (
+  <div className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-slate-200">
+    <Thumb src={setSizeThumb(setSize)} alt={setSizeName(setSize)} className="w-11 h-11" />
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-medium text-slate-800 truncate">{setSizeName(setSize)}</p>
+      <p className="text-xs text-slate-500 truncate">{setSizeMeta(setSize)}</p>
+    </div>
+    {action}
+  </div>
+);
+
+const SetChip = ({ setSize }) => (
+  <span className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 bg-white border border-slate-200 rounded-lg max-w-[16rem]">
+    <Thumb src={setSizeThumb(setSize)} alt={setSizeName(setSize)} className="w-7 h-7" />
+    <span className="min-w-0">
+      <span className="block text-xs font-medium text-slate-800 truncate">{setSizeName(setSize)}</span>
+      <span className="block text-[11px] text-slate-500 truncate">{getPencilCount(setSize)} colors</span>
+    </span>
+  </span>
+);
+
+const SetColumnHeader = ({ setSize, caption }) => (
+  <div className="flex items-center gap-3 min-w-[13rem]">
+    <Thumb src={setSizeThumb(setSize)} alt={setSizeName(setSize)} className="w-12 h-12" />
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{caption}</p>
+      <p className="text-sm font-semibold text-slate-800 font-venti leading-tight">{setSizeName(setSize)}</p>
+      <p className="text-xs font-normal text-slate-500">{setSizeMeta(setSize)}</p>
+    </div>
+  </div>
+);
+
 const ColorConversion = ({ user }) => {
   const navigate = useNavigate();
   const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
@@ -89,6 +279,7 @@ const ColorConversion = ({ user }) => {
   const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [includeTwoColorMix, setIncludeTwoColorMix] = useState(false);
+  const [setsCollapsed, setSetsCollapsed] = useState(false);
 
   // Source set selection state
   const [sourceStep, setSourceStep] = useState('brand'); // 'brand', 'set', 'size'
@@ -540,9 +731,24 @@ const ColorConversion = ({ user }) => {
     setTargetSets(targetSets.filter(setSize => setSize.id !== parseInt(setSizeId)));
   };
 
-  const getPencilCount = (setSize) => {
-    return setSize.pencils?.length || setSize.count || 0;
+  const resetSourceSelection = () => {
+    setSourceSet(null);
+    setSourceStep('brand');
+    setSourceSelectedBrand(null);
+    setSourceSelectedSet(null);
+    setSourceSetsForBrand([]);
+    setSourceSizesForSet([]);
+    setError(null);
   };
+
+  const sourceSetId = sourceSet?.set?.id;
+  const availableTargetSizes = targetSizesForSet.filter((setSize) => {
+    const isSourceSet = sourceSetId && setSize.set?.id === sourceSetId;
+    const isAlreadySelected = targetSets.some((ts) => ts.id === setSize.id);
+    return !isSourceSet && !isAlreadySelected;
+  });
+  const maxTargetSets = isFreePlan ? 1 : 5;
+  const collapsed = setsCollapsed && !!sourceSet;
 
   return (
     <div className="space-y-6">
@@ -572,439 +778,142 @@ const ColorConversion = ({ user }) => {
             </button>
           </div>
         )}
-        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[1fr_auto]' : 'grid-cols-1'}`}>
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1.3fr] gap-4">
+        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-1'}`}>
+          <div className="min-w-0">
+          {/* Set Selection */}
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => setSetsCollapsed(false)}
+              className="w-full flex items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-xl text-left hover:bg-slate-100 transition-colors"
+            >
+              <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+                <SetChip setSize={sourceSet} />
+                <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+                {targetSets.length > 0 ? (
+                  targetSets.map((setSize) => <SetChip key={setSize.id} setSize={setSize} />)
+                ) : (
+                  <span className="text-xs text-slate-500">No target sets yet</span>
+                )}
+              </div>
+              <span className="flex items-center gap-1 px-2 text-xs font-medium text-slate-600 whitespace-nowrap">
+                Edit sets
+                <ChevronIcon direction="down" />
+              </span>
+            </button>
+          ) : (
+          <div>
+          {sourceSet && (
+            <div className="flex justify-end -mt-1 mb-1.5">
+              <button
+                type="button"
+                onClick={() => setSetsCollapsed(true)}
+                className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                Collapse set selection
+                <ChevronIcon direction="up" />
+              </button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Source Set Selection */}
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-slate-800 font-venti">Source Set</h3>
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold text-slate-800 font-venti">Source Set</h3>
               {sourceSet && (
                 <button
-                  onClick={() => {
-                    setSourceSet(null);
-                    setSourceStep('brand');
-                    setSourceSelectedBrand(null);
-                    setSourceSelectedSet(null);
-                    setSourceSetsForBrand([]);
-                    setSourceSizesForSet([]);
-                    setError(null);
-                  }}
+                  type="button"
+                  onClick={resetSourceSelection}
                   className="text-xs text-slate-500 hover:text-slate-700 underline"
                 >
                   Change
                 </button>
               )}
             </div>
-            
+
             {sourceSet ? (
-              <div className="p-3 bg-white rounded-lg">
-                <p className="text-sm font-medium text-slate-800">{sourceSet.set?.name || sourceSet.name}</p>
-                <p className="text-xs text-slate-500">{sourceSet.set?.brand || sourceSet.brand} - {getPencilCount(sourceSet)} colors</p>
-              </div>
+              <SelectedSet setSize={sourceSet} />
             ) : (
-              <div className="space-y-3">
-                {sourceStep !== 'brand' && (
-                  <button
-                    onClick={handleSourceBack}
-                    className="flex items-center space-x-1 text-sm text-slate-600 hover:text-slate-800 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span>Back</span>
-                  </button>
-                )}
-                
-                <div className="text-sm font-medium text-slate-700 mb-2">
-                  {sourceStep === 'brand' && 'Select a Brand'}
-                  {sourceStep === 'set' && `Select a Set for ${sourceSelectedBrand?.name || ''}`}
-                  {sourceStep === 'size' && `Select a Size for ${sourceSelectedSet?.name || ''}`}
-                </div>
-
-                {/* Step 1: Brand Selection */}
-                {sourceStep === 'brand' && (
-                  <div className="border border-slate-200 rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {loadingBrands ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading brands...</div>
-                    ) : brands.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No brands available</div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {brands.map((brand) => {
-                          const thumbnailUrl = brand.thumbnail 
-                            ? (brand.thumbnail.startsWith('http') 
-                                ? brand.thumbnail 
-                                : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${brand.thumbnail}`)
-                            : null;
-                          
-                          return (
-                            <button
-                              key={brand.id}
-                              onClick={() => handleSourceBrandSelect(brand)}
-                              className="flex flex-col items-center p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                            >
-                              {thumbnailUrl ? (
-                                <img 
-                                  src={thumbnailUrl} 
-                                  alt={brand.name}
-                                  className="w-12 h-12 object-cover rounded-lg mb-1"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                              <div 
-                                className={`w-12 h-12 rounded-lg flex items-center justify-center mb-1 ${thumbnailUrl ? 'hidden' : ''}`}
-                                style={{ backgroundColor: '#f1f5f9' }}
-                              >
-                                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                              </div>
-                              <span className="text-xs font-medium text-slate-800 text-center">{brand.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 2: Set Selection */}
-                {sourceStep === 'set' && sourceSelectedBrand && (
-                  <div className="border border-slate-200 rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {loadingSourceSets ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading sets...</div>
-                    ) : sourceSetsForBrand.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No sets available for this brand</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {sourceSetsForBrand.map((set) => (
-                          <button
-                            key={set.id}
-                            onClick={() => handleSourceSetSelect(set)}
-                            className="w-full flex items-center justify-between p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-800 truncate">
-                                {set.name || 'Unknown'}
-                              </div>
-                              <div className="text-xs text-slate-600 mt-1">
-                                {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
-                              </div>
-                            </div>
-                            <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 3: Size Selection */}
-                {sourceStep === 'size' && sourceSelectedSet && (
-                  <div className="border border-slate-200 rounded-lg p-2 max-h-60 overflow-y-auto">
-                    {loadingSourceSizes ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
-                    ) : sourceSizesForSet.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No sizes available for this set</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {sourceSizesForSet.map((setSize) => {
-                          const thumbnail = setSize.thumb || setSize.set?.thumb || null;
-                          const thumbnailUrl = thumbnail 
-                            ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
-                            : null;
-                          
-                          return (
-                            <button
-                              key={setSize.id}
-                              onClick={() => handleSourceSizeSelect(setSize)}
-                              className="w-full flex items-center space-x-3 p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                            >
-                              {thumbnailUrl ? (
-                                <img 
-                                  src={thumbnailUrl} 
-                                  alt={setSize.name || `${setSize.count} pencils`}
-                                  className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                              <div 
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${thumbnailUrl ? 'hidden' : ''}`}
-                                style={{ backgroundColor: '#f1f5f9' }}
-                              >
-                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 truncate">
-                                  {setSize.name || `${setSize.count} pencils`}
-                                </div>
-                                <div className="text-xs text-slate-600 truncate">
-                                  {setSize.count} pencils
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <SetPicker
+                step={sourceStep}
+                brands={brands}
+                loadingBrands={loadingBrands}
+                brand={sourceSelectedBrand}
+                sets={sourceSetsForBrand}
+                loadingSets={loadingSourceSets}
+                set={sourceSelectedSet}
+                sizes={sourceSizesForSet}
+                loadingSizes={loadingSourceSizes}
+                emptySizesText="No sizes available for this set"
+                onBack={handleSourceBack}
+                onBrandSelect={handleSourceBrandSelect}
+                onSetSelect={handleSourceSetSelect}
+                onSizeSelect={handleSourceSizeSelect}
+              />
             )}
           </div>
 
           {/* Target Sets Selection */}
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-slate-800 font-venti">Target Sets</h3>
-              <span className="text-sm text-slate-500">{targetSets.length}/{isFreePlan ? 1 : 5} selected</span>
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold text-slate-800 font-venti">Target Sets</h3>
+              <span className="text-xs text-slate-500">{targetSets.length}/{maxTargetSets} selected</span>
             </div>
-            
+
             {targetSets.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {targetSets.map((set) => (
-                  <div
-                    key={set.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{set.set?.name || set.name}</p>
-                      <p className="text-xs text-slate-500">{set.set?.brand || set.brand} - {getPencilCount(set)} colors</p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveTargetSet(set.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+              <div className={`space-y-1.5 ${targetSets.length < maxTargetSets ? 'mb-3' : ''}`}>
+                {targetSets.map((setSize) => (
+                  <SelectedSet
+                    key={setSize.id}
+                    setSize={setSize}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTargetSet(setSize.id)}
+                        aria-label={`Remove ${setSizeName(setSize)}`}
+                        className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    }
+                  />
                 ))}
               </div>
             )}
 
-            {targetSets.length < (isFreePlan ? 1 : 5) && (
-              <div className="space-y-3">
-                {targetStep !== 'brand' && (
-                  <button
-                    onClick={handleTargetBack}
-                    className="flex items-center space-x-1 text-sm text-slate-600 hover:text-slate-800 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    <span>Back</span>
-                  </button>
-                )}
-                
-                <div className="text-sm font-medium text-slate-700 mb-2">
-                  {targetStep === 'brand' && 'Select a Brand'}
-                  {targetStep === 'set' && `Select a Set for ${targetSelectedBrand?.name || ''}`}
-                  {targetStep === 'size' && `Select a Size for ${targetSelectedSet?.name || ''}`}
-                </div>
-
-                {/* Step 1: Brand Selection */}
-                {targetStep === 'brand' && (
-                  <div className="border border-slate-200 rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {loadingBrands ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading brands...</div>
-                    ) : brands.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No brands available</div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {brands.map((brand) => {
-                          const thumbnailUrl = brand.thumbnail 
-                            ? (brand.thumbnail.startsWith('http') 
-                                ? brand.thumbnail 
-                                : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${brand.thumbnail}`)
-                            : null;
-                          
-                          return (
-                            <button
-                              key={brand.id}
-                              onClick={() => handleTargetBrandSelect(brand)}
-                              className="flex flex-col items-center p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                            >
-                              {thumbnailUrl ? (
-                                <img 
-                                  src={thumbnailUrl} 
-                                  alt={brand.name}
-                                  className="w-12 h-12 object-cover rounded-lg mb-1"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                              <div 
-                                className={`w-12 h-12 rounded-lg flex items-center justify-center mb-1 ${thumbnailUrl ? 'hidden' : ''}`}
-                                style={{ backgroundColor: '#f1f5f9' }}
-                              >
-                                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                              </div>
-                              <span className="text-xs font-medium text-slate-800 text-center">{brand.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 2: Set Selection */}
-                {targetStep === 'set' && targetSelectedBrand && (
-                  <div className="border border-slate-200 rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {loadingTargetSets ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading sets...</div>
-                    ) : targetSetsForBrand.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">No sets available for this brand</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {targetSetsForBrand.map((set) => (
-                          <button
-                            key={set.id}
-                            onClick={() => handleTargetSetSelect(set)}
-                            className="w-full flex items-center justify-between p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-800 truncate">
-                                {set.name || 'Unknown'}
-                              </div>
-                              <div className="text-xs text-slate-600 mt-1">
-                                {set.sizeCount} size{set.sizeCount !== 1 ? 's' : ''} available
-                              </div>
-                            </div>
-                            <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 3: Size Selection */}
-                {targetStep === 'size' && targetSelectedSet && (
-                  <div className="border border-slate-200 rounded-lg p-2 max-h-60 overflow-y-auto">
-                    {loadingTargetSizes ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">Loading sizes...</div>
-                    ) : targetSizesForSet.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-sm">
-                        No sizes available for this set
-                        {targetSelectedSet && (
-                          <div className="text-xs mt-1">Set ID: {targetSelectedSet.id}</div>
-                        )}
-                      </div>
-                    ) : (() => {
-                      // Filter out sizes that are already selected or match the source set
-                      const filteredSizes = targetSizesForSet.filter((setSize) => {
-                        if (!setSize.set) {
-                          // Still show it if we can't determine if it's the source set
-                          return true;
-                        }
-                        const sourceSetId = sourceSet?.set?.id;
-                        const targetSetId = setSize.set?.id;
-                        const isSourceSet = sourceSetId && targetSetId && targetSetId === sourceSetId;
-                        const isAlreadySelected = targetSets.some(ts => ts.id === setSize.id);
-                        const shouldShow = !isSourceSet && !isAlreadySelected;
-                        return shouldShow;
-                      });
-                      
-                      if (filteredSizes.length === 0 && targetSizesForSet.length > 0) {
-                        return (
-                          <div className="text-center py-4 text-slate-500 text-sm">
-                            All available sizes are already selected or match the source set
-                          </div>
-                        );
-                      }
-                      
-                      return (
-                        <div className="space-y-2">
-                          {filteredSizes.map((setSize) => {
-
-                          const thumbnail = setSize.thumb || setSize.set?.thumb || null;
-                          const thumbnailUrl = thumbnail 
-                            ? (thumbnail.startsWith('http') ? thumbnail : `${process.env.REACT_APP_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'}/storage/${thumbnail}`)
-                            : null;
-                          
-                          return (
-                            <button
-                              key={setSize.id}
-                              onClick={() => handleTargetSizeSelect(setSize)}
-                              className="w-full flex items-center space-x-3 p-3 rounded-lg border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left"
-                            >
-                              {thumbnailUrl ? (
-                                <img 
-                                  src={thumbnailUrl} 
-                                  alt={setSize.name || `${setSize.count} pencils`}
-                                  className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }}
-                                />
-                              ) : null}
-                              <div 
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${thumbnailUrl ? 'hidden' : ''}`}
-                                style={{ backgroundColor: '#f1f5f9' }}
-                              >
-                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 truncate">
-                                  {setSize.name || `${setSize.count} pencils`}
-                                </div>
-                                <div className="text-xs text-slate-600 truncate">
-                                  {setSize.count} pencils
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
+            {targetSets.length < maxTargetSets && (
+              <SetPicker
+                step={targetStep}
+                brands={brands}
+                loadingBrands={loadingBrands}
+                brand={targetSelectedBrand}
+                sets={targetSetsForBrand}
+                loadingSets={loadingTargetSets}
+                set={targetSelectedSet}
+                sizes={availableTargetSizes}
+                loadingSizes={loadingTargetSizes}
+                emptySizesText={
+                  targetSizesForSet.length > 0
+                    ? 'All available sizes are already selected or match the source set'
+                    : 'No sizes available for this set'
+                }
+                onBack={handleTargetBack}
+                onBrandSelect={handleTargetBrandSelect}
+                onSetSelect={handleTargetSetSelect}
+                onSizeSelect={handleTargetSizeSelect}
+              />
             )}
           </div>
           </div>
-          {/* Ad Space on Right Side for Free Plan */}
-          {isFreePlan && (
-            <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24">
-              <AdSpace width={160} height={600} />
-            </div>
+          </div>
           )}
-        </div>
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
             <div className="flex items-start justify-between">
               <p className="text-sm text-red-600 flex-1">{error}</p>
               {isFreePlan && error.includes('Free plans are limited') && (
@@ -1037,7 +946,7 @@ const ColorConversion = ({ user }) => {
 
         {/* Results Section */}
         {!loadingMatches && matches.length > 0 && (
-            <div className="print-section mt-6 bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="print-section mt-4 bg-slate-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-6 border-b border-slate-200 flex items-center justify-between no-print">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-800 font-venti">Color Matches</h3>
@@ -1087,10 +996,12 @@ const ColorConversion = ({ user }) => {
               <table className="w-full">
                 <thead className="bg-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti border-r-4 border-slate-300">Source Color</th>
+                    <th className="px-6 py-4 text-left align-bottom border-r-4 border-slate-300">
+                      <SetColumnHeader setSize={sourceSet} caption="Source" />
+                    </th>
                     {targetSets.map((setSize) => (
-                      <th key={setSize.id} className="px-6 py-4 text-left text-sm font-semibold text-slate-800 font-venti">
-                        {setSize.set?.name || setSize.name}
+                      <th key={setSize.id} className="px-6 py-4 text-left align-bottom">
+                        <SetColumnHeader setSize={setSize} caption="Target" />
                       </th>
                     ))}
                   </tr>
@@ -1194,6 +1105,14 @@ const ColorConversion = ({ user }) => {
             <p className="text-slate-600">Add {isFreePlan ? '1' : 'up to 5'} target set{isFreePlan ? '' : 's'} to compare colors</p>
           </div>
         )}
+          </div>
+          {/* Ad Space on Right Side for Free Plan */}
+          {isFreePlan && (
+            <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24 lg:self-start">
+              <AdSpace width={160} height={600} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
