@@ -190,7 +190,7 @@ const Dashboard = () => {
 
     // Check for edit pages
     if (pathname.includes('/edit/inspiration/')) {
-      return <EditInspiration />;
+      return <EditInspiration user={user} />;
     }
     if (pathname.includes('/edit/pencil-set/')) {
       return <EditPencilSet />;

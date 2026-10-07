@@ -11,7 +11,8 @@ import EmptyState from './EmptyState';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import ShareLinkModal from './ShareLinkModal';
-import { useShareSelection, SelectToShareButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
+import PrintSheet, { PalettePrintList } from './PrintSheet';
+import { useShareSelection, SelectToShareButton, SelectToPrintButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
 import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 import { getPaletteHexes } from '../utils/colorUtils';
 
@@ -25,6 +26,7 @@ const ColorPalettes = ({ user }) => {
   const [favorites, setFavorites] = useState(new Set());
   const [togglingFavorite, setTogglingFavorite] = useState(null);
   const [palettesToShare, setPalettesToShare] = useState(null);
+  const [palettesToPrint, setPalettesToPrint] = useState(null);
   const shareSelection = useShareSelection();
 
   // Check if we should open the add modal from navigation state
@@ -138,7 +140,8 @@ const ColorPalettes = ({ user }) => {
       </div>
           {!shareSelection.selecting && (
           <div className="flex items-center gap-3">
-          <SelectToShareButton onClick={shareSelection.start} disabled={palettes.length === 0} />
+          <SelectToShareButton onClick={() => shareSelection.start('share')} disabled={palettes.length === 0} />
+          <SelectToPrintButton onClick={() => shareSelection.start('print')} disabled={palettes.length === 0} />
           <PrimaryButton 
             onClick={() => {
               if (hasReachedLimit) {
@@ -164,8 +167,15 @@ const ColorPalettes = ({ user }) => {
             <ShareSelectionBar
               count={shareSelection.selectedItems.length}
               noun="palettes"
+              mode={shareSelection.mode}
+              allSelected={palettes.length > 0 && shareSelection.selectedItems.length === palettes.length}
+              onToggleAll={() => shareSelection.setAll(shareSelection.selectedItems.length === palettes.length ? [] : palettes)}
               onCancel={shareSelection.cancel}
-              onShare={() => setPalettesToShare(shareSelection.selectedItems)}
+              onConfirm={() => (
+                shareSelection.mode === 'print'
+                  ? setPalettesToPrint(palettes.filter((palette) => shareSelection.isSelected(palette.id)))
+                  : setPalettesToShare(shareSelection.selectedItems)
+              )}
             />
           </div>
         )}
@@ -323,6 +333,18 @@ const ColorPalettes = ({ user }) => {
             shareSelection.cancel();
           }}
         />
+      )}
+      {palettesToPrint && (
+        <PrintSheet
+          documentTitle="Color Palettes - Colorist"
+          heading="Color Palettes"
+          onDone={() => {
+            setPalettesToPrint(null);
+            shareSelection.cancel();
+          }}
+        >
+          <PalettePrintList palettes={palettesToPrint} />
+        </PrintSheet>
       )}
     </div>
   );

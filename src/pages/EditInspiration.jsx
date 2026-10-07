@@ -5,7 +5,7 @@ import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import TagSelect from '../components/TagSelect';
 import DropdownMenu from '../components/DropdownMenu';
 import BookDropdown from '../components/BookDropdown';
-import VideoComments from '../components/VideoComments';
+import VideoComments, { areCommentsLocked } from '../components/VideoComments';
 
 const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
@@ -30,7 +30,7 @@ const getLargestSizePerSet = (setSizes) => {
   return Array.from(largestBySet.values());
 };
 
-const EditInspiration = () => {
+const EditInspiration = ({ user }) => {
   const location = useLocation();
   const params = useParams();
   const navigate = useNavigate();
@@ -664,6 +664,7 @@ const EditInspiration = () => {
             <VideoComments
               videoId={formData.embed_id}
               onClose={() => setShowComments(false)}
+              locked={areCommentsLocked(user)}
               className="max-h-[640px]"
             />
           </div>

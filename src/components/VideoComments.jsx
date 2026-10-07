@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authAPI, youtubeCommentsAPI } from '../services/api';
 import { setPostAuthRedirect } from '../utils/postAuthRedirect';
 
@@ -10,6 +11,12 @@ const SORT_OPTIONS = [
   { value: 'relevance', label: 'Top' },
   { value: 'time', label: 'Newest' }
 ];
+
+// Mirrors the API rule: paid plans and admins can use YouTube comments
+export const areCommentsLocked = (user) => {
+  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
+  return isFreePlan && Number(user?.admin) !== 1;
+};
 
 const timeAgo = (iso) => {
   if (!iso) return '';
@@ -162,7 +169,9 @@ const Composer = ({ value, onChange, onSubmit, onCancel, posting, placeholder, s
   </form>
 );
 
-const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
+const VideoComments = ({ videoId, onSeek, onClose, locked = false, className = '' }) => {
+  const navigate = useNavigate();
+  const [upgradeRequired, setUpgradeRequired] = useState(locked);
   const [order, setOrder] = useState('relevance');
   const [threads, setThreads] = useState([]);
   const [nextPageToken, setNextPageToken] = useState(null);
@@ -220,6 +229,10 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
       });
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
+      if (err.data?.reason === 'upgrade_required') {
+        setUpgradeRequired(true);
+        return;
+      }
       setError(err.data?.message || 'Could not load YouTube comments.');
     } finally {
       if (requestId === requestIdRef.current) {
@@ -230,8 +243,12 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
   }, [videoId, order]);
 
   useEffect(() => {
-    if (videoId) loadPage();
-  }, [videoId, loadPage]);
+    setUpgradeRequired(locked);
+  }, [locked]);
+
+  useEffect(() => {
+    if (videoId && !upgradeRequired) loadPage();
+  }, [videoId, loadPage, upgradeRequired]);
 
   const handleConnect = async () => {
     setConnecting(true);
@@ -251,6 +268,10 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
     if (reason === 'reconnect_required') {
       setViewer((v) => ({ ...v, can_comment: false }));
       setReplyingTo(null);
+      return null;
+    }
+    if (reason === 'upgrade_required') {
+      setUpgradeRequired(true);
       return null;
     }
     if (reason === 'comments_disabled') {
@@ -374,8 +395,8 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
       <p className="text-xs text-slate-600 mb-2">
         {viewer.connected
-          ? 'Reconnect YouTube to allow commenting. You’ll come right back here.'
-          : 'Connect your YouTube account to comment and reply.'}
+          ? 'Reconnect YouTube to allow commenting.'
+          : 'Connect your YouTube account to comment.'}
       </p>
       <button
         type="button"
@@ -412,6 +433,28 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
         </div>
       </div>
 
+      {upgradeRequired ? (
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-8 text-center">
+          <div className="mx-auto mb-3 w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center" style={{ color: BRAND }}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h4 className="text-sm font-semibold text-slate-800 mb-1">YouTube comments are a Premium feature</h4>
+          <p className="text-xs text-slate-600 mb-4">
+            Read the conversation on any video, and comment or reply on YouTube without leaving Colorist.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/subscription')}
+            className="px-4 py-2 text-sm font-medium text-white rounded-lg"
+            style={{ backgroundColor: BRAND }}
+          >
+            Upgrade to Premium
+          </button>
+          <p className="text-[11px] text-slate-400 mt-2">7-day free trial · cancel anytime</p>
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto min-h-0">
         {!commentsDisabled && (
           <div className="px-4 pt-3 pb-3 border-b border-slate-100 space-y-2">
@@ -577,6 +620,7 @@ const VideoComments = ({ videoId, onSeek, onClose, className = '' }) => {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };

@@ -14,7 +14,7 @@ import AdSpace from './AdSpace';
 import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
-import VideoComments from './VideoComments';
+import VideoComments, { areCommentsLocked } from './VideoComments';
 
 const SHOW_COMMENTS_KEY = 'color_along_show_comments';
 
@@ -2460,6 +2460,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                   videoId={selectedVideo.id}
                   onSeek={youtubeApiLoaded ? seekVideo : undefined}
                   onClose={toggleComments}
+                  locked={areCommentsLocked(user)}
                   className="w-full lg:w-[360px] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 h-[480px] lg:h-auto"
                 />
               )}

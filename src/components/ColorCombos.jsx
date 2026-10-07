@@ -8,7 +8,8 @@ import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import TagIcon from './TagIcon';
 import ShareLinkModal from './ShareLinkModal';
-import { useShareSelection, SelectToShareButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
+import PrintSheet, { ComboPrintList } from './PrintSheet';
+import { useShareSelection, SelectToShareButton, SelectToPrintButton, ShareSelectionBar, SelectionCheck } from './ShareSelection';
 import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
 
 const ColorCombos = ({ user }) => {
@@ -21,6 +22,7 @@ const ColorCombos = ({ user }) => {
   const [favorites, setFavorites] = useState(new Set());
   const [togglingFavorite, setTogglingFavorite] = useState(null);
   const [combosToShare, setCombosToShare] = useState(null);
+  const [combosToPrint, setCombosToPrint] = useState(null);
   const shareSelection = useShareSelection();
 
   // Check if we should open the add modal from navigation state
@@ -191,7 +193,8 @@ const ColorCombos = ({ user }) => {
             </div>
             {!shareSelection.selecting && (
             <div className="flex items-center gap-3">
-            <SelectToShareButton onClick={shareSelection.start} disabled={combos.length === 0} />
+            <SelectToShareButton onClick={() => shareSelection.start('share')} disabled={combos.length === 0} />
+            <SelectToPrintButton onClick={() => shareSelection.start('print')} disabled={combos.length === 0} />
             <button 
             onClick={() => {
               if (hasReachedLimit) {
@@ -229,8 +232,15 @@ const ColorCombos = ({ user }) => {
               <ShareSelectionBar
                 count={shareSelection.selectedItems.length}
                 noun="combos"
+                mode={shareSelection.mode}
+                allSelected={combos.length > 0 && shareSelection.selectedItems.length === combos.length}
+                onToggleAll={() => shareSelection.setAll(shareSelection.selectedItems.length === combos.length ? [] : combos)}
                 onCancel={shareSelection.cancel}
-                onShare={() => setCombosToShare(shareSelection.selectedItems)}
+                onConfirm={() => (
+                  shareSelection.mode === 'print'
+                    ? setCombosToPrint(combos.filter((combo) => shareSelection.isSelected(combo.id)))
+                    : setCombosToShare(shareSelection.selectedItems)
+                )}
               />
             </div>
           )}
@@ -398,6 +408,18 @@ const ColorCombos = ({ user }) => {
             shareSelection.cancel();
           }}
         />
+      )}
+      {combosToPrint && (
+        <PrintSheet
+          documentTitle="Color Combos - Colorist"
+          heading="Color Combos"
+          onDone={() => {
+            setCombosToPrint(null);
+            shareSelection.cancel();
+          }}
+        >
+          <ComboPrintList combos={combosToPrint} />
+        </PrintSheet>
       )}
     </>
   );
