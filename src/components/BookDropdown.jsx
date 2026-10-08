@@ -186,7 +186,7 @@ const BookDropdown = ({
               <img
                 src={getBookImage(selectedBook)}
                 alt={selectedBook.title || 'Book cover'}
-                className="w-8 h-10 object-cover rounded border border-slate-200 flex-shrink-0 mr-2"
+                className="w-4 h-5 object-cover rounded-sm border border-slate-200 flex-shrink-0 mr-2"
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=400&fit=crop';
                 }}

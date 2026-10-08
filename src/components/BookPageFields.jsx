@@ -39,7 +39,8 @@ export const formatBookPage = (page) => {
 
 const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300';
 
-const BookPageFields = ({ bookId, value, onChange, disabled = false }) => {
+// `bare` drops the panel and inner label so the fields can sit in a form grid under the caller's own label
+const BookPageFields = ({ bookId, value, onChange, disabled = false, bare = false }) => {
   const [pages, setPages] = useState([]);
   const [loadedBookId, setLoadedBookId] = useState(null);
   const loading = Boolean(bookId) && loadedBookId !== bookId;
@@ -82,59 +83,83 @@ const BookPageFields = ({ bookId, value, onChange, disabled = false }) => {
         : name && bookPages.find((p) => (p.name || '').trim().toLowerCase() === name))
     : null;
 
-  return (
-    <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-      <p className="text-xs font-medium text-slate-600">Page (optional)</p>
-      <DropdownMenu
-        options={options}
-        value={page.pageId}
-        onChange={(pageId) => onChange({ ...EMPTY_BOOK_PAGE, pageId: pageId || '' })}
-        placeholder={loading ? 'Loading pages...' : bookPages.length > 0 ? 'Select a page...' : 'No pages yet — add one'}
-        searchable={bookPages.length > 8}
-        searchPlaceholder="Search pages..."
-        clearable={Boolean(page.pageId)}
-        clearLabel="No page"
+  const isNew = page.pageId === NEW_PAGE;
+  // Compact mode replaces the dropdown with the inputs so adding a page doesn't grow the form
+  const compactNew = bare && isNew;
+  const fieldClass = compactNew
+    ? 'px-3 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300'
+    : inputClass;
+
+  const pageInputs = (
+    <div className="flex gap-2">
+      <input
+        type="text"
+        value={page.name}
+        onChange={(e) => onChange({ ...page, name: e.target.value })}
+        placeholder={compactNew ? 'New page name' : 'Page name'}
+        maxLength={255}
+        disabled={disabled}
+        className={`${fieldClass} flex-1 min-w-0`}
+        aria-label="Page name"
+        autoFocus={compactNew}
       />
-      {page.pageId === NEW_PAGE && (
-        <>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={page.name}
-              onChange={(e) => onChange({ ...page, name: e.target.value })}
-              placeholder="Page name"
-              maxLength={255}
-              disabled={disabled}
-              className={`${inputClass} flex-1 min-w-0`}
-              aria-label="Page name"
-            />
-            <input
-              type="number"
-              value={page.number}
-              onChange={(e) => onChange({ ...page, number: e.target.value })}
-              placeholder="Page #"
-              min="1"
-              disabled={disabled}
-              className={`${inputClass} w-24`}
-              aria-label="Page number"
-            />
-          </div>
-          {match ? (
-            <p className="text-xs text-amber-700">
-              {formatBookPage(match)} is already in this book.{' '}
-              <button
-                type="button"
-                onClick={() => onChange({ ...EMPTY_BOOK_PAGE, pageId: String(match.id) })}
-                className="font-medium underline"
-              >
-                Use that page
-              </button>
-            </p>
-          ) : (
-            <p className="text-xs text-slate-500">This page will be added to the book when you save.</p>
-          )}
-        </>
+      <input
+        type="number"
+        value={page.number}
+        onChange={(e) => onChange({ ...page, number: e.target.value })}
+        placeholder="Page #"
+        min="1"
+        disabled={disabled}
+        className={`${fieldClass} ${compactNew ? 'w-20' : 'w-24'}`}
+        aria-label="Page number"
+      />
+      {compactNew && (
+        <button
+          type="button"
+          onClick={() => onChange({ ...EMPTY_BOOK_PAGE })}
+          disabled={disabled}
+          className="px-2 text-slate-400 hover:text-slate-600 flex-shrink-0"
+          title="Choose an existing page instead"
+          aria-label="Choose an existing page instead"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       )}
+    </div>
+  );
+
+  return (
+    <div className={bare ? 'space-y-1' : 'mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2'}>
+      {!bare && <p className="text-xs font-medium text-slate-600">Page (optional)</p>}
+      {!compactNew && (
+        <DropdownMenu
+          options={options}
+          value={page.pageId}
+          onChange={(pageId) => onChange({ ...EMPTY_BOOK_PAGE, pageId: pageId || '' })}
+          placeholder={loading ? 'Loading pages...' : bookPages.length > 0 ? 'Select a page...' : 'No pages yet — add one'}
+          searchable={bookPages.length > 8}
+          searchPlaceholder="Search pages..."
+          clearable={Boolean(page.pageId)}
+          clearLabel="No page"
+        />
+      )}
+      {isNew && pageInputs}
+      {isNew && (match ? (
+        <p className="text-xs text-amber-700">
+          {formatBookPage(match)} is already in this book.{' '}
+          <button
+            type="button"
+            onClick={() => onChange({ ...EMPTY_BOOK_PAGE, pageId: String(match.id) })}
+            className="font-medium underline"
+          >
+            Use that page
+          </button>
+        </p>
+      ) : !bare && (
+        <p className="text-xs text-slate-500">This page will be added to the book when you save.</p>
+      ))}
     </div>
   );
 };

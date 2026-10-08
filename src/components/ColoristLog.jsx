@@ -1294,24 +1294,32 @@ const ColoristLog = () => {
                         onChange={(value) => setFormData({ ...formData, book: value, bookPage: EMPTY_BOOK_PAGE })}
                         placeholder="Select book..."
                       />
-                      <BookPageFields
-                        bookId={formData.book}
-                        value={formData.bookPage}
-                        onChange={(bookPage) => setFormData((prev) => ({ ...prev, bookPage }))}
-                        disabled={savingEntry}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Your Pencil Set</label>
+                      <DropdownMenu
+                        options={userSetJournalOptions}
+                        value={pencilSelection.setIds[0] || ''}
+                        onChange={(value) => setPencilSelection({ setIds: value ? [value] : [], sizeIds: [] })}
+                        placeholder="Select your pencil set..."
                       />
                     </div>
-                  </div>
 
-                  {/* Pencil Set Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Your Pencil Set</label>
-                    <DropdownMenu
-                      options={userSetJournalOptions}
-                      value={pencilSelection.setIds[0] || ''}
-                      onChange={(value) => setPencilSelection({ setIds: value ? [value] : [], sizeIds: [] })}
-                      placeholder="Select your pencil set..."
-                    />
+                    {formData.book && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Book Page <span className="font-normal text-slate-400">(optional)</span>
+                        </label>
+                        <BookPageFields
+                          bookId={formData.book}
+                          value={formData.bookPage}
+                          onChange={(bookPage) => setFormData((prev) => ({ ...prev, bookPage }))}
+                          disabled={savingEntry}
+                          bare
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Add Colors Section */}
