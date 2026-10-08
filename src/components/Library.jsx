@@ -946,6 +946,7 @@ const Library = ({ user }) => {
           await refreshLibraryListing();
           setIsAddModalOpen(false);
         }}
+        onPlaylistCreated={fetchPlaylists}
         defaultTab={addModalTab}
         videoLimitReached={hasReachedVideoLimit}
         fileLimitReached={hasReachedFileLimit}

@@ -6,6 +6,7 @@ import TagSelect from '../components/TagSelect';
 import DropdownMenu from '../components/DropdownMenu';
 import BookDropdown from '../components/BookDropdown';
 import VideoComments, { areCommentsLocked } from '../components/VideoComments';
+import { createPlaylistNamed, findPlaylistByTitle } from '../components/PlaylistSelect';
 
 const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
@@ -65,6 +66,9 @@ const EditInspiration = ({ user }) => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState([]);
+  const [newPlaylistTitle, setNewPlaylistTitle] = useState('');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [playlistError, setPlaylistError] = useState(null);
   // Pencil set size and book used for this video's Color Along links
   const [colorAlongPencilSetSizeId, setColorAlongPencilSetSizeId] = useState('');
   const [colorAlongBookId, setColorAlongBookId] = useState('');
@@ -199,6 +203,31 @@ const EditInspiration = ({ user }) => {
       // Reset if file input is cleared
       setSelectedFile(null);
       setFilePreview(null);
+    }
+  };
+
+  const handleAddPlaylist = async () => {
+    const title = newPlaylistTitle.trim();
+    if (!title || creatingPlaylist) return;
+    const checkPlaylist = (playlistId) => {
+      setSelectedPlaylistIds((prev) => (prev.includes(playlistId) ? prev : [...prev, playlistId]));
+      setNewPlaylistTitle('');
+    };
+    const existing = findPlaylistByTitle(playlists, title);
+    if (existing) {
+      checkPlaylist(Number(existing.id));
+      return;
+    }
+    try {
+      setCreatingPlaylist(true);
+      setPlaylistError(null);
+      const playlist = await createPlaylistNamed(title);
+      setPlaylists((prev) => [...prev, playlist]);
+      checkPlaylist(Number(playlist.id));
+    } catch (err) {
+      setPlaylistError(err?.data?.message || 'Could not create the playlist.');
+    } finally {
+      setCreatingPlaylist(false);
     }
   };
 
@@ -503,7 +532,7 @@ const EditInspiration = ({ user }) => {
               </p>
               <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 max-h-48 overflow-y-auto space-y-2">
                 {playlists.length === 0 ? (
-                  <p className="text-sm text-slate-500">No playlists yet. Create one from the Inspiration library.</p>
+                  <p className="text-sm text-slate-500">No playlists yet. Create one below.</p>
                 ) : (
                   playlists.map((p) => (
                     <label key={p.id} className="flex items-center gap-3 cursor-pointer hover:bg-white/60 rounded-lg px-2 py-1.5">
@@ -525,6 +554,38 @@ const EditInspiration = ({ user }) => {
                   ))
                 )}
               </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={newPlaylistTitle}
+                  onChange={(e) => {
+                    setNewPlaylistTitle(e.target.value);
+                    setPlaylistError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddPlaylist();
+                    }
+                  }}
+                  placeholder="New playlist name"
+                  maxLength={255}
+                  disabled={saving || creatingPlaylist}
+                  className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+                  aria-label="New playlist name"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddPlaylist}
+                  disabled={!newPlaylistTitle.trim() || saving || creatingPlaylist}
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 flex-shrink-0"
+                >
+                  {creatingPlaylist
+                    ? 'Creating...'
+                    : findPlaylistByTitle(playlists, newPlaylistTitle) ? 'Select' : 'Create playlist'}
+                </button>
+              </div>
+              {playlistError && <p className="mt-1 text-xs text-red-600">{playlistError}</p>}
             </div>
           )}
 
