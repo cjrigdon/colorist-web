@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authAPI } from '../services/api';
 
-const YouTubeImportContext = createContext({ importing: false });
+const YouTubeImportContext = createContext({ importing: false, startImport: () => {} });
 
 export function YouTubeImportProvider({ user, children }) {
   const [importing, setImporting] = useState(!!user?.youtube_import_running);
@@ -39,8 +39,11 @@ export function YouTubeImportProvider({ user, children }) {
     };
   }, [importing]);
 
+  const startImport = useCallback(() => setImporting(true), []);
+  const value = useMemo(() => ({ importing, startImport }), [importing, startImport]);
+
   return (
-    <YouTubeImportContext.Provider value={{ importing }}>
+    <YouTubeImportContext.Provider value={value}>
       {children}
     </YouTubeImportContext.Provider>
   );

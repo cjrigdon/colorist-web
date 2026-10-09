@@ -3,10 +3,12 @@ import { videosAPI, filesAPI, playlistsAPI } from '../services/api';
 import TagSelect from './TagSelect';
 import PlaylistSelect from './PlaylistSelect';
 import UpgradeBanner from './UpgradeBanner';
+import YouTubePlaylistImport from './YouTubePlaylistImport';
 
-const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, defaultTab, videoLimitReached = false, fileLimitReached = false }) => {
+const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, defaultTab, defaultVideoMode, videoLimitReached = false, fileLimitReached = false }) => {
   const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video' or 'file'
   const [fileInputMode, setFileInputMode] = useState('upload'); // 'upload' or 'link'
+  const [videoInputMode, setVideoInputMode] = useState('youtube'); // 'youtube' or 'single'
 
   // When modal opens with a defaultTab (e.g. from Files tab), switch to that section
   useEffect(() => {
@@ -14,6 +16,12 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
       setActiveTab(defaultTab);
     }
   }, [isOpen, defaultTab]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setVideoInputMode(defaultVideoMode || 'youtube');
+    }
+  }, [isOpen, defaultVideoMode]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -264,9 +272,37 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
             <UpgradeBanner itemType="other files" />
           )}
 
-          {/* Video Tab */}
           {activeTab === 'video' && !videoLimitReached && (
-            <form onSubmit={handleVideoSubmit} className="space-y-4">
+            <div className="flex space-x-2 mb-4">
+              {[
+                { id: 'youtube', label: 'Import playlists from YouTube' },
+                { id: 'single', label: 'Single video' },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => { setVideoInputMode(mode.id); setError(null); }}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    videoInputMode === mode.id ? 'text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                  style={videoInputMode === mode.id ? { backgroundColor: '#ea3663' } : {}}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'video' && !videoLimitReached && videoInputMode === 'youtube' && (
+            <div className="h-[24rem]">
+              <YouTubePlaylistImport onImported={handleClose} onCancel={handleClose} />
+            </div>
+          )}
+
+          {/* Video Tab */}
+          {activeTab === 'video' && !videoLimitReached && videoInputMode === 'single' && (
+            <form onSubmit={handleVideoSubmit} className="min-h-[24rem] flex flex-col space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   YouTube URL or Video ID *
@@ -291,7 +327,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
                 onChange={setSelectedPlaylistId}
                 disabled={loading}
               />
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 !mt-auto">
                 <button
                   type="button"
                   onClick={handleClose}

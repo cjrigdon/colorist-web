@@ -13,6 +13,7 @@ import VideoThumbnail from './VideoThumbnail';
 import UpgradeBanner from './UpgradeBanner';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
+import { YOUTUBE_IMPORT_PARAM } from './YouTubePlaylistImport';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
 import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
 import { STUDIO_SECTION_DESCRIPTIONS } from '../utils/studioSections';
@@ -35,6 +36,7 @@ const Library = ({ user }) => {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const observerTarget = useRef(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalVideoMode, setAddModalVideoMode] = useState(null);
   const [isAddPlaylistModalOpen, setIsAddPlaylistModalOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -69,6 +71,16 @@ const Library = ({ user }) => {
       setSection(requestedSection);
     }
   }, [location.search]);
+
+  // Back from connecting YouTube: reopen the playlist picker
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get(YOUTUBE_IMPORT_PARAM) !== '1') return;
+    params.delete(YOUTUBE_IMPORT_PARAM);
+    setAddModalVideoMode('youtube');
+    setIsAddModalOpen(true);
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: location.state });
+  }, [location.search, location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -941,13 +953,17 @@ const Library = ({ user }) => {
       </div>
       <AddInspirationModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setAddModalVideoMode(null);
+        }}
         onSuccess={async () => {
           await refreshLibraryListing();
           setIsAddModalOpen(false);
         }}
         onPlaylistCreated={fetchPlaylists}
         defaultTab={addModalTab}
+        defaultVideoMode={addModalVideoMode}
         videoLimitReached={hasReachedVideoLimit}
         fileLimitReached={hasReachedFileLimit}
       />

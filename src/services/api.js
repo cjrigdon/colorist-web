@@ -322,6 +322,12 @@ export const youtubeCommentsAPI = {
     apiPost(`/youtube/videos/${encodeURIComponent(videoId)}/comments/${encodeURIComponent(commentId)}/replies`, { text }, true)
 };
 
+// The signed-in user's own YouTube playlists; importing runs in the background
+export const youtubePlaylistsAPI = {
+  list: () => apiGet('/youtube/playlists', true),
+  import: (playlistIds) => apiPost('/youtube/playlists/import', { playlist_ids: playlistIds }, true)
+};
+
 export const sharedColorsAPI = {
   createLink: (items) => apiPost('/share-links', { items }, true),
   get: (token) => apiGet(`/shared/${token}`, true),
