@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { inspirationAPI, playlistsAPI, videosAPI, filesAPI, userAPI, tagsAPI } from '../services/api';
-import AddPlaylistModal from './AddPlaylistModal';
 import EditPlaylistModal from './EditPlaylistModal';
 import AddInspirationModal from './AddInspirationModal';
 import PrimaryButton from './PrimaryButton';
@@ -37,7 +36,6 @@ const Library = ({ user }) => {
   const observerTarget = useRef(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalVideoMode, setAddModalVideoMode] = useState(null);
-  const [isAddPlaylistModalOpen, setIsAddPlaylistModalOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -418,16 +416,18 @@ const Library = ({ user }) => {
   const hasReachedVideoLimit = isFreePlan && videoCount >= FREE_PLAN_LIMIT;
   const hasReachedFileLimit = isFreePlan && fileCount >= FREE_PLAN_LIMIT;
   const hasReachedPlaylistLimit = isFreePlan && playlistCount >= FREE_PLAN_LIMIT;
-  const hasReachedInspirationLimit = hasReachedVideoLimit && hasReachedFileLimit;
+  const hasReachedAllAddLimits = hasReachedVideoLimit && hasReachedFileLimit && hasReachedPlaylistLimit;
   const sectionLimit = {
     videos: { reached: hasReachedVideoLimit, label: 'videos' },
     files: { reached: hasReachedFileLimit, label: 'other files' },
     playlists: { reached: hasReachedPlaylistLimit, label: 'playlists' },
   }[section];
-  // Open the add modal on the current section's type, unless that type is full and the other isn't
-  const addModalTab = section === 'files'
-    ? (hasReachedFileLimit && !hasReachedVideoLimit ? 'video' : 'file')
-    : (hasReachedVideoLimit && !hasReachedFileLimit ? 'file' : 'video');
+  // Open the add modal on the current section's type, unless that type is full and another isn't
+  const addTabLimits = { video: hasReachedVideoLimit, file: hasReachedFileLimit, playlist: hasReachedPlaylistLimit };
+  const sectionAddTab = { files: 'file', playlists: 'playlist' }[section] || 'video';
+  const addModalTab = addTabLimits[sectionAddTab]
+    ? (['video', 'file', 'playlist'].find((tab) => !addTabLimits[tab]) || sectionAddTab)
+    : sectionAddTab;
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
@@ -559,30 +559,13 @@ const Library = ({ user }) => {
             </div>
             <PrimaryButton
               onClick={() => {
-                if (hasReachedPlaylistLimit) {
-                  alert('You\'ve reached the limit of 5 playlists on the free plan. Please upgrade to Premium to add more.');
-                  return;
-                }
-                setIsAddPlaylistModalOpen(true);
-              }}
-              disabled={hasReachedPlaylistLimit}
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              }
-            >
-              Add Playlist
-            </PrimaryButton>
-            <PrimaryButton
-              onClick={() => {
-                if (hasReachedInspirationLimit) {
-                  alert('You\'ve reached the free plan limit of 5 videos and 5 other files. Please upgrade to Premium to add more.');
+                if (hasReachedAllAddLimits) {
+                  alert('You\'ve reached the free plan limit of 5 videos, 5 other files, and 5 playlists. Please upgrade to Premium to add more.');
                   return;
                 }
                 setIsAddModalOpen(true);
               }}
-              disabled={hasReachedInspirationLimit}
+              disabled={hasReachedAllAddLimits}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -966,15 +949,7 @@ const Library = ({ user }) => {
         defaultVideoMode={addModalVideoMode}
         videoLimitReached={hasReachedVideoLimit}
         fileLimitReached={hasReachedFileLimit}
-      />
-      <AddPlaylistModal
-        isOpen={isAddPlaylistModalOpen}
-        onClose={() => setIsAddPlaylistModalOpen(false)}
-        onSuccess={() => {
-          fetchPlaylists();
-          fetchInspirations(1, false);
-          setIsAddPlaylistModalOpen(false);
-        }}
+        playlistLimitReached={hasReachedPlaylistLimit}
       />
       <EditPlaylistModal
         isOpen={editPlaylistModalOpen}

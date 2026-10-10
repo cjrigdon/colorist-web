@@ -4,9 +4,10 @@ import TagSelect from './TagSelect';
 import PlaylistSelect from './PlaylistSelect';
 import UpgradeBanner from './UpgradeBanner';
 import YouTubePlaylistImport from './YouTubePlaylistImport';
+import AddPlaylistForm from './AddPlaylistForm';
 
-const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, defaultTab, defaultVideoMode, videoLimitReached = false, fileLimitReached = false }) => {
-  const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video' or 'file'
+const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, defaultTab, defaultVideoMode, videoLimitReached = false, fileLimitReached = false, playlistLimitReached = false }) => {
+  const [activeTab, setActiveTab] = useState(defaultTab || 'video'); // 'video', 'file', or 'playlist'
   const [fileInputMode, setFileInputMode] = useState('upload'); // 'upload' or 'link'
   const [videoInputMode, setVideoInputMode] = useState('youtube'); // 'youtube' or 'single'
 
@@ -64,6 +65,11 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
   const handlePlaylistCreated = (playlist) => {
     setPlaylists((prev) => [...prev, playlist]);
     onPlaylistCreated?.(playlist);
+  };
+
+  const handlePlaylistAdded = () => {
+    onSuccess();
+    onClose();
   };
 
   useEffect(() => {
@@ -255,10 +261,22 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
             >
               Image or PDF
             </button>
+            <button
+              onClick={() => setActiveTab('playlist')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'playlist'
+                  ? 'text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+              style={activeTab === 'playlist' ? { backgroundColor: '#ea3663' } : {}}
+            >
+              Playlist
+            </button>
           </div>
         </div>
 
-        <div className="p-6">
+        {/* Same height for every tab and option so switching doesn't resize the modal */}
+        <div className="p-6 h-[35rem] flex flex-col overflow-y-auto">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
@@ -271,12 +289,19 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
           {activeTab === 'file' && fileLimitReached && (
             <UpgradeBanner itemType="other files" />
           )}
+          {activeTab === 'playlist' && playlistLimitReached && (
+            <UpgradeBanner itemType="playlists" />
+          )}
+
+          {activeTab === 'playlist' && !playlistLimitReached && (
+            <AddPlaylistForm onSuccess={handlePlaylistAdded} onCancel={handleClose} />
+          )}
 
           {activeTab === 'video' && !videoLimitReached && (
-            <div className="flex space-x-2 mb-4">
+            <div className="flex flex-shrink-0 space-x-2 mb-4">
               {[
-                { id: 'youtube', label: 'Import playlists from YouTube' },
-                { id: 'single', label: 'Single video' },
+                { id: 'youtube', label: 'Import videos by playlist' },
+                { id: 'single', label: 'Import single video' },
               ].map((mode) => (
                 <button
                   key={mode.id}
@@ -295,14 +320,14 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
           )}
 
           {activeTab === 'video' && !videoLimitReached && videoInputMode === 'youtube' && (
-            <div className="h-[24rem]">
+            <div className="flex min-h-0 flex-1 flex-col">
               <YouTubePlaylistImport onImported={handleClose} onCancel={handleClose} />
             </div>
           )}
 
           {/* Video Tab */}
           {activeTab === 'video' && !videoLimitReached && videoInputMode === 'single' && (
-            <form onSubmit={handleVideoSubmit} className="min-h-[24rem] flex flex-col space-y-4">
+            <form onSubmit={handleVideoSubmit} className="flex flex-1 flex-col space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   YouTube URL or Video ID *
@@ -350,7 +375,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
 
           {/* File Tab */}
           {activeTab === 'file' && !fileLimitReached && (
-            <form onSubmit={handleFileSubmit} className="space-y-4">
+            <form onSubmit={handleFileSubmit} className="flex flex-1 flex-col space-y-4">
               <div className="flex space-x-2 mb-4">
                 <button
                   type="button"
@@ -444,7 +469,7 @@ const AddInspirationModal = ({ isOpen, onClose, onSuccess, onPlaylistCreated, de
                   )}
                 </div>
               )}
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 !mt-auto">
                 <button
                   type="button"
                   onClick={handleClose}
