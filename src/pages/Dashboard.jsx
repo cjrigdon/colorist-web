@@ -74,7 +74,7 @@ const Dashboard = () => {
     fetchUser();
   }, []);
 
-  // Re-read the user after a plan change so ads and upgrade prompts update without a page reload
+  // Re-read the user after a plan change so upgrade prompts update without a page reload
   const refreshUser = async () => {
     try {
       const userData = await authAPI.getUser();

@@ -41,7 +41,13 @@ export const findInspirationByValue = (items, value) => {
   }
 
   const matches = items.filter((item) => item.id.toString() === parsed.id);
-  return matches.length === 1 ? matches[0] : undefined;
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  if (matches.length > 1) {
+    return matches.find((item) => item.type === 'video') || matches[0];
+  }
+  return undefined;
 };
 
 const InspirationDropdown = ({ 
@@ -49,7 +55,8 @@ const InspirationDropdown = ({
   onChange, 
   placeholder = 'Select inspiration...',
   label,
-  className = ''
+  className = '',
+  items = [],
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inspirations, setInspirations] = useState([]);
@@ -118,6 +125,16 @@ const InspirationDropdown = ({
 
     return null;
   };
+
+  useEffect(() => {
+    if (!items.length || inspirations.length > 0) {
+      return;
+    }
+    const seeded = items.map(transformInspiration).filter(Boolean);
+    if (seeded.length > 0) {
+      setInspirations(seeded);
+    }
+  }, [items, inspirations.length]);
 
   const loadInspirations = async () => {
     try {

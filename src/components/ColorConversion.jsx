@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import DropdownMenu from './DropdownMenu';
 import { coloredPencilSetsAPI, brandsAPI, apiGet } from '../services/api';
 import { deltaEToPercentage, prefersDarkText } from '../utils/colorUtils';
-import AdSpace from './AdSpace';
-
 const getMatchQualityColor = (quality) => {
   switch (quality) {
     case 'excellent':
@@ -778,7 +776,7 @@ const ColorConversion = ({ user }) => {
             </button>
           </div>
         )}
-        <div className={`grid gap-4 ${isFreePlan ? 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-1'}`}>
+        <div className="grid gap-4 grid-cols-1">
           <div className="min-w-0">
           {/* Set Selection */}
           {collapsed ? (
@@ -1106,12 +1104,6 @@ const ColorConversion = ({ user }) => {
           </div>
         )}
           </div>
-          {/* Ad Space on Right Side for Free Plan */}
-          {isFreePlan && (
-            <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24 lg:self-start">
-              <AdSpace width={160} height={600} />
-            </div>
-          )}
         </div>
       </div>
     </div>

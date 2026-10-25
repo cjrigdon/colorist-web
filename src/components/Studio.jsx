@@ -4,7 +4,6 @@ import PencilInventory from './PencilInventory';
 import ColorCombos from './ColorCombos';
 import ColorPalettes from './ColorPalettes';
 import ColoringBooks from './ColoringBooks';
-import AdSpace from './AdSpace';
 import YouTubeImportBanner from './YouTubeImportBanner';
 
 const Studio = ({ activeSection = 'library', user }) => {
@@ -15,8 +14,6 @@ const Studio = ({ activeSection = 'library', user }) => {
     { id: 'palettes', label: 'Palettes', icon: '🌈' },
     { id: 'books', label: 'Books', icon: '📖' },
   ];
-
-  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -38,12 +35,6 @@ const Studio = ({ activeSection = 'library', user }) => {
   return (
     <div className="space-y-6">
       <YouTubeImportBanner />
-      {/* Ad Space at Top for Free Plan */}
-      {isFreePlan && (
-        <div className="flex justify-center w-full">
-          <AdSpace width={728} height={90} />
-        </div>
-      )}
       {/* Content */}
       <div>{renderContent()}</div>
     </div>

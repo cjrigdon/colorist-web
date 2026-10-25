@@ -4,14 +4,14 @@ import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import BookPageFields, { EMPTY_BOOK_PAGE, bookPagePayload, describeSavedBookPage } from './BookPageFields';
 import InspirationDropdown, { getInspirationKey, parseInspirationValue } from './InspirationDropdown';
-import RichTextEditor, { isRichTextEmpty } from './RichTextEditor';
+import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import TagSelect from './TagSelect';
 import { coloredPencilSetsAPI, coloredPencilsAPI, brandsAPI, inspirationAPI, playlistsAPI, videosAPI, colorPalettesAPI, colorCombosAPI, journalEntriesAPI, apiGet } from '../services/api';
 import { deltaEToPercentage } from '../utils/colorUtils';
 import { extractYouTubeVideoId } from '../utils/youtubeUtils';
-import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
-import AdSpace from './AdSpace';
+import { buildColorAlongVideoPath, formatVideoTimeRange } from '../utils/colorAlongUtils';
+import { formatEntryProjectDates, formatSessionNoteStamp, getLocalDateString } from '../utils/dateUtils';
 import YouTubeImportBanner from './YouTubeImportBanner';
 import YouTubeImportPlaceholder from './YouTubeImportPlaceholder';
 import { useYouTubeImport, useYouTubeImportRefresh } from '../context/YouTubeImportContext';
@@ -206,7 +206,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [searchParams] = useSearchParams();
   const bookParam = searchParams.get('book');
   const urlBookId = bookParam && /^\d+$/.test(bookParam) ? bookParam : '';
-  const isFreePlan = user?.subscription_plan === 'free' || !user?.subscription_plan;
   const [videoId, setVideoId] = useState('');
   const [videoLoadError, setVideoLoadError] = useState(null);
   const [loadingVideo, setLoadingVideo] = useState(false);
@@ -277,6 +276,21 @@ const ColorAlong = ({ user, onInspirationClick }) => {
 
   // Inspiration data state
   const [inspirations, setInspirations] = useState([]);
+  const currentInspiration = useMemo(() => {
+    if (selectedVideo) {
+      return inspirations.find((insp) => (
+        insp.type === 'video'
+        && (insp.embed_id === selectedVideo.id || insp.embed_id === selectedVideo.embed_id || insp.id === selectedVideo.id)
+      )) || null;
+    }
+    if (selectedImage) {
+      return inspirations.find((insp) => (
+        (insp.type === 'file' || insp.type === 'image' || insp.type === 'pdf')
+        && (insp.id === selectedImage.id || insp.id === parseInt(selectedImage.id, 10))
+      )) || null;
+    }
+    return null;
+  }, [inspirations, selectedVideo, selectedImage]);
   const [loadingInspirations, setLoadingInspirations] = useState(true);
   const [pickerVideos, setPickerVideos] = useState([]);
   const [loadingPickerVideos, setLoadingPickerVideos] = useState(true);
@@ -299,7 +313,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [palettes, setPalettes] = useState([]);
   const [combos, setCombos] = useState([]);
   const [journalFormData, setJournalFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     inspiration: '',
     videoPencilSet: '',
     userPencilSet: '',
@@ -318,6 +332,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
   const [journalVideoSetsForBrand, setJournalVideoSetsForBrand] = useState([]);
   const [loadingJournalVideoSets, setLoadingJournalVideoSets] = useState(false);
   const [journalVideoSelectedSet, setJournalVideoSelectedSet] = useState(null);
+  const [existingJournalEntry, setExistingJournalEntry] = useState(null);
+  const [journalVideoStartSeconds, setJournalVideoStartSeconds] = useState(null);
 
   // YouTube progress tracking
   const youtubePlayerRef = useRef(null);
@@ -337,6 +353,18 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     if (!player?.seekTo) return;
     player.seekTo(seconds, true);
     player.playVideo?.();
+  }, []);
+
+  const getYouTubeTimeSeconds = useCallback(() => {
+    try {
+      const currentTime = youtubePlayerRef.current?.getCurrentTime?.();
+      if (typeof currentTime === 'number' && Number.isFinite(currentTime) && currentTime >= 0) {
+        return Math.floor(currentTime);
+      }
+    } catch (error) {
+      console.error('Error reading video time:', error);
+    }
+    return null;
   }, []);
 
   // Helper functions for video progress
@@ -1149,6 +1177,35 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     fetchUserSetColors();
   }, [userSetId, userPencilSets, userPencilSetSizes]);
 
+  useEffect(() => {
+    const inspirationId = currentInspiration?.id;
+    if (!inspirationId) {
+      setExistingJournalEntry(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchExistingLog = async () => {
+      try {
+        const response = await journalEntriesAPI.getAll({ inspiration_id: inspirationId });
+        const items = Array.isArray(response) ? response : (response?.data || []);
+        if (!cancelled) {
+          setExistingJournalEntry(items[0] || null);
+        }
+      } catch (error) {
+        console.error('Error fetching existing coloring log:', error);
+        if (!cancelled) {
+          setExistingJournalEntry(null);
+        }
+      }
+    };
+
+    fetchExistingLog();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentInspiration?.id]);
+
   // Fetch journal entry data when modal opens
   useEffect(() => {
     const fetchJournalData = async () => {
@@ -1207,6 +1264,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     journalDraftInitializedRef.current = true;
     journalDraftKeyRef.current = journalInspirationKey;
     setJournalMinimized(false);
+    setJournalVideoStartSeconds(getYouTubeTimeSeconds());
 
     // Initialize form with defaults
     let currentInspirationId = '';
@@ -1241,7 +1299,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     const preselectedVideoSetId = videoSetId ? videoSetId.toString() : '';
 
     setJournalFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       inspiration: currentInspirationId,
       videoPencilSet: preselectedVideoSetId,
       userPencilSet: userSetId ? userSetId.toString() : '',
@@ -1264,7 +1322,31 @@ const ColorAlong = ({ user, onInspirationClick }) => {
           }
         : null
     );
-  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet, journalInspirationKey, urlBookId]);
+  }, [showJournalModal, selectedVideo, selectedImage, videoSetId, userSetId, inspirations, videoSelectedSetSize, videoSelectedSet, journalInspirationKey, urlBookId, getYouTubeTimeSeconds]);
+
+  useEffect(() => {
+    if (!showJournalModal || !existingJournalEntry) {
+      return;
+    }
+    setJournalFormData((prev) => ({
+      ...prev,
+      videoPencilSet: prev.videoPencilSet || (existingJournalEntry.video_colored_pencil_set_id ? String(existingJournalEntry.video_colored_pencil_set_id) : ''),
+      userPencilSet: prev.userPencilSet || (existingJournalEntry.user_colored_pencil_set_id || existingJournalEntry.colored_pencil_set_id
+        ? String(existingJournalEntry.user_colored_pencil_set_id || existingJournalEntry.colored_pencil_set_id)
+        : ''),
+      book: prev.book || (existingJournalEntry.book_id ? String(existingJournalEntry.book_id) : ''),
+      palette: prev.palette || (existingJournalEntry.color_palette_id ? String(existingJournalEntry.color_palette_id) : ''),
+      combos: prev.combos?.length ? prev.combos : (existingJournalEntry.combos || []).map((id) => String(id)),
+      tags: prev.tags?.length ? prev.tags : (existingJournalEntry.tags || []),
+    }));
+    if (existingJournalEntry.video_colored_pencil_set_id) {
+      setJournalVideoSelectedSet((prev) => prev || {
+        id: existingJournalEntry.video_colored_pencil_set_id,
+        name: 'Selected set',
+        brand: 'Unknown',
+      });
+    }
+  }, [showJournalModal, existingJournalEntry]);
 
   // Update inspiration when inspirations load and we have a selected video/image
   useEffect(() => {
@@ -1326,6 +1408,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
     journalDraftKeyRef.current = journalInspirationKey;
     setJournalFormData(draft.formData);
     setJournalVideoSelectedSet(draft.videoSelectedSet ?? null);
+    setJournalVideoStartSeconds(draft.videoStartSeconds ?? null);
     setJournalMinimized(Boolean(draft.minimized));
     setShowJournalModal(true);
   }, [journalInspirationKey, user?.id]);
@@ -1340,16 +1423,22 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       inspirationKey: draftKey,
       formData: journalFormData,
       videoSelectedSet: journalVideoSelectedSet,
+      videoStartSeconds: journalVideoStartSeconds,
       minimized: journalMinimized,
       updatedAt: Date.now(),
     });
-  }, [showJournalModal, journalFormData, journalVideoSelectedSet, journalMinimized, journalInspirationKey, user?.id]);
+  }, [showJournalModal, journalFormData, journalVideoSelectedSet, journalVideoStartSeconds, journalMinimized, journalInspirationKey, user?.id]);
 
   const discardJournalDraft = () => {
     clearJournalDraft();
     journalDraftKeyRef.current = null;
+    setJournalVideoStartSeconds(null);
     setShowJournalModal(false);
   };
+
+  const journalActionLabel = showJournalModal
+    ? 'Resume Log'
+    : (existingJournalEntry ? 'Continue Log' : 'Add Journal Entry');
 
   // Fetch matches using backend API when both sets are selected
   useEffect(() => {
@@ -1719,13 +1808,9 @@ const ColorAlong = ({ user, onInspirationClick }) => {
       {/* Pencil Set Selection and Video Selection Section */}
       <div
         className={`grid gap-2 ${
-          isFreePlan
-            ? (isMatchesCollapsed
-                ? 'grid-cols-1 lg:grid-cols-[3rem_minmax(0,1fr)_auto]'
-                : 'grid-cols-1 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]')
-            : (isMatchesCollapsed
-                ? 'grid-cols-1 lg:grid-cols-[3rem_minmax(0,1fr)]'
-                : 'grid-cols-1 lg:grid-cols-4')
+          isMatchesCollapsed
+            ? 'grid-cols-1 lg:grid-cols-[3rem_minmax(0,1fr)]'
+            : 'grid-cols-1 lg:grid-cols-4'
         }`}
         style={{
           height: '100%',
@@ -2491,7 +2576,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
                   >
-                    {showJournalModal ? 'Resume Journal Entry' : 'Add Journal Entry'}
+                    {journalActionLabel}
                   </button>
                   <button
                     onClick={() => {
@@ -2574,7 +2659,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#d12a4f'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = '#ea3663'}
                   >
-                    {showJournalModal ? 'Resume Journal Entry' : 'Add Journal Entry'}
+                    {journalActionLabel}
                   </button>
                   <button
                     onClick={() => {
@@ -2592,12 +2677,6 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             </div>
           )}
         </div>
-        {/* Ad Space on Right Side for Free Plan */}
-        {isFreePlan && (
-          <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-start lg:sticky lg:top-24">
-            <AdSpace width={160} height={600} />
-          </div>
-        )}
       </div>
 
       {/* Success Message */}
@@ -2674,7 +2753,9 @@ const ColorAlong = ({ user, onInspirationClick }) => {
               onClick={journalMinimized ? () => setJournalMinimized(false) : undefined}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <h2 className="text-base font-semibold text-slate-800 font-venti">Add Journal Entry</h2>
+                <h2 className="text-base font-semibold text-slate-800 font-venti">
+                  {existingJournalEntry ? 'Continue Coloring Log' : 'Add Journal Entry'}
+                </h2>
                 {journalMinimized && (
                   <span className="text-xs text-slate-500 truncate">Draft saved here · click to continue</span>
                 )}
@@ -2721,10 +2802,17 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                 </div>
               ) : (
                 <>
+                  {existingJournalEntry && (
+                    <p className="text-xs text-slate-500">
+                      Project dates:{' '}
+                      {formatEntryProjectDates(existingJournalEntry)}
+                    </p>
+                  )}
+
                   {/* Date */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Date
+                      Session Date
                     </label>
                     <input
                       type="date"
@@ -2957,6 +3045,32 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     />
                   </div>
 
+                  {existingJournalEntry?.session_notes?.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Earlier notes</p>
+                      <div className="max-h-36 overflow-y-auto space-y-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                        {existingJournalEntry.session_notes.map((note) => {
+                          const videoRange = formatVideoTimeRange(note.video_start_seconds, note.video_end_seconds);
+                          return (
+                            <div key={note.id} className="text-xs text-slate-600">
+                              <div className="font-medium text-slate-700">
+                                {formatSessionNoteStamp(note)}{videoRange ? ` · ${videoRange}` : ''}
+                              </div>
+                              {note.notes ? (
+                                <div
+                                  className="text-slate-600 [&_p]:m-0"
+                                  dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(note.notes) }}
+                                />
+                              ) : (
+                                <p className="text-slate-400 italic">No written notes</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Notes */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -2975,18 +3089,15 @@ const ColorAlong = ({ user, onInspirationClick }) => {
             {/* Modal Footer */}
             <div className={`sticky bottom-0 bg-white border-t border-slate-200 p-3 flex items-center justify-end gap-2 ${journalMinimized ? 'hidden' : ''}`}>
               <button
-                onClick={discardJournalDraft}
-                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
                 onClick={async () => {
                   try {
                     setSavingJournal(true);
                     
                     // Prepare data for API
                     const notesValue = isRichTextEmpty(journalFormData.notes) ? null : journalFormData.notes;
+                    const videoStart = journalVideoStartSeconds ?? getYouTubeTimeSeconds();
+                    const videoEnd = getYouTubeTimeSeconds();
+                    const wasExistingLog = Boolean(existingJournalEntry);
                     const entryData = {
                       date: journalFormData.date,
                       inspiration: parseInspirationValue(journalFormData.inspiration).id,
@@ -3000,6 +3111,8 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                       tag_ids: (journalFormData.tags || []).filter(t => t.id).map(t => t.id),
                       tag_names: (journalFormData.tags || []).filter(t => !t.id).map(t => (t.icon ? { tag: t.tag, icon: t.icon } : t.tag)),
                       notes: notesValue,
+                      ...(videoStart !== null ? { video_start_seconds: videoStart } : {}),
+                      ...(videoEnd !== null ? { video_end_seconds: videoEnd } : {}),
                       ...(journalFormData.book ? bookPagePayload(journalFormData.bookPage) : {})
                     };
 
@@ -3011,11 +3124,15 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     });
 
                     const savedEntry = await journalEntriesAPI.create(entryData);
+                    setExistingJournalEntry(savedEntry);
                     
                     discardJournalDraft();
                     
                     // Show success message
-                    setSuccessMessage(['Journal entry saved successfully!', describeSavedBookPage(savedEntry?.book_page)].filter(Boolean).join(' '));
+                    setSuccessMessage([
+                      wasExistingLog ? 'Added to your coloring log.' : 'Started this coloring log.',
+                      describeSavedBookPage(savedEntry?.book_page)
+                    ].filter(Boolean).join(' '));
                     
                     // Auto-dismiss success message after 3 seconds
                     setTimeout(() => {
@@ -3024,7 +3141,7 @@ const ColorAlong = ({ user, onInspirationClick }) => {
                     
                     // Reset form
                     setJournalFormData({
-                      date: new Date().toISOString().split('T')[0],
+                      date: getLocalDateString(),
                       inspiration: '',
                       videoPencilSet: '',
                       userPencilSet: '',

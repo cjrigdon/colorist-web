@@ -5,14 +5,16 @@ import 'react-datepicker/dist/react-datepicker.css';
 import DropdownMenu from './DropdownMenu';
 import BookDropdown from './BookDropdown';
 import BookPageFields, { EMPTY_BOOK_PAGE, bookPageFromEntry, bookPagePayload, formatBookPage } from './BookPageFields';
-import InspirationDropdown, { parseInspirationValue } from './InspirationDropdown';
+import InspirationDropdown, { findInspirationByValue, getInspirationKey, parseInspirationValue } from './InspirationDropdown';
 import RichTextEditor, { isRichTextEmpty, sanitizeRichTextHtml } from './RichTextEditor';
 import PrimaryButton from './PrimaryButton';
+import { Circle } from '@phosphor-icons/react';
 import TagIcon from './TagIcon';
 import TagSelect from './TagSelect';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import { shrinkImageForUpload } from '../utils/imageUtils';
-import { buildColorAlongVideoPath } from '../utils/colorAlongUtils';
+import { buildColorAlongVideoPath, formatVideoTimeRange } from '../utils/colorAlongUtils';
+import { formatEntryProjectDates, formatSessionNoteStamp, getEntryLocalDateRange, getEntryNoteDates, getLocalDateString } from '../utils/dateUtils';
 import { journalEntriesAPI, inspirationAPI, booksAPI, coloredPencilSetsAPI, colorPalettesAPI, colorCombosAPI } from '../services/api';
 
 const ENTRY_PREVIEW_WORD_LIMIT = 50;
@@ -67,8 +69,33 @@ const getEntryDateParts = (dateValue) => {
     month: new Date(year, monthIndex, day).toLocaleString(undefined, { month: 'short' }),
     day,
     year,
+    key: `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
   };
 };
+
+const transformJournalEntry = (entry) => ({
+  id: entry.id,
+  date: entry.date,
+  end_date: entry.end_date || entry.date,
+  inspiration_id: entry.inspiration_id,
+  book_id: entry.book_id,
+  book_page_id: entry.book_page_id || null,
+  book_page: entry.book_page || null,
+  pencilSet_id: entry.colored_pencil_set_id,
+  pencils: entry.pencils || [],
+  palette_id: entry.color_palette_id,
+  palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
+  combos: entry.combos || [],
+  notes: entry.notes || '',
+  session_notes: entry.session_notes || [],
+  note_dates: entry.note_dates || [],
+  image_url: entry.image_url || null,
+  tags: entry.tags || [],
+  inspiration: null,
+  book: null,
+  pencilSet: null,
+  palette: null,
+});
 
 // Filtered Combo Checkbox List Component
 const FilteredComboCheckboxList = ({ combos, selectedCombos, onSelectionChange, pencilSetIds }) => {
@@ -215,11 +242,16 @@ const buildSetDropdownOptions = (setSizes = []) => {
     }));
 };
 
-const formatDate = (date) => {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-};
+const formatDate = (date) => getLocalDateString(date);
+
+const CALENDAR_ICON_SIZE = 28;
+const CALENDAR_ICONS_ACROSS = 5;
+const CALENDAR_ICONS_HIGH = 4;
+const CALENDAR_ICON_GAP = 2;
+const CALENDAR_ICON_GRID_WIDTH = (CALENDAR_ICONS_ACROSS * CALENDAR_ICON_SIZE) + ((CALENDAR_ICONS_ACROSS - 1) * CALENDAR_ICON_GAP);
+const CALENDAR_ICON_GRID_HEIGHT = (CALENDAR_ICONS_HIGH * CALENDAR_ICON_SIZE) + ((CALENDAR_ICONS_HIGH - 1) * CALENDAR_ICON_GAP);
+const CALENDAR_DAY_MIN_WIDTH = CALENDAR_ICON_GRID_WIDTH + 12;
+const CALENDAR_DAY_MIN_HEIGHT = 28 + CALENDAR_ICON_GRID_HEIGHT + 12;
 
 const getEntryColorAlongPath = (inspiration, bookId) => {
   if (inspiration?.type === 'video' && inspiration.embed_id) {
@@ -237,16 +269,11 @@ const getEntryColorAlongPath = (inspiration, bookId) => {
 
 const ColoristLog = () => {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const [hoverDate, setHoverDate] = useState(null);
   const [calendarMonthOffset, setCalendarMonthOffset] = useState(0);
-  const [showCalendar, setShowCalendar] = useState(false);
   const [entries, setEntries] = useState([]);
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [loadingEntries, setLoadingEntries] = useState(true);
-  const [loadingDates, setLoadingDates] = useState(false);
-  const [datesWithEntries, setDatesWithEntries] = useState([]);
   const [formData, setFormData] = useState({
     date: '',
     inspiration: '',
@@ -392,27 +419,7 @@ const ColoristLog = () => {
         // Transform API response to match component format
         // Note: Related data lookup is done at render time, not during fetch
         // This prevents multiple re-renders when related data loads
-        const transformedEntries = entriesData.map(entry => ({
-          id: entry.id,
-          date: entry.date,
-          inspiration_id: entry.inspiration_id,
-          book_id: entry.book_id,
-          book_page_id: entry.book_page_id || null,
-          book_page: entry.book_page || null,
-          pencilSet_id: entry.colored_pencil_set_id,
-          pencils: entry.pencils || [],
-          palette_id: entry.color_palette_id, // Keep for backward compatibility
-          palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
-          combos: entry.combos || [],
-          notes: entry.notes || '',
-          image_url: entry.image_url || null,
-          tags: entry.tags || [],
-          // Related objects will be looked up at render time
-          inspiration: null,
-          book: null,
-          pencilSet: null,
-          palette: null,
-        }));
+        const transformedEntries = entriesData.map(transformJournalEntry);
         
         setEntries(transformedEntries);
       } catch (error) {
@@ -424,24 +431,6 @@ const ColoristLog = () => {
     };
 
     fetchEntries();
-  }, []);
-
-  // Get all dates with entries (for calendar indicators)
-  useEffect(() => {
-    const fetchDatesWithEntries = async () => {
-      try {
-        setLoadingDates(true);
-        const response = await journalEntriesAPI.getDatesWithEntries();
-        setDatesWithEntries(Array.isArray(response) ? response : []);
-      } catch (error) {
-        console.error('Error fetching dates with entries:', error);
-        setDatesWithEntries([]);
-      } finally {
-        setLoadingDates(false);
-      }
-    };
-
-    fetchDatesWithEntries();
   }, []);
 
   // Fetch palettes and combos when color selector is shown
@@ -481,32 +470,6 @@ const ColoristLog = () => {
     }
   }, [showColorSelector]);
 
-  const formatRangeLabel = ({ start, end }) => {
-    if (!start) return 'Most Recent Entries';
-    const full = { month: 'short', day: 'numeric', year: 'numeric' };
-    if (!end || isSameDate(start, end)) {
-      return start.toLocaleDateString('en-US', { weekday: 'long', ...full });
-    }
-    const startOptions = start.getFullYear() === end.getFullYear() ? { month: 'short', day: 'numeric' } : full;
-    return `${start.toLocaleDateString('en-US', startOptions)} – ${end.toLocaleDateString('en-US', full)}`;
-  };
-
-  const handleRangeDayClick = (date) => {
-    const { start, end } = dateRange;
-    if (!start || end) {
-      setDateRange({ start: date, end: null });
-      return;
-    }
-    setDateRange(date < start ? { start: date, end: start } : { start, end: date });
-    setHoverDate(null);
-    setShowCalendar(false);
-  };
-
-  const clearDateRange = () => {
-    setDateRange({ start: null, end: null });
-    setHoverDate(null);
-  };
-
   const handleCreateEntry = () => {
     setEditingEntry(null);
     setFormData({
@@ -533,15 +496,19 @@ const ColoristLog = () => {
 
   const handleEditEntry = async (entry) => {
     setEditingEntry(entry);
+    const matchedInspiration = findInspirationByValue(inspirations, entry.inspiration_id)
+      || inspirations.find((item) => String(item.id) === String(entry.inspiration_id));
     setFormData({
-      date: entry.date,
-      inspiration: entry.inspiration_id ? entry.inspiration_id.toString() : '',
+      date: formatDate(new Date()),
+      inspiration: matchedInspiration
+        ? getInspirationKey(matchedInspiration)
+        : (entry.inspiration_id ? String(entry.inspiration_id) : ''),
       book: entry.book_id ? entry.book_id.toString() : '',
       bookPage: bookPageFromEntry(entry),
       palettes: entry.palettes ? entry.palettes.map(id => id.toString()) : (entry.palette_id ? [entry.palette_id.toString()] : []),
       combos: entry.combos ? entry.combos.map(id => id.toString()) : [],
       tags: (entry.tags || []).map(t => ({ id: t.id, tag: t.tag, icon: t.icon || null })),
-      notes: entry.notes || ''
+      notes: ''
     });
     setEntryImage({ file: null, previewUrl: entry.image_url || null, removed: false });
     setShowPaletteList(false);
@@ -638,34 +605,9 @@ const ColoristLog = () => {
         entriesData = response.data;
       }
       
-      // Transform API response
-      // Related objects will be looked up at render time
-      const transformedEntries = entriesData.map(entry => ({
-        id: entry.id,
-        date: entry.date,
-        inspiration_id: entry.inspiration_id,
-        book_id: entry.book_id,
-        book_page_id: entry.book_page_id || null,
-        book_page: entry.book_page || null,
-        pencilSet_id: entry.colored_pencil_set_id,
-        pencils: entry.pencils || [],
-        palette_id: entry.color_palette_id, // Keep for backward compatibility
-        palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
-        combos: entry.combos || [],
-        notes: entry.notes || '',
-        image_url: entry.image_url || null,
-          tags: entry.tags || [],
-        inspiration: null,
-        book: null,
-        pencilSet: null,
-        palette: null,
-      }));
+      const transformedEntries = entriesData.map(transformJournalEntry);
       
       setEntries(transformedEntries);
-      
-      // Refresh dates with entries
-      const datesResponse = await journalEntriesAPI.getDatesWithEntries();
-      setDatesWithEntries(Array.isArray(datesResponse) ? datesResponse : []);
 
       setShowEntryForm(false);
       setEditingEntry(null);
@@ -680,7 +622,7 @@ const ColoristLog = () => {
   };
 
   const handleDeleteEntry = async (entryId) => {
-    if (!window.confirm('Are you sure you want to delete this entry?')) {
+    if (!window.confirm('Are you sure you want to delete this coloring log?')) {
       return;
     }
 
@@ -696,33 +638,9 @@ const ColoristLog = () => {
         entriesData = response.data;
       }
       
-      // Related objects will be looked up at render time
-      const transformedEntries = entriesData.map(entry => ({
-        id: entry.id,
-        date: entry.date,
-        inspiration_id: entry.inspiration_id,
-        book_id: entry.book_id,
-        book_page_id: entry.book_page_id || null,
-        book_page: entry.book_page || null,
-        pencilSet_id: entry.colored_pencil_set_id,
-        pencils: entry.pencils || [],
-        palette_id: entry.color_palette_id, // Keep for backward compatibility
-        palettes: entry.palettes || (entry.color_palette_id ? [entry.color_palette_id] : []),
-        combos: entry.combos || [],
-        notes: entry.notes || '',
-        image_url: entry.image_url || null,
-          tags: entry.tags || [],
-        inspiration: null,
-        book: null,
-        pencilSet: null,
-        palette: null,
-      }));
+      const transformedEntries = entriesData.map(transformJournalEntry);
       
       setEntries(transformedEntries);
-      
-      // Refresh dates with entries
-      const datesResponse = await journalEntriesAPI.getDatesWithEntries();
-      setDatesWithEntries(Array.isArray(datesResponse) ? datesResponse : []);
     } catch (error) {
       console.error('Error deleting entry:', error);
       alert('Failed to delete entry. Please try again.');
@@ -767,11 +685,6 @@ const ColoristLog = () => {
   const isToday = (date) => {
     const today = new Date();
     return isSameDate(date, today);
-  };
-
-  const hasEntry = (date) => {
-    const dateStr = formatDate(date);
-    return datesWithEntries.includes(dateStr);
   };
 
   // Filter combos to only show those that use pencils from the selected pencil sets
@@ -823,18 +736,6 @@ const ColoristLog = () => {
     return options;
   }, [entries, books]);
 
-  const entryTagIconByDate = useMemo(() => {
-    const iconsByDate = new Map();
-    entries.forEach(entry => {
-      const dateKey = String(entry.date || '').slice(0, 10);
-      const icon = (entry.tags || []).find(tag => tag.icon)?.icon;
-      if (dateKey && icon && !iconsByDate.has(dateKey)) {
-        iconsByDate.set(dateKey, icon);
-      }
-    });
-    return iconsByDate;
-  }, [entries]);
-
   const tagFilterOptions = useMemo(() => {
     const tagsById = new Map();
     entries.forEach(entry => (entry.tags || []).forEach(tag => tagsById.set(tag.id, tag)));
@@ -844,163 +745,41 @@ const ColoristLog = () => {
   }, [entries]);
 
   const filteredEntries = useMemo(() => {
-    const rangeStart = dateRange.start ? formatDate(dateRange.start) : null;
-    const rangeEnd = dateRange.start ? formatDate(dateRange.end || dateRange.start) : null;
     return entries.filter(entry => {
-      const entryDate = String(entry.date || '').slice(0, 10);
-      return (!rangeStart || (entryDate >= rangeStart && entryDate <= rangeEnd)) &&
-        (!videoFilter || String(entry.inspiration_id) === videoFilter) &&
+      return (!videoFilter || String(entry.inspiration_id) === videoFilter) &&
         (!bookFilter || String(entry.book_id) === bookFilter) &&
         (tagFilter.length === 0 || (entry.tags || []).some(tag => tagFilter.includes(String(tag.id))));
     });
-  }, [entries, dateRange, videoFilter, bookFilter, tagFilter]);
+  }, [entries, videoFilter, bookFilter, tagFilter]);
 
-  const calendarMonths = useMemo(() => {
+  const calendarLogsByDate = useMemo(() => {
+    const logsByDate = new Map();
+    filteredEntries.forEach(entry => {
+      const icon = (entry.tags || []).find(tag => tag.icon)?.icon || null;
+      getEntryNoteDates(entry).forEach((dateKey) => {
+        if (!dateKey) return;
+        const dayLogs = logsByDate.get(dateKey) || [];
+        if (!dayLogs.some((log) => log.entry.id === entry.id)) {
+          dayLogs.push({ entry, icon });
+          logsByDate.set(dateKey, dayLogs);
+        }
+      });
+    });
+    return logsByDate;
+  }, [filteredEntries]);
+
+  const calendarMonth = useMemo(() => {
     const today = new Date();
-    return [-1, 0].map(delta => new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset + delta, 1));
+    return new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset, 1);
   }, [calendarMonthOffset]);
-
-  const isInPreviewRange = (date) => {
-    const { start, end } = dateRange;
-    if (!start) return false;
-    const rangeEnd = end || hoverDate;
-    if (!rangeEnd) return false;
-    const [low, high] = start <= rangeEnd ? [start, rangeEnd] : [rangeEnd, start];
-    return date >= low && date <= high;
-  };
 
   const hasActiveEntryFilters = Boolean(videoFilter || bookFilter || tagFilter.length > 0);
 
   return (
     <div className="space-y-6">
-      {showCalendar && (
-      <div className="px-4">
-          <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                type="button"
-                onClick={() => setCalendarMonthOffset(offset => offset - 1)}
-                className="p-1 rounded hover:bg-slate-100"
-                aria-label="Previous month"
-              >
-                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <p className="text-xs text-slate-500">
-                {dateRange.start && !dateRange.end ? 'Now choose an end date' : 'Choose a start date'}
-              </p>
-              <button
-                type="button"
-                onClick={() => setCalendarMonthOffset(offset => offset + 1)}
-                disabled={calendarMonthOffset >= 0}
-                className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default"
-                aria-label="Next month"
-              >
-                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6" onMouseLeave={() => setHoverDate(null)}>
-              {calendarMonths.map(monthDate => (
-                <div key={formatDate(monthDate)}>
-                  <h4 className="text-sm font-semibold text-slate-800 font-venti text-center mb-2">
-                    {monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </h4>
-                  <div className="grid grid-cols-7">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="text-xs font-medium text-slate-600 text-center py-1">
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 border-l border-t border-slate-300 bg-white">
-                    {getCalendarDays(monthDate).map((date, index) => {
-                      if (!date) {
-                        return <div key={index} className="aspect-square border-r border-b border-slate-300 bg-slate-100" />;
-                      }
-                      const isEndpoint = isSameDate(date, dateRange.start) || isSameDate(date, dateRange.end);
-                      const inRange = !isEndpoint && isInPreviewRange(date);
-                      const today = isToday(date);
-                      return (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => handleRangeDayClick(date)}
-                          onMouseEnter={() => setHoverDate(date)}
-                          className={`relative aspect-square border-r border-b border-slate-300 p-1 text-left align-top transition-colors ${
-                            isEndpoint || inRange ? '' : 'hover:bg-slate-50'
-                          }`}
-                          style={isEndpoint ? { backgroundColor: '#ea3663' } : inRange ? { backgroundColor: '#fde3ea' } : undefined}
-                        >
-                          <span
-                            className={`absolute top-1 left-1.5 text-xs leading-none ${
-                              isEndpoint ? 'text-white font-semibold' : today ? 'font-bold' : 'text-slate-700'
-                            }`}
-                            style={today && !isEndpoint ? { color: '#ea3663' } : undefined}
-                          >
-                            {date.getDate()}
-                          </span>
-                          {hasEntry(date) && (
-                            entryTagIconByDate.has(formatDate(date)) ? (
-                              <span className="absolute bottom-1 right-1">
-                                <TagIcon
-                                  icon={entryTagIconByDate.get(formatDate(date))}
-                                  size={18}
-                                  color={isEndpoint ? '#ffffff' : '#ea3663'}
-                                />
-                              </span>
-                            ) : (
-                              <span
-                                className="absolute bottom-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: isEndpoint ? '#ffffff' : '#ea3663' }}
-                              ></span>
-                            )
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-      </div>
-      )}
-
       {/* Entries Section */}
       <div className="bg-white p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-slate-800 font-venti">{formatRangeLabel(dateRange)}</h3>
-            <button
-              type="button"
-              onClick={() => setShowCalendar(open => !open)}
-              className={`p-2 rounded-lg transition-colors ${showCalendar ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
-              title={showCalendar ? 'Hide calendar' : 'Filter by date range'}
-              aria-label={showCalendar ? 'Hide calendar' : 'Filter by date range'}
-              aria-pressed={showCalendar}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </button>
-            {dateRange.start && (
-              <button
-                type="button"
-                onClick={clearDateRange}
-                className="p-2 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-red-600 transition-colors"
-                title="Remove date filter"
-                aria-label="Remove date filter"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
             {(entries.length > 0 || hasActiveEntryFilters) && (
               <>
                 <DropdownMenu
@@ -1050,6 +829,112 @@ const ColoristLog = () => {
               </svg>
               <span>New Entry</span>
             </button>
+        </div>
+        <div className="w-full mb-6 overflow-x-auto">
+          <div style={{ minWidth: 7 * CALENDAR_DAY_MIN_WIDTH }}>
+          <div className="flex items-center justify-between mb-3">
+            <button
+              type="button"
+              onClick={() => setCalendarMonthOffset(offset => offset - 1)}
+              className="p-1 rounded hover:bg-slate-100"
+              aria-label="Previous month"
+            >
+              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h4 className="text-base font-semibold text-slate-800 font-venti text-center">
+              {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h4>
+            <button
+              type="button"
+              onClick={() => setCalendarMonthOffset(offset => offset + 1)}
+              disabled={calendarMonthOffset >= 0}
+              className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default"
+              aria-label="Next month"
+            >
+              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <div className="grid grid-cols-7">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="text-sm font-medium text-slate-600 text-center py-1.5">
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 border-l border-t border-slate-300 bg-white">
+            {getCalendarDays(calendarMonth).map((date, index) => {
+              if (!date) {
+                return (
+                  <div
+                    key={index}
+                    className="border-r border-b border-slate-300 bg-slate-50"
+                    style={{ minWidth: CALENDAR_DAY_MIN_WIDTH, minHeight: CALENDAR_DAY_MIN_HEIGHT }}
+                  />
+                );
+              }
+              const today = isToday(date);
+              const dateKey = formatDate(date);
+              const dayLogs = calendarLogsByDate.get(dateKey) || [];
+              const singleLog = dayLogs.length === 1 ? dayLogs[0] : null;
+              const DayCell = singleLog ? 'button' : 'div';
+              return (
+                <DayCell
+                  key={index}
+                  type={singleLog ? 'button' : undefined}
+                  onClick={singleLog ? () => handleEditEntry(singleLog.entry) : undefined}
+                  className={`flex flex-col items-stretch p-1.5 bg-white text-left border-r border-b border-slate-300 ${singleLog ? 'hover:bg-slate-50 cursor-pointer' : ''}`}
+                  style={{ minWidth: CALENDAR_DAY_MIN_WIDTH, minHeight: CALENDAR_DAY_MIN_HEIGHT }}
+                  aria-label={singleLog ? `Open coloring log for ${dateKey}` : undefined}
+                >
+                  <span
+                    className={`text-sm leading-none ${today ? 'font-bold' : 'text-slate-700'}`}
+                    style={today ? { color: '#ea3663' } : undefined}
+                  >
+                    {date.getDate()}
+                  </span>
+                  {dayLogs.length > 0 && (
+                    <span
+                      className="mt-auto flex flex-wrap justify-end content-end self-end"
+                      style={{ width: CALENDAR_ICON_GRID_WIDTH, gap: CALENDAR_ICON_GAP }}
+                    >
+                      {dayLogs.map((dayLog) => {
+                        const icon = (
+                          <span
+                            className="inline-flex items-center justify-center flex-shrink-0"
+                            style={{ width: CALENDAR_ICON_SIZE, height: CALENDAR_ICON_SIZE }}
+                          >
+                            {dayLog.icon ? (
+                              <TagIcon icon={dayLog.icon} size={CALENDAR_ICON_SIZE} color="#ea3663" />
+                            ) : (
+                              <Circle size={CALENDAR_ICON_SIZE} weight="duotone" color="#ea3663" aria-hidden="true" />
+                            )}
+                          </span>
+                        );
+                        if (singleLog) {
+                          return <span key={dayLog.entry.id}>{icon}</span>;
+                        }
+                        return (
+                          <button
+                            key={dayLog.entry.id}
+                            type="button"
+                            onClick={() => handleEditEntry(dayLog.entry)}
+                            className="p-0 rounded hover:bg-slate-100"
+                            aria-label={`Open coloring log for ${dateKey}`}
+                          >
+                            {icon}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  )}
+                </DayCell>
+              );
+            })}
+          </div>
           </div>
         </div>
 
@@ -1060,8 +945,8 @@ const ColoristLog = () => {
         ) : entries.length === 0 ? (
           <div className="bg-slate-50 rounded-xl shadow-sm border border-slate-200 p-12 text-center">
             <div className="text-6xl mb-4">📔</div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Entries Yet</h3>
-            <p className="text-slate-600 mb-4">Create your first journal entry</p>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 font-venti">No Logs Yet</h3>
+            <p className="text-slate-600 mb-4">Start a coloring log for a video or project</p>
             <button
               onClick={handleCreateEntry}
               className="px-6 py-3 text-white rounded-lg font-medium transition-colors"
@@ -1085,11 +970,20 @@ const ColoristLog = () => {
               const pencilSet = entry.pencilSet_id ? pencilSets.find(p => p.id === entry.pencilSet_id) : null;
               // Support both old single palette_id and new palettes array
               const entryPalettes = entry.palettes || (entry.palette_id ? [entry.palette_id] : []);
-              const dateParts = getEntryDateParts(entry.date);
-              const notesAreHtml = Boolean(entry.notes) && /<\/?[a-z][\s\S]*>/i.test(entry.notes);
-              const truncatedNotes = entry.notes
-                ? truncateWords(notesAreHtml ? htmlToPlainText(entry.notes) : entry.notes, ENTRY_PREVIEW_WORD_LIMIT)
-                : null;
+              const localDateRange = getEntryLocalDateRange(entry);
+              const startParts = getEntryDateParts(localDateRange.start);
+              const endParts = getEntryDateParts(localDateRange.end);
+              const isDateRange = Boolean(startParts && endParts && startParts.key !== endParts.key);
+              const isSameMonthRange = Boolean(
+                isDateRange
+                && startParts.month === endParts.month
+                && startParts.year === endParts.year
+              );
+              const sessionNotes = (entry.session_notes && entry.session_notes.length > 0)
+                ? entry.session_notes
+                : (entry.notes ? [{ id: `legacy-${entry.id}`, date: entry.date, notes: entry.notes }] : []);
+              const previewNotes = sessionNotes.slice(-2);
+              const hiddenNoteCount = Math.max(sessionNotes.length - previewNotes.length, 0);
               
               return (
               <div
@@ -1099,20 +993,32 @@ const ColoristLog = () => {
                 onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
               >
                 <div className="flex items-start justify-between gap-4">
-                  {dateParts && (
+                  {startParts && (
                     <div
                       className="flex-shrink-0 w-16 rounded-lg overflow-hidden border border-slate-200 bg-white text-center shadow-sm"
-                      aria-label={`${dateParts.month} ${dateParts.day}, ${dateParts.year}`}
+                      aria-label={isDateRange
+                        ? `${startParts.month} ${startParts.day}, ${startParts.year} to ${endParts.month} ${endParts.day}, ${endParts.year}`
+                        : `${startParts.month} ${startParts.day}, ${startParts.year}`}
                     >
-                      <div className="py-1 text-xs font-semibold uppercase tracking-wide text-white" style={{ backgroundColor: '#ea3663' }}>
-                        {dateParts.month}
+                      <div className={`py-1 font-semibold uppercase tracking-wide text-white ${isDateRange && !isSameMonthRange ? 'text-[10px]' : 'text-xs'}`} style={{ backgroundColor: '#ea3663' }}>
+                        {isDateRange && !isSameMonthRange
+                          ? `${startParts.month}–${endParts.month}`
+                          : startParts.month}
                       </div>
-                      <div className="pt-1 pb-1 text-2xl font-bold leading-none text-slate-800">
-                        {dateParts.day}
+                      <div className={`flex min-h-8 items-center justify-center font-bold leading-none text-slate-800 ${isSameMonthRange ? 'text-sm px-0.5' : 'text-2xl'}`}>
+                        {isSameMonthRange ? `${startParts.day}–${endParts.day}` : startParts.day}
                       </div>
-                      {dateParts.year < new Date().getFullYear() && (
-                        <div className="pb-1 text-[11px] leading-none text-slate-500">{dateParts.year}</div>
-                      )}
+                      {isDateRange && !isSameMonthRange ? (
+                        <div className="px-1 pb-1 text-[11px] leading-tight text-slate-500">
+                          {startParts.day}–{endParts.day}
+                        </div>
+                      ) : (startParts.year < new Date().getFullYear() || (endParts && endParts.year < new Date().getFullYear())) ? (
+                        <div className="pb-1 text-[11px] leading-none text-slate-500">
+                          {isDateRange && startParts.year !== endParts.year
+                            ? `${startParts.year}–${endParts.year}`
+                            : startParts.year}
+                        </div>
+                      ) : null}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -1185,17 +1091,42 @@ const ColoristLog = () => {
                         />
                       </a>
                     )}
-                    {entry.notes && (
-                      truncatedNotes ? (
-                        <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{truncatedNotes}</p>
-                      ) : notesAreHtml ? (
-                        <div
-                          className="text-[12px] text-slate-700 whitespace-pre-wrap [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_li]:my-1"
-                          dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(entry.notes) }}
-                        />
-                      ) : (
-                        <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{entry.notes}</p>
-                      )
+                    {previewNotes.length > 0 && (
+                      <div className="space-y-2">
+                        {hiddenNoteCount > 0 && (
+                          <p className="text-[11px] text-slate-500">
+                            +{hiddenNoteCount} earlier session{hiddenNoteCount === 1 ? '' : 's'}
+                          </p>
+                        )}
+                        {previewNotes.map((note) => {
+                          const videoRange = formatVideoTimeRange(note.video_start_seconds, note.video_end_seconds);
+                          const notesAreHtml = Boolean(note.notes) && /<\/?[a-z][\s\S]*>/i.test(note.notes);
+                          const truncatedNotes = note.notes
+                            ? truncateWords(notesAreHtml ? htmlToPlainText(note.notes) : note.notes, ENTRY_PREVIEW_WORD_LIMIT)
+                            : null;
+                          return (
+                            <div key={note.id || `${entry.id}-${note.date}`}>
+                              <p className="text-[11px] font-medium text-slate-500">
+                                {formatSessionNoteStamp(note)}{videoRange ? ` · ${videoRange}` : ''}
+                              </p>
+                              {note.notes ? (
+                                truncatedNotes ? (
+                                  <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{truncatedNotes}</p>
+                                ) : notesAreHtml ? (
+                                  <div
+                                    className="text-[12px] text-slate-700 whitespace-pre-wrap [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-2 [&_li]:my-1"
+                                    dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(note.notes) }}
+                                  />
+                                ) : (
+                                  <p className="text-[12px] text-slate-700 whitespace-pre-wrap">{note.notes}</p>
+                                )
+                              ) : (
+                                <p className="text-[12px] text-slate-400 italic">No written notes</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1244,7 +1175,7 @@ const ColoristLog = () => {
             <div className="p-6 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-slate-800 font-venti">
-                  {editingEntry ? 'Edit Entry' : 'New Entry'}
+                  {editingEntry ? 'Edit Coloring Log' : 'New Coloring Log'}
                 </h3>
                 <button
                   onClick={() => {
@@ -1267,7 +1198,14 @@ const ColoristLog = () => {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      {editingEntry ? 'Session Date' : 'Date'}
+                    </label>
+                    {editingEntry && (
+                      <p className="text-xs text-slate-500 mb-2">
+                        Project dates: {formatEntryProjectDates(editingEntry)}
+                      </p>
+                    )}
                     <input
                       type="date"
                       value={formData.date}
@@ -1284,6 +1222,7 @@ const ColoristLog = () => {
                         value={formData.inspiration}
                         onChange={(value) => setFormData({ ...formData, inspiration: value })}
                         placeholder="Select inspiration..."
+                        items={inspirations}
                       />
                     </div>
 
@@ -1463,7 +1402,34 @@ const ColoristLog = () => {
 
               {!loadingFormData && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                  {editingEntry?.session_notes?.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      <p className="text-sm font-medium text-slate-700">Earlier notes</p>
+                      <div className="max-h-40 overflow-y-auto space-y-2 border border-slate-200 rounded-lg p-3 bg-white">
+                        {editingEntry.session_notes.map((note) => {
+                          const videoRange = formatVideoTimeRange(note.video_start_seconds, note.video_end_seconds);
+                          return (
+                            <div key={note.id} className="text-xs text-slate-600">
+                              <div className="font-medium text-slate-700">
+                                {formatSessionNoteStamp(note)}{videoRange ? ` · ${videoRange}` : ''}
+                              </div>
+                              {note.notes ? (
+                                <div
+                                  className="text-slate-600 [&_p]:m-0"
+                                  dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(note.notes) }}
+                                />
+                              ) : (
+                                <p className="text-slate-400 italic">No written notes</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    {editingEntry ? 'Add a note' : 'Notes'}
+                  </label>
                   <RichTextEditor
                     value={formData.notes}
                     onChange={(value) => setFormData({ ...formData, notes: value })}
@@ -1472,7 +1438,29 @@ const ColoristLog = () => {
                 </div>
               )}
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-4">
+                {editingEntry && formData.inspiration && (
+                  <PrimaryButton
+                    className="mr-auto"
+                    onClick={() => {
+                      const inspiration = findInspirationByValue(inspirations, formData.inspiration)
+                        || findInspirationByValue(inspirations, editingEntry.inspiration_id)
+                        || inspirations.find((item) => (
+                          String(item.id) === String(parseInspirationValue(formData.inspiration).id || editingEntry.inspiration_id)
+                        ));
+                      setShowEntryForm(false);
+                      setEditingEntry(null);
+                      navigate(getEntryColorAlongPath(inspiration, formData.book || editingEntry.book_id));
+                    }}
+                    icon={
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    }
+                  >
+                    Continue
+                  </PrimaryButton>
+                )}
                 <button
                   onClick={() => {
                     setShowEntryForm(false);
